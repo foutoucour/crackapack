@@ -17,6 +17,32 @@ import (
 	"github.com/foutoucour/crackapack/internal/domain"
 )
 
+// nullPruneAndEncode prunes null-valued mapping entries from the YAML node
+// tree and re-encodes to bytes. It is called by Load before decoding so that
+// a key whose value is null is treated as absent and the pre-populated default
+// applies. The returned bytes are used both for decoding and for rebuilding the
+// line→key map used in error enrichment.
+//
+// If the document is empty or null, nil is returned and the caller should skip
+// decoding so that defaults are preserved.
+func nullPruneAndEncode(data []byte) ([]byte, error) {
+	var root yaml.Node
+	if err := yaml.Unmarshal(data, &root); err != nil {
+		// Syntax error: return nil so the caller uses the original bytes and
+		// the KnownFields decoder produces the real error message.
+		return nil, nil //nolint:nilerr
+	}
+	if isNullDoc(&root) {
+		return nil, nil
+	}
+	pruneNulls(&root)
+	pruned, err := yaml.Marshal(&root)
+	if err != nil {
+		return nil, fmt.Errorf("encode pruned config: %w", err)
+	}
+	return pruned, nil
+}
+
 // Comparison is the operator used when evaluating a [CalibrationTarget].
 // The three values cover all documented calibration criteria:
 // lower-bound, upper-bound, and range checks.
@@ -186,12 +212,27 @@ func defaults() Config {
 // validates the result. It returns an error naming the offending key for
 // unknown keys, type mismatches, and invalid values.
 //
+// A mapping key whose YAML value is null is treated as absent: the
+// pre-populated default applies. This covers every key including nested ones
+// (energy and its sub-keys, cost_table, sweep_rates, targets, initial_stock
+// and each rarity). A null item inside a sequence is left in place and the
+// resulting zero-value struct is rejected by validate with a path-named error.
+//
 // The caller is responsible for opening the file; Load accepts an [io.Reader]
 // so tests can use [strings.NewReader] without touching the filesystem.
 func Load(r io.Reader) (Config, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return Config{}, fmt.Errorf("load config: read: %w", err)
+	}
+
+	// Prune null-valued mapping entries so they are treated as absent.
+	// nullPruneAndEncode returns nil when the document is empty/null or has a
+	// syntax error; in both cases we fall through to the original bytes.
+	if pruned, pruneErr := nullPruneAndEncode(data); pruneErr != nil {
+		return Config{}, fmt.Errorf("load config: %w", pruneErr)
+	} else if pruned != nil {
+		data = pruned
 	}
 
 	lineKey := buildLineKeyMap(data)
@@ -238,6 +279,12 @@ func validate(cfg Config) error {
 	if cfg.SessionsPerDay <= 0 {
 		return fmt.Errorf("config: sessions_per_day must be > 0, got %d", cfg.SessionsPerDay)
 	}
+	if cfg.SessionsPerDay > domain.TicksPerDay {
+		return fmt.Errorf(
+			"config: sessions_per_day (%d) must be <= %d (domain.TicksPerDay); above that value multiple sessions land on the same tick",
+			cfg.SessionsPerDay, domain.TicksPerDay,
+		)
+	}
 	if cfg.RunDays <= 0 {
 		return fmt.Errorf("config: run_days must be > 0, got %d", cfg.RunDays)
 	}
@@ -250,79 +297,12 @@ func validate(cfg Config) error {
 		return err
 	}
 	for i, t := range cfg.Targets {
-		if err := validateTarget(i, t); err != nil {
+		if err := validateTarget(i, t, cfg.RunDays); err != nil {
 			return err
 		}
 	}
 	if err := ValidateSweepRates(cfg.SweepRates); err != nil {
 		return err
-	}
-	return nil
-}
-
-// validateEnergy checks the energy block fields and the cost table.
-func validateEnergy(e EnergyConfig) error {
-	if e.RechargePerTick <= 0 {
-		return fmt.Errorf("config: energy.recharge_per_tick must be > 0, got %d", e.RechargePerTick)
-	}
-	if e.ReserveCap <= 0 {
-		return fmt.Errorf("config: energy.reserve_cap must be > 0, got %d", e.ReserveCap)
-	}
-	if e.SavingsIntervalTicks <= 0 {
-		return fmt.Errorf("config: energy.savings_interval_ticks must be > 0, got %d", e.SavingsIntervalTicks)
-	}
-	if e.SavingsCap < 0 {
-		return fmt.Errorf("config: energy.savings_cap must be >= 0, got %d", e.SavingsCap)
-	}
-	if len(e.CostTable) == 0 {
-		return fmt.Errorf("config: energy.cost_table must not be empty")
-	}
-	for i, entry := range e.CostTable {
-		if entry.Threshold <= 0 {
-			return fmt.Errorf("config: energy.cost_table[%d].threshold must be > 0, got %d", i, entry.Threshold)
-		}
-		if entry.Cost <= 0 {
-			return fmt.Errorf("config: energy.cost_table[%d].cost must be > 0, got %d", i, entry.Cost)
-		}
-	}
-	for i := 1; i < len(e.CostTable); i++ {
-		if e.CostTable[i].Threshold <= e.CostTable[i-1].Threshold {
-			return fmt.Errorf(
-				"config: energy.cost_table: entry %d threshold (%d) must be > entry %d threshold (%d); table must be sorted ascending",
-				i, e.CostTable[i].Threshold, i-1, e.CostTable[i-1].Threshold,
-			)
-		}
-	}
-	return nil
-}
-
-// validateTarget checks that a CalibrationTarget has a non-empty metric,
-// a recognised comparison, and the bounds required by that comparison.
-func validateTarget(idx int, t CalibrationTarget) error {
-	if t.Metric == "" {
-		return fmt.Errorf("config: targets[%d].metric must not be empty", idx)
-	}
-	switch t.Comparison {
-	case ComparisonAtLeast:
-		if t.Min == nil {
-			return fmt.Errorf("config: targets[%d].min is required for comparison %q", idx, t.Comparison)
-		}
-	case ComparisonAtMost:
-		if t.Max == nil {
-			return fmt.Errorf("config: targets[%d].max is required for comparison %q", idx, t.Comparison)
-		}
-	case ComparisonBetween:
-		if t.Min == nil {
-			return fmt.Errorf("config: targets[%d].min is required for comparison %q", idx, t.Comparison)
-		}
-		if t.Max == nil {
-			return fmt.Errorf("config: targets[%d].max is required for comparison %q", idx, t.Comparison)
-		}
-		if *t.Min > *t.Max {
-			return fmt.Errorf("config: targets[%d]: min (%g) must be <= max (%g)", idx, *t.Min, *t.Max)
-		}
-	default:
-		return fmt.Errorf("config: targets[%d].comparison: unknown value %q; must be one of at_least, at_most, between", idx, t.Comparison)
 	}
 	return nil
 }
