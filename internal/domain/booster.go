@@ -123,6 +123,11 @@ func pickOption(opts []BoosterOption, rng *rand.Rand) (BoosterOption, error) {
 //   - sheet is empty
 //   - n exceeds the number of distinct cards in sheet (without-replacement constraint)
 func drawFromSheet(sheet Sheet, n int, cards map[CardID]Card, rng *rand.Rand) ([]CardKey, error) {
+	if n <= 0 {
+		// n=0 draws nothing; n<0 would panic on make([]CardKey, 0, n).
+		// Both are caller bugs (caught at load time) but guarded here defensively.
+		return nil, fmt.Errorf("sheet %q: n must be strictly positive, got %d", sheet.Name, n)
+	}
 	if len(sheet.Cards) == 0 {
 		return nil, fmt.Errorf("sheet %q: empty", sheet.Name)
 	}

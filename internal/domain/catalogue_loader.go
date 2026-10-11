@@ -250,6 +250,41 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 
 	opts := make([]BoosterOption, len(draftDef.Boosters))
 	for i, bo := range draftDef.Boosters {
+		if bo.Weight <= 0 {
+			return SetCatalogue{}, &CatalogueError{
+				File:  name,
+				Field: fmt.Sprintf("data.booster.draft.boosters[%d].weight", i),
+				Err:   fmt.Errorf("weight must be strictly positive, got %d", bo.Weight),
+			}
+		}
+
+		// Sort content keys so the first error in alphabetical sheet-name order
+		// is always reported; map iteration is random and would make errors
+		// nondeterministic.
+		contentKeys := make([]string, 0, len(bo.Contents))
+		for k := range bo.Contents {
+			contentKeys = append(contentKeys, k)
+		}
+		sort.Strings(contentKeys)
+
+		for _, sheetName := range contentKeys {
+			count := bo.Contents[sheetName]
+			if count <= 0 {
+				return SetCatalogue{}, &CatalogueError{
+					File:  name,
+					Field: fmt.Sprintf("data.booster.draft.boosters[%d].contents.%s", i, sheetName),
+					Err:   fmt.Errorf("count must be strictly positive, got %d", count),
+				}
+			}
+			if _, ok := sheets[sheetName]; !ok {
+				return SetCatalogue{}, &CatalogueError{
+					File:  name,
+					Field: fmt.Sprintf("data.booster.draft.boosters[%d].contents.%s", i, sheetName),
+					Err:   fmt.Errorf("references unknown sheet %q", sheetName),
+				}
+			}
+		}
+
 		contents := make(map[string]int, len(bo.Contents))
 		for k, v := range bo.Contents {
 			contents[k] = v
