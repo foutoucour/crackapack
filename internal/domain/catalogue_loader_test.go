@@ -437,3 +437,154 @@ func TestLoadSetCatalogue_sheetOrderIsDeterministic(t *testing.T) {
 		}
 	}
 }
+
+// validCardPoolJSON returns a minimal MTGJSON-shaped set file without a booster
+// section, suitable for LoadCardPool. Contains one common card.
+func validCardPoolJSON() string {
+	return `{
+  "data": {
+    "code": "TSB",
+    "name": "Time Spiral Timeshifted",
+    "cards": [
+      {
+        "uuid": "tsb-uuid-001",
+        "name": "Timeshifted Card",
+        "number": "1",
+        "rarity": "special",
+        "finishes": ["nonfoil", "foil"],
+        "supertypes": [],
+        "identifiers": {}
+      }
+    ]
+  }
+}`
+}
+
+func TestLoadCardPool_noBoosters(t *testing.T) {
+	t.Parallel()
+
+	fsys := fstest.MapFS{
+		"pool.json": &fstest.MapFile{Data: []byte(validCardPoolJSON())},
+	}
+	cat, err := domain.LoadCardPool(fsys, "pool.json")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cat.Code != "TSB" {
+		t.Errorf("Code = %q, want TSB", cat.Code)
+	}
+	if cat.Name != "Time Spiral Timeshifted" {
+		t.Errorf("Name = %q, want Time Spiral Timeshifted", cat.Name)
+	}
+	if len(cat.Cards) != 1 {
+		t.Fatalf("len(Cards) = %d, want 1", len(cat.Cards))
+	}
+	if len(cat.Sheets) != 0 {
+		t.Errorf("Sheets: got %d entries, want 0 (card pool has no booster)", len(cat.Sheets))
+	}
+	if len(cat.BoosterOptions) != 0 {
+		t.Errorf("BoosterOptions: got %d entries, want 0 (card pool has no booster)", len(cat.BoosterOptions))
+	}
+}
+
+func TestLoadCardPool_withBoosterSectionIgnored(t *testing.T) {
+	t.Parallel()
+
+	// A file that has a booster section is valid for LoadCardPool; the booster
+	// section is simply ignored (not validated, not returned).
+	fsys := fstest.MapFS{
+		"set.json": &fstest.MapFile{Data: []byte(validSetJSON())},
+	}
+	cat, err := domain.LoadCardPool(fsys, "set.json")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cat.Code != "SYN" {
+		t.Errorf("Code = %q, want SYN", cat.Code)
+	}
+	if len(cat.Cards) != 3 {
+		t.Errorf("len(Cards) = %d, want 3", len(cat.Cards))
+	}
+	// Booster section is ignored; Sheets and BoosterOptions remain nil/empty.
+	if len(cat.Sheets) != 0 {
+		t.Errorf("Sheets: got %d, want 0", len(cat.Sheets))
+	}
+	if len(cat.BoosterOptions) != 0 {
+		t.Errorf("BoosterOptions: got %d, want 0", len(cat.BoosterOptions))
+	}
+}
+
+func TestLoadCardPool_requiresCode(t *testing.T) {
+	t.Parallel()
+
+	fsys := fstest.MapFS{"pool.json": &fstest.MapFile{Data: []byte(
+		`{"data":{"code":"","name":"X","cards":[]}}`,
+	)}}
+	_, err := domain.LoadCardPool(fsys, "pool.json")
+	if err == nil {
+		t.Fatal("want error, got nil")
+	}
+	var ce *domain.CatalogueError
+	if !errors.As(err, &ce) {
+		t.Fatalf("want *CatalogueError, got %T: %v", err, err)
+	}
+	if ce.Field != "data.code" {
+		t.Errorf("CatalogueError.Field = %q, want data.code", ce.Field)
+	}
+}
+
+func TestLoadCardPool_requiresName(t *testing.T) {
+	t.Parallel()
+
+	fsys := fstest.MapFS{"pool.json": &fstest.MapFile{Data: []byte(
+		`{"data":{"code":"TSB","name":"","cards":[]}}`,
+	)}}
+	_, err := domain.LoadCardPool(fsys, "pool.json")
+	if err == nil {
+		t.Fatal("want error, got nil")
+	}
+	var ce *domain.CatalogueError
+	if !errors.As(err, &ce) {
+		t.Fatalf("want *CatalogueError, got %T: %v", err, err)
+	}
+	if ce.Field != "data.name" {
+		t.Errorf("CatalogueError.Field = %q, want data.name", ce.Field)
+	}
+}
+
+func TestLoadCardPool_invalidCardRarity(t *testing.T) {
+	t.Parallel()
+
+	fsys := fstest.MapFS{"pool.json": &fstest.MapFile{Data: []byte(
+		`{"data":{"code":"TSB","name":"X","cards":[` +
+			`{"uuid":"u1","name":"n","number":"1","rarity":"mythic","finishes":[],"supertypes":[],"identifiers":{}}` +
+			`]}}`,
+	)}}
+	_, err := domain.LoadCardPool(fsys, "pool.json")
+	if err == nil {
+		t.Fatal("want error, got nil")
+	}
+	var ce *domain.CatalogueError
+	if !errors.As(err, &ce) {
+		t.Fatalf("want *CatalogueError, got %T: %v", err, err)
+	}
+	if ce.Field != "data.cards[0].rarity" {
+		t.Errorf("CatalogueError.Field = %q, want data.cards[0].rarity", ce.Field)
+	}
+}
+
+func TestLoadCardPool_missingFile(t *testing.T) {
+	t.Parallel()
+
+	_, err := domain.LoadCardPool(fstest.MapFS{}, "missing.json")
+	if err == nil {
+		t.Fatal("want error, got nil")
+	}
+	var ce *domain.CatalogueError
+	if !errors.As(err, &ce) {
+		t.Fatalf("want *CatalogueError, got %T: %v", err, err)
+	}
+	if ce.Field != "(file)" {
+		t.Errorf("CatalogueError.Field = %q, want (file)", ce.Field)
+	}
+}

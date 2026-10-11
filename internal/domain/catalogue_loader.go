@@ -82,14 +82,13 @@ func isValidFinish(f Finish) bool {
 	}
 }
 
-// LoadSetCatalogue reads one MTGJSON-shaped set file from fsys and returns the
-// parsed SetCatalogue. name is used in error messages and must be a valid fs.FS path.
-// Sheet.Cards slices are sorted by ID ascending so that weighted draws over an
-// injected seeded *rand.Rand are reproducible across runs.
-func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
+// readAndCheckMetadata reads name from fsys, unmarshals the MTGJSON envelope, and
+// validates that data.code and data.name are non-empty. It returns the raw mtgSetData.
+// All errors are wrapped in *CatalogueError with the given name.
+func readAndCheckMetadata(fsys fs.FS, name string) (mtgSetData, error) {
 	data, err := fs.ReadFile(fsys, name)
 	if err != nil {
-		return SetCatalogue{}, &CatalogueError{File: name, Field: "(file)", Err: err}
+		return mtgSetData{}, &CatalogueError{File: name, Field: "(file)", Err: err}
 	}
 
 	var raw mtgSetFile
@@ -97,29 +96,31 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 		var te *json.UnmarshalTypeError
 		if errors.As(jsonErr, &te) {
 			// te.Field is the full dotted path (e.g. "data.booster.draft.sheets.common.totalWeight").
-			return SetCatalogue{}, &CatalogueError{File: name, Field: te.Field, Err: jsonErr}
+			return mtgSetData{}, &CatalogueError{File: name, Field: te.Field, Err: jsonErr}
 		}
 		// Syntax errors carry no field information.
-		return SetCatalogue{}, &CatalogueError{File: name, Field: "(json)", Err: jsonErr}
+		return mtgSetData{}, &CatalogueError{File: name, Field: "(json)", Err: jsonErr}
 	}
 
 	d := raw.Data
 	if d.Code == "" {
-		return SetCatalogue{}, &CatalogueError{File: name, Field: "data.code"}
+		return mtgSetData{}, &CatalogueError{File: name, Field: "data.code"}
 	}
 	if d.Name == "" {
-		return SetCatalogue{}, &CatalogueError{File: name, Field: "data.name"}
+		return mtgSetData{}, &CatalogueError{File: name, Field: "data.name"}
 	}
-	draftDef, ok := d.Booster["draft"]
-	if !ok {
-		return SetCatalogue{}, &CatalogueError{File: name, Field: "data.booster.draft"}
-	}
+	return d, nil
+}
 
+// parseSetCards validates and converts the raw card array in d into a typed Cards map.
+// All card-level validation (uuid, rarity, finish, color, duplicates) is performed here.
+// Errors are wrapped in *CatalogueError with the given file name.
+func parseSetCards(d mtgSetData, name string) (map[CardID]Card, error) {
 	cards := make(map[CardID]Card, len(d.Cards))
 	seen := make(map[CardID]int, len(d.Cards)) // uuid -> first index, for duplicate detection
 	for i, mc := range d.Cards {
 		if mc.UUID == "" {
-			return SetCatalogue{}, &CatalogueError{
+			return nil, &CatalogueError{
 				File:  name,
 				Field: fmt.Sprintf("data.cards[%d].uuid", i),
 				Err:   fmt.Errorf("uuid must not be empty"),
@@ -127,7 +128,7 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 		}
 		id := CardID(mc.UUID)
 		if first, dup := seen[id]; dup {
-			return SetCatalogue{}, &CatalogueError{
+			return nil, &CatalogueError{
 				File:  name,
 				Field: fmt.Sprintf("data.cards[%d].uuid", i),
 				Err:   fmt.Errorf("duplicate uuid %q (first at index %d)", mc.UUID, first),
@@ -137,7 +138,7 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 
 		r := Rarity(mc.Rarity)
 		if !isValidRarity(r) {
-			return SetCatalogue{}, &CatalogueError{
+			return nil, &CatalogueError{
 				File:  name,
 				Field: fmt.Sprintf("data.cards[%d].rarity", i),
 				Err:   fmt.Errorf("unknown rarity %q", mc.Rarity),
@@ -148,7 +149,7 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 		for j, fin := range mc.Finishes {
 			f := Finish(fin)
 			if !isValidFinish(f) {
-				return SetCatalogue{}, &CatalogueError{
+				return nil, &CatalogueError{
 					File:  name,
 					Field: fmt.Sprintf("data.cards[%d].finishes[%d]", i, j),
 					Err:   fmt.Errorf("unknown finish %q", fin),
@@ -160,7 +161,7 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 		colors := make([]string, 0, len(mc.Colors))
 		for j, col := range mc.Colors {
 			if !isValidColor(col) {
-				return SetCatalogue{}, &CatalogueError{
+				return nil, &CatalogueError{
 					File:  name,
 					Field: fmt.Sprintf("data.cards[%d].colors[%d]", i, j),
 					Err:   fmt.Errorf("unknown color %q", col),
@@ -187,6 +188,28 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 			ScryfallID:  mc.Identifiers.ScryfallID,
 			Colors:      colors,
 		}
+	}
+	return cards, nil
+}
+
+// LoadSetCatalogue reads one MTGJSON-shaped set file from fsys and returns the
+// parsed SetCatalogue. name is used in error messages and must be a valid fs.FS path.
+// Sheet.Cards slices are sorted by ID ascending so that weighted draws over an
+// injected seeded *rand.Rand are reproducible across runs.
+func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
+	d, err := readAndCheckMetadata(fsys, name)
+	if err != nil {
+		return SetCatalogue{}, err
+	}
+
+	draftDef, ok := d.Booster["draft"]
+	if !ok {
+		return SetCatalogue{}, &CatalogueError{File: name, Field: "data.booster.draft"}
+	}
+
+	cards, err := parseSetCards(d, name)
+	if err != nil {
+		return SetCatalogue{}, err
 	}
 
 	sheets := make(map[string]Sheet, len(draftDef.Sheets))
@@ -240,5 +263,31 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 		Cards:          cards,
 		Sheets:         sheets,
 		BoosterOptions: opts,
+	}, nil
+}
+
+// LoadCardPool reads a MTGJSON-shaped set file from fsys and returns a SetCatalogue
+// with only Code, Name, and Cards populated. The file need not contain a
+// data.booster section. All card-level validation (uuid, rarity, finish, color,
+// duplicates) is identical to LoadSetCatalogue. The returned SetCatalogue has
+// nil Sheets and nil BoosterOptions.
+//
+// Use this for supplementary card pools (e.g. TSB) that extend a main set's
+// booster sheets but are not directly openable.
+func LoadCardPool(fsys fs.FS, name string) (SetCatalogue, error) {
+	d, err := readAndCheckMetadata(fsys, name)
+	if err != nil {
+		return SetCatalogue{}, err
+	}
+
+	cards, err := parseSetCards(d, name)
+	if err != nil {
+		return SetCatalogue{}, err
+	}
+
+	return SetCatalogue{
+		Code:  d.Code,
+		Name:  d.Name,
+		Cards: cards,
 	}, nil
 }
