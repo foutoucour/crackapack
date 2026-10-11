@@ -5,46 +5,16 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/fs"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/foutoucour/crackapack/internal/config"
 	"github.com/foutoucour/crackapack/internal/domain"
 	"github.com/foutoucour/crackapack/internal/sim"
 )
-
-// sweepArgs holds all dependencies for runSweep, decoupled from the OS so that
-// tests can substitute in-memory implementations.
-type sweepArgs struct {
-	// configReader is an open reader for the YAML config file.
-	// nil means "use all defaults".
-	configReader io.Reader
-
-	// catFS is the catalogue directory.
-	catFS     fs.FS
-	setCodes  []string
-	suppCodes []string
-
-	// pricesFS is the FS rooted at the prices file's directory.
-	pricesFS   fs.FS
-	pricesName string
-
-	player   string
-	policies map[string]func() sim.PlayerPolicy
-
-	// rates overrides cfg.SweepRates when non-nil.
-	rates []domain.CoinRate
-
-	// newOutput creates (or truncates) an output file by relative path.
-	// The path may contain a subdirectory, e.g. "rate-10/result.json".
-	// The OS wrapper creates parent directories; the in-memory fake stores by path.
-	newOutput func(string) (io.WriteCloser, error)
-
-	stdout io.Writer
-}
 
 const sweepUsage = `usage: crackapack sweep [flags]
 
@@ -289,8 +259,10 @@ func runSweep(a sweepArgs) error {
 	return nil
 }
 
-// parseRates splits a comma-separated list of integers into a []domain.CoinRate.
-// Returns an error naming the flag and the offending token.
+// parseRates splits a comma-separated list of integers into a []domain.CoinRate
+// and applies the same validation rules as config.ValidateSweepRates (non-empty,
+// every rate > 0, strictly ascending). Returns an error naming --rates and the
+// offending value.
 func parseRates(raw string) ([]domain.CoinRate, error) {
 	parts := strings.Split(raw, ",")
 	rates := make([]domain.CoinRate, 0, len(parts))
@@ -305,9 +277,8 @@ func parseRates(raw string) ([]domain.CoinRate, error) {
 		}
 		rates = append(rates, domain.CoinRate(n))
 	}
-	if len(rates) == 0 {
-		return nil, fmt.Errorf("no valid rates found in %q", raw)
+	if err := config.ValidateSweepRates(rates); err != nil {
+		return nil, err
 	}
 	return rates, nil
 }
-

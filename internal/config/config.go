@@ -254,7 +254,7 @@ func validate(cfg Config) error {
 			return err
 		}
 	}
-	if err := validateSweepRates(cfg.SweepRates); err != nil {
+	if err := ValidateSweepRates(cfg.SweepRates); err != nil {
 		return err
 	}
 	return nil

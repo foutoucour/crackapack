@@ -330,7 +330,10 @@ func TestParseRates(t *testing.T) {
 		{name: "multiple", raw: "10,50,250", want: []domain.CoinRate{10, 50, 250}},
 		{name: "spaces", raw: " 10 , 50 ", want: []domain.CoinRate{10, 50}},
 		{name: "invalid token", raw: "10,abc,50", wantErrOf: "abc"},
-		{name: "empty string", raw: ",,,", wantErrOf: "no valid rates"},
+		{name: "empty string", raw: ",,,", wantErrOf: "sweep_rates must not be empty"},
+		{name: "duplicate", raw: "10,50,50", wantErrOf: "sweep_rates[2]"},
+		{name: "descending", raw: "250,50", wantErrOf: "sweep_rates[1]"},
+		{name: "zero rate", raw: "0,50", wantErrOf: "sweep_rates[0]"},
 	}
 
 	for _, tc := range cases {

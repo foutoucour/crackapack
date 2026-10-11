@@ -36,6 +36,41 @@ func TestConfig_sweepRates_validOverride(t *testing.T) {
 	}
 }
 
+// TestValidateSweepRates tests the exported function directly (used by the
+// sweep command to validate the --rates flag with the same rules as the config).
+func TestValidateSweepRates(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		rates   []domain.CoinRate
+		wantErr string
+	}{
+		{name: "valid", rates: []domain.CoinRate{10, 50, 250}},
+		{name: "empty", rates: nil, wantErr: "sweep_rates must not be empty"},
+		{name: "zero", rates: []domain.CoinRate{0, 50}, wantErr: "sweep_rates[0]"},
+		{name: "duplicate", rates: []domain.CoinRate{10, 50, 50}, wantErr: "sweep_rates[2]"},
+		{name: "descending", rates: []domain.CoinRate{100, 50}, wantErr: "sweep_rates[1]"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := config.ValidateSweepRates(tc.rates)
+			if tc.wantErr != "" {
+				if err == nil {
+					t.Fatal("want error, got nil")
+				}
+				if !strings.Contains(err.Error(), tc.wantErr) {
+					t.Errorf("error %q does not contain %q", err.Error(), tc.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
 // TestConfig_sweepRates_invalid is a table-driven test for all validation errors.
 func TestConfig_sweepRates_invalid(t *testing.T) {
 	t.Parallel()

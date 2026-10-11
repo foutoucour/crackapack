@@ -6,9 +6,14 @@ import (
 	"github.com/foutoucour/crackapack/internal/domain"
 )
 
-// validateSweepRates checks that rates is non-empty, every entry is > 0,
+// ValidateSweepRates checks that rates is non-empty, every entry is > 0,
 // and entries are strictly ascending (duplicates are rejected).
-func validateSweepRates(rates []domain.CoinRate) error {
+// Errors name the offending index using the same key-naming style as the
+// other config validators ("config: sweep_rates[N]: …").
+//
+// Callers outside the package (e.g. the sweep command's --rates flag) may
+// call this to apply the same rule to a flag-supplied grid.
+func ValidateSweepRates(rates []domain.CoinRate) error {
 	if len(rates) == 0 {
 		return fmt.Errorf("config: sweep_rates must not be empty")
 	}
