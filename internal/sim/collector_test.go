@@ -175,8 +175,8 @@ func TestCollector_sellsDuplicatesAbove4(t *testing.T) {
 	if len(fs.sellCalls) != 1 {
 		t.Fatalf("SellDuplicates called %d times, want 1", len(fs.sellCalls))
 	}
-	if fs.sellCalls[0] != 4 {
-		t.Errorf("SellDuplicates(keep=%d), want 4", fs.sellCalls[0])
+	if fs.sellCalls[0] != domain.PlaysetSize {
+		t.Errorf("SellDuplicates(keep=%d), want domain.PlaysetSize (%d)", fs.sellCalls[0], domain.PlaysetSize)
 	}
 }
 

@@ -23,8 +23,9 @@ const collectorReserveDays = 1
 //     the lowest commons+uncommons progress ratio. Tie-break: smallest SetCode.
 //     State is re-read via Session.View() after each booster, so the target set
 //     is re-evaluated as progress updates.
-//  2. Sell duplicates: sell all copies above a playset (keep 4) to the Counter.
-//     Sub-coin refusals are counted but the card is restored to the collection.
+//  2. Sell duplicates: sell all copies above a playset (keep domain.PlaysetSize)
+//     to the Counter. Sub-coin refusals are counted but the card is restored to
+//     the collection.
 //  3. Buy missing cards: buy the cheapest non-foil, non-basic-land cards the
 //     player does not yet own, never dropping the balance below the coin floor
 //     (DailyReward × collectorReserveDays). Skips out-of-stock cards.
@@ -55,7 +56,7 @@ func (CollectorPolicy) RunSession(s Session) {
 	}
 
 	// Phase 2: sell duplicates above playset.
-	s.SellDuplicates(4) //nolint:errcheck // counts are reflected in day metrics via port
+	s.SellDuplicates(domain.PlaysetSize)
 
 	// Phase 3: buy missing non-foil cards, cheapest first.
 	v := s.View()

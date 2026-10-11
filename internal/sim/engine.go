@@ -11,6 +11,9 @@ import (
 
 // Engine runs the headless simulation. Construct with NewEngine; the zero value
 // is not ready to use.
+//
+// Run may be called at most once: the engine mutates its domain objects
+// (journal, energy, collection, counter) and there is no reset path.
 type Engine struct {
 	cfg          config.Config
 	catalogues   []domain.SetCatalogue // openable sets only
@@ -22,6 +25,7 @@ type Engine struct {
 	opener       *domain.Opener
 	policy       PlayerPolicy
 	boosterCosts map[string]int // setCode -> energy cost; openable sets only
+	ran          bool           // guards against calling Run more than once
 
 	// per-day session counters; reset at the start of each day
 	dayBoostersOpened int
@@ -161,7 +165,15 @@ func NewEngine(
 // Energy ticks every tick; the player acts only in session ticks.
 //
 // Any domain error other than ErrSubCoin aborts Run and is returned with context.
+//
+// Run may be called at most once. A second call returns an error immediately,
+// because the engine's domain objects are mutated and cannot be reset.
 func (e *Engine) Run() (Result, error) {
+	if e.ran {
+		return Result{}, fmt.Errorf("sim: Engine.Run called more than once; construct a new Engine for each run")
+	}
+	e.ran = true
+
 	days := make([]DayMetrics, 0, e.cfg.RunDays)
 
 	// Compute session tick offsets once (same every day).
@@ -225,6 +237,7 @@ func (e *Engine) Run() (Result, error) {
 		e.cfg.CounterSellPct,
 		e.cfg.CounterBuyPct,
 		e.cfg.DailyReward,
+		e.collection,
 	)
 
 	return Result{Days: days, Summary: summary}, nil
@@ -286,142 +299,4 @@ func (e *Engine) snapshotDay(day int) (DayMetrics, error) {
 		CardsBought:     e.dayCardsBought,
 		TradesRefused:   e.dayTradesRefused,
 	}, nil
-}
-
-// buildWorldView constructs a fresh WorldView from current engine state.
-func (e *Engine) buildWorldView(day int) WorldView {
-	setProgress := make(map[string]domain.Progress, len(e.catalogues))
-	for _, cat := range e.catalogues {
-		setProgress[cat.Code] = e.collection.BinderProgress(cat)
-	}
-	// Return a copy of boosterCosts so the policy cannot mutate it.
-	costs := make(map[string]int, len(e.boosterCosts))
-	for k, v := range e.boosterCosts {
-		costs[k] = v
-	}
-	return WorldView{
-		Day:            day,
-		Balance:        e.journal.Balance(domain.AccountPlayer),
-		DailyReward:    e.cfg.DailyReward,
-		EnergyTotal:    e.energy.Reserve() + e.energy.Savings(),
-		SetProgress:    setProgress,
-		BoosterCosts:   costs,
-		Catalogues:     e.catalogues,
-		Prices:         e.prices,
-		OwnedCards:     e.collection.Snapshot(),
-		CoinRate:       e.cfg.CoinRate,
-		CounterBuyPct:  e.cfg.CounterBuyPct,
-		CounterSellPct: e.cfg.CounterSellPct,
-		FallbackPrice:  e.cfg.FallbackPrice,
-	}
-}
-
-// port implements Session. One port is created per session tick.
-// fatalErr captures any non-ErrSubCoin domain error; Run checks it after
-// the session and aborts.
-type port struct {
-	e        *Engine
-	day      int
-	fatalErr error
-}
-
-func (p *port) View() WorldView {
-	return p.e.buildWorldView(p.day)
-}
-
-func (p *port) OpenBooster(setCode string) error {
-	// Find the catalogue.
-	var cat *domain.SetCatalogue
-	for i := range p.e.catalogues {
-		if p.e.catalogues[i].Code == setCode {
-			cat = &p.e.catalogues[i]
-			break
-		}
-	}
-	if cat == nil {
-		err := fmt.Errorf("open booster: unknown set %q", setCode)
-		p.fatalErr = err
-		return err
-	}
-
-	cost, ok := p.e.boosterCosts[setCode]
-	if !ok {
-		err := fmt.Errorf("open booster: no cost for set %q", setCode)
-		p.fatalErr = err
-		return err
-	}
-
-	if err := p.e.energy.Spend(cost); err != nil {
-		// Insufficient energy is a normal policy guard, not a fatal error.
-		return err
-	}
-
-	booster, err := p.e.opener.Open(domain.BoosterLayoutClassic, *cat)
-	if err != nil {
-		// Opener error means a corrupt catalogue; treat as fatal.
-		refundErr := fmt.Errorf("open booster for %q: %w", setCode, err)
-		p.fatalErr = refundErr
-		// Attempt energy refund via Tick(0) — noop but clarifies intent.
-		// Energy has no Refund method; we accept the loss in this error path.
-		return refundErr
-	}
-
-	p.e.collection.AddBooster(booster)
-	p.e.dayBoostersOpened++
-	return nil
-}
-
-func (p *port) SellDuplicates(keep int) (sold, refused int) {
-	surplus, err := p.e.collection.DuplicatesAbove(keep)
-	if err != nil {
-		p.fatalErr = fmt.Errorf("sell duplicates: %w", err)
-		return 0, 0
-	}
-
-	for _, s := range surplus {
-		for range s.Quantity {
-			// Atomic: remove then sell; restore on sub-coin refusal.
-			if err := p.e.collection.Remove(s.Key, 1); err != nil {
-				p.fatalErr = fmt.Errorf("sell duplicates: remove: %w", err)
-				return sold, refused
-			}
-			if err := p.e.counter.BuyFromPlayer(s.Key); err != nil {
-				if errors.Is(err, domain.ErrSubCoin) {
-					// Restore and count as refused.
-					if addErr := p.e.collection.Add(s.Key, 1); addErr != nil {
-						p.fatalErr = fmt.Errorf("sell duplicates: restore after refusal: %w", addErr)
-						return sold, refused
-					}
-					refused++
-					p.e.dayTradesRefused++
-				} else {
-					// Unknown card or other fatal error.
-					p.fatalErr = fmt.Errorf("sell duplicates: counter buy: %w", err)
-					return sold, refused
-				}
-			} else {
-				sold++
-				p.e.dayCardsSold++
-			}
-		}
-	}
-	return sold, refused
-}
-
-func (p *port) BuyCard(key domain.CardKey) error {
-	if err := p.e.counter.SellToPlayer(key); err != nil {
-		if errors.Is(err, domain.ErrOutOfStock) || errors.Is(err, domain.ErrInsufficientBalance) || errors.Is(err, domain.ErrSubCoin) {
-			// Non-fatal: caller skips this card.
-			return err
-		}
-		// Unknown card or other error is fatal.
-		p.fatalErr = fmt.Errorf("buy card: %w", err)
-		return err
-	}
-	if err := p.e.collection.Add(key, 1); err != nil {
-		p.fatalErr = fmt.Errorf("buy card: add to collection: %w", err)
-		return err
-	}
-	p.e.dayCardsBought++
-	return nil
 }

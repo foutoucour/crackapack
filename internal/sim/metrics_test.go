@@ -139,6 +139,17 @@ func TestSummary_dailyRewardCommons(t *testing.T) {
 	}
 }
 
+func TestSummary_unsoldDuplicateCopies(t *testing.T) {
+	t.Parallel()
+	// Pass nil collection to ComputeSummaryForTest → should return 0.
+	days := []sim.DayMetrics{{Day: 1, MoneySupply: zeroSupply()}}
+	s := sim.ComputeSummaryForTest(days, 1, nil,
+		domain.PriceSnapshot{}, 1, 100, 60, 120, 100)
+	if v := s["unsold_duplicate_copies"]; v != 0 {
+		t.Errorf("unsold_duplicate_copies with nil collection = %v, want 0", v)
+	}
+}
+
 // zeroSupply returns a MoneySupply where all accounts are zero (ledger balanced).
 func zeroSupply() map[domain.Account]domain.Coins {
 	return map[domain.Account]domain.Coins{

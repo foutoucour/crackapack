@@ -39,7 +39,15 @@ type DayMetrics struct {
 	BoostersOpened int
 	CardsSold      int
 	CardsBought    int
-	TradesRefused  int
+
+	// TradesRefused counts individual copy-sell attempts refused by the Counter
+	// (ErrSubCoin) during this day, not distinct cards. A single sub-coin card
+	// that cannot be sold above a playset generates one refusal per copy per
+	// session per day; at low coin rates this number can be large. Use the
+	// summary metric sub_coin_cards for the distinct-card count, and
+	// total_refused_trades as a volume signal for how much stuck inventory
+	// the economy is accumulating.
+	TradesRefused int
 }
 
 // Summary is a map of named scalar metrics computed from a completed run.
@@ -53,14 +61,19 @@ type DayMetrics struct {
 //
 // Named metrics:
 //   - final_balance: player coin balance after the last day
-//   - total_refused_trades: sum of TradesRefused across all days
+//   - total_refused_trades: sum of TradesRefused across all days; a volume signal
+//     for stuck inventory (one sub-coin card above playset generates one refusal
+//     per copy per session per day). Use sub_coin_cards for the distinct-card count.
 //   - sub_coin_cards: distinct non-foil, non-basic-land cards whose Counter sell
-//     value (at SellPct) is sub-coin at the configured rate
+//     value (at SellPct) is sub-coin at the configured rate; the economy is
+//     calibrated when this is zero
 //   - daily_reward_commons: floor(DailyReward / medianCommonBuyCoins) where
 //     medianCommonBuyCoins is PriceToCoins(median common non-basic price, rate, BuyPct);
 //     0 when the median converts to sub-coin
-//   - days_to_50pct_cu.<setcode>: first day where CUOwned/CUTotal >= 0.5
-//   - days_to_100pct_cu.<setcode>: first day where CUOwned == CUTotal
+//   - unsold_duplicate_copies: copies above a playset (domain.PlaysetSize) still
+//     held at the end of the run; non-zero when sub-coin cards cannot be sold
+//   - days_to_50pct_cu.<setcode>: first 1-based day where CUOwned/CUTotal >= 0.5
+//   - days_to_100pct_cu.<setcode>: first 1-based day where CUOwned == CUTotal
 type Summary map[string]float64
 
 // Result is the complete output of one simulation run.
@@ -69,7 +82,8 @@ type Result struct {
 	Summary Summary
 }
 
-// computeSummary derives the Summary from the day metrics and the run parameters.
+// computeSummary derives the Summary from the day metrics, run parameters,
+// and the final collection state.
 func computeSummary(
 	days []DayMetrics,
 	runDays int,
@@ -80,6 +94,7 @@ func computeSummary(
 	sellPct domain.Percent,
 	buyPct domain.Percent,
 	dailyReward domain.Coins,
+	collection *domain.Collection,
 ) Summary {
 	s := make(Summary)
 
@@ -101,6 +116,9 @@ func computeSummary(
 
 	// daily_reward_commons
 	s["daily_reward_commons"] = float64(dailyRewardCommons(cats, prices, fallback, coinRate, buyPct, dailyReward))
+
+	// unsold_duplicate_copies: copies above a playset still held at end of run.
+	s["unsold_duplicate_copies"] = float64(countUnsoldDuplicates(collection))
 
 	// days_to_50pct_cu.<setcode> and days_to_100pct_cu.<setcode>
 	censored := float64(runDays + 1)
@@ -172,6 +190,24 @@ func countSubCoinCards(
 		}
 	}
 	return count
+}
+
+// countUnsoldDuplicates returns the total number of card copies above a playset
+// (domain.PlaysetSize) still held in the collection at end of run. This is
+// non-zero when sub-coin cards cannot be sold to the Counter.
+func countUnsoldDuplicates(collection *domain.Collection) int {
+	if collection == nil {
+		return 0
+	}
+	surplus, err := collection.DuplicatesAbove(domain.PlaysetSize)
+	if err != nil {
+		return 0 // invalid PlaysetSize is a code error; fail silently in metrics
+	}
+	total := 0
+	for _, s := range surplus {
+		total += s.Quantity
+	}
+	return total
 }
 
 // dailyRewardCommons returns floor(dailyReward / medianCommonBuyCoins).

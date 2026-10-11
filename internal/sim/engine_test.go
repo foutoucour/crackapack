@@ -252,6 +252,35 @@ func TestRun_90daySmoke(t *testing.T) {
 	}
 }
 
+func TestRun_unsoldDuplicateCopiesInSummary(t *testing.T) {
+	t.Parallel()
+	cfg := smallConfig()
+	cfg.RunDays = 5
+	e := buildEngine(t, cfg, sim.NewCollectorPolicy())
+	result, err := e.Run()
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	// The metric must be present in the Summary regardless of its value.
+	if _, ok := result.Summary["unsold_duplicate_copies"]; !ok {
+		t.Error("unsold_duplicate_copies missing from Summary")
+	}
+}
+
+func TestRun_secondCallReturnsError(t *testing.T) {
+	t.Parallel()
+	cfg := smallConfig()
+	cfg.RunDays = 1
+	e := buildEngine(t, cfg, sim.NewCollectorPolicy())
+
+	if _, err := e.Run(); err != nil {
+		t.Fatalf("first Run: %v", err)
+	}
+	if _, err := e.Run(); err == nil {
+		t.Error("second Run: want error, got nil")
+	}
+}
+
 // TestRun_supplementaryCatalogues verifies that cards from a supplementary catalogue
 // (cards known to the Counter but not tracked in binder progress or energy cost
 // computation) can be sold without ErrUnknownCard.
