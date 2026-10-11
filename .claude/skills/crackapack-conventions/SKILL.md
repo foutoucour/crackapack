@@ -34,18 +34,19 @@ The layering these rules protect is described in [Architecture](../../../docs/ar
 
 ## Strategies in the Domain
 
-Varying behaviour here is booster layout per set era, NPC personality, pricing policy and reveal
-ordering. Each is a strategy where it passes the criteria in
+Varying behaviour here is pricing policy, player policy, NPC personality and reveal ordering. Each
+is a strategy where it passes the criteria in
 [`go-house-style`](../go-house-style/SKILL.md#strategy-pattern--where-it-improves-the-code).
 
-```go
-// BoosterGenerator builds one booster from a set's card pool.
-type BoosterGenerator interface {
-    Generate(pool SetPool, rng *rand.Rand) Booster
-}
+Booster layout per set era is not a strategy: a layout is data, the sheets and weighted options of
+the set's catalogue, interpreted by one generator. A new generator is only warranted when the data
+cannot express a layout, see [ADR-0004](../../../docs/adr/0004-booster-layouts-are-data.md).
 
-type classicGenerator struct{}    // commons / uncommons / one rare slot
-type timeSpiralGenerator struct{} // classic plus the timeshifted slot
+```go
+// BoosterGenerator builds one booster from a set catalogue.
+type BoosterGenerator interface {
+    Generate(cat SetCatalogue, rng *rand.Rand) (Booster, error)
+}
 
 type Opener struct {
     generators map[BoosterLayout]BoosterGenerator
@@ -57,8 +58,10 @@ func NewOpener(generators map[BoosterLayout]BoosterGenerator, rng *rand.Rand) *O
 }
 ```
 
-NPCs follow the same shape: `type NPCPolicy interface { Decide(view MarketView, rng *rand.Rand) []Order }`,
-one policy per personality (collector, speculator, completionist).
+The simulated player follows the same shape: `sim.PlayerPolicy` has one implementation per play
+style (`collector`, `cash-out`), registered by name in `cmd/crackapack/policies.go`. NPCs will too:
+`type NPCPolicy interface { Decide(view MarketView, rng *rand.Rand) []Order }`, one policy per
+personality (collector, speculator, completionist).
 
 ## Demo Data Ships With the Feature
 

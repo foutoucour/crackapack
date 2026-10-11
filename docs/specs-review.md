@@ -63,14 +63,15 @@ catalogue.
 
 **Build order**, so that each step is playable and can be tested before the next:
 
-1. [x] Sync, boosters, energy and opening.
-2. [x] Collection: binders, progress, milestones, playsets.
-3. [x] Coins: ledger, Counter, daily reward, quests.
-4. [ ] NPCs and trades.
+1. Sync, boosters, energy and opening.
+2. Collection: binders, progress, milestones, playsets.
+3. Coins: ledger, Counter, daily reward, quests.
+4. NPCs and trades.
 
 **What we measure (for ourselves):** does the economy hold? The player's money supply, the
-Counter's stock levels, the trade volume per day. Steps 1–3 are now covered by the simulation
-MVP; the economy can be run headlessly and swept across coin rates. See
+Counter's stock levels, the trade volume per day. The simulation MVP already runs the boosters,
+energy, collection, ledger, Counter and daily reward headlessly and sweeps them across coin
+rates; sync, milestones, quests, NPCs and trades are not built. See
 [Simulation guide](simulation.md).
 
 ## Contradictions to fix
@@ -119,6 +120,13 @@ maintainer-set calibration targets (see [Simulation guide](simulation.md#reading
   least two commons from the Counter" or "no card's sell value should be sub-coin."
 - **Results depend on player policy and prices.** The same targets may produce a
   different passing range when the price snapshot is updated or a new policy is added.
+
+- **What the rate changes.** Card prices, sale proceeds and purchase costs all scale with the
+  rate, so the rate only moves two things: the weight of coin amounts fixed in the configuration
+  (welcome bonus, daily reward) against card prices, and the rounding of cheap cards, which can
+  fall under one coin at a low rate. On the demo dataset the binder milestone days are the same at
+  every rate. Pacing is shaped by the other levers: the Counter percentages, the initial stock and
+  the energy settings.
 
 What the sweep leaves open (see [Open questions](#open-questions)):
 

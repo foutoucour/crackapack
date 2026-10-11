@@ -75,11 +75,11 @@ The demo uses a fixed seed (42) so it is byte-identical on every run. Pass `--ou
 to write the same per-rate reports as sweep. Pass `--rates` to override the default
 grid (`[50, 100, 200, 400]`).
 
-The demo runs in about one second. Days-to-100%-CU completes in about four days
-because the collector policy buys all missing commons cheaply from the Counter. That
-metric is informative but rate-insensitive on the synthetic dataset; the targets
-that split the grid are `sub_coin_cards`, `daily_reward_commons`, and
-`unsold_duplicate_copies` (see [What the sweep answers](specs-review.md#what-the-sweep-answers-about-the-coin-rate)).
+The demo runs in about one second. The binder milestones (`days_to_100pct_cu.*`) come
+out identical at every rate on this dataset; the targets that split the grid are
+`sub_coin_cards`, `daily_reward_commons` and `unsold_duplicate_copies`. Why the rate
+leaves the milestones alone is explained in
+[What the sweep answers](specs-review.md#what-the-sweep-answers-about-the-coin-rate).
 
 ## Input files
 
@@ -119,7 +119,7 @@ targets). Each cell shows the metric value and `PASS` or `FAIL`.
 
 The last line reports passing rates. When the passing rates form a contiguous block
 in the grid, the report shows the range. When no rate passes, the line reads
-"no rate passes all targets". When no targets are configured, the line reads
+"Passing rates: none". When no targets are configured, the line reads
 "no targets configured".
 
 ## Summary metric names
@@ -146,7 +146,7 @@ censored value above the run horizon that no valid `at_most` target can satisfy.
 | Name | Behaviour |
 |------|-----------|
 | `collector` | Opens boosters for the set with the lowest C/U progress; sells duplicates above playset; buys missing non-foil cards cheapest-first up to a coin floor |
-| `cashout` | Opens boosters, then sells everything above a playset and stops buying |
+| `cash-out` | Opens boosters, sells everything above one copy and never buys, so the run measures how many coins the Counter creates |
 
 ## Run diagram
 

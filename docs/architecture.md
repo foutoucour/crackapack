@@ -43,8 +43,9 @@ the deterministic demo dataset. `tools/` holds Go programs run by CI.
 
 ### Packages in the simulation MVP
 
-`internal/config` loads and validates the YAML configuration file, translating it into a typed
-`Config` that `cmd/crackapack` passes to the engine. It imports no infrastructure.
+`internal/config` loads and validates the YAML configuration, translating it into a typed
+`Config` that `cmd/crackapack` passes to the engine. It reads from an `io.Reader` and never opens
+files itself.
 
 `internal/sim` is the composition layer: it wires `internal/domain` objects with `internal/config`
 values and records per-day metrics. The domain never imports sim.
@@ -53,9 +54,9 @@ values and records per-day metrics. The domain never imports sim.
 via `demo.Build()`. The domain never imports demo; the dependency runs one way, from demo into
 the domain.
 
-All simulation state is in-memory for the MVP. A store adapter (SQLite) will persist it when it
-arrives; the domain interfaces it will implement are already defined, and no domain code changes
-when the adapter is plugged in — see [ADR-0001](adr/0001-go-for-the-core.md).
+All simulation state is held in plain in-memory domain objects for the MVP. No store interface
+exists yet: it will be introduced with the SQLite adapter, together with the shared contract suite
+that both implementations must pass.
 
 ## Local storage
 

@@ -33,7 +33,5 @@ express the layout.
   - No `allowDuplicates` flag: duplicate draws across sheets in the same pack are allowed.
   - Two-foil Ravnica packs (booster option weight 9) are assumed to draw both foils from the
     common-foil pool; the real per-foil rarity breakdown for that option is undocumented.
-- The `crackapack-conventions` skill section "Strategies in the Domain" lists
-  `classicGenerator` and `timeSpiralGenerator` as two separate implementations. That example
-  predates this decision; the skill will be updated to reflect that layout variety is expressed
-  through data, not per-layout generator types.
+- The `crackapack-conventions` skill no longer lists booster layout as a strategy: it points here
+  and keeps the `BoosterGenerator` and `Opener` shapes.
