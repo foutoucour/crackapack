@@ -281,6 +281,52 @@ func TestLoad_errorCases(t *testing.T) {
 			yaml:        "initial_stock:\n  common: -1",
 			wantKeyword: "initial_stock",
 		},
+		// Semantic validation: energy block fields.
+		{
+			name:        "energy_recharge_per_tick_zero",
+			yaml:        "energy:\n  recharge_per_tick: 0",
+			wantKeyword: "energy.recharge_per_tick",
+		},
+		{
+			name:        "energy_reserve_cap_zero",
+			yaml:        "energy:\n  reserve_cap: 0",
+			wantKeyword: "energy.reserve_cap",
+		},
+		{
+			name:        "energy_savings_interval_ticks_zero",
+			yaml:        "energy:\n  savings_interval_ticks: 0",
+			wantKeyword: "energy.savings_interval_ticks",
+		},
+		{
+			name:        "energy_savings_cap_negative",
+			yaml:        "energy:\n  savings_cap: -1",
+			wantKeyword: "energy.savings_cap",
+		},
+		{
+			name:        "energy_cost_table_empty",
+			yaml:        "energy:\n  cost_table: []",
+			wantKeyword: "cost_table",
+		},
+		{
+			name: "energy_cost_table_threshold_zero",
+			yaml: `
+energy:
+  cost_table:
+    - threshold: 0
+      cost: 5
+`,
+			wantKeyword: "threshold",
+		},
+		{
+			name: "energy_cost_table_cost_zero",
+			yaml: `
+energy:
+  cost_table:
+    - threshold: 100
+      cost: 0
+`,
+			wantKeyword: "cost",
+		},
 		// Semantic validation: cost_table must be sorted ascending.
 		{
 			name: "cost_table_unsorted",
@@ -293,6 +339,27 @@ energy:
       cost: 5
 `,
 			wantKeyword: "cost_table",
+		},
+		// Type mismatch inside a sequence item: full dotted path must appear.
+		{
+			name: "type_mismatch_in_target_seq_names_path",
+			yaml: `
+targets:
+  - metric: supply
+    comparison: at_most
+    max: "bad"
+`,
+			wantKeyword: "targets[0].max",
+		},
+		{
+			name: "type_mismatch_in_cost_table_seq_names_path",
+			yaml: `
+energy:
+  cost_table:
+    - threshold: "bad"
+      cost: 5
+`,
+			wantKeyword: "energy.cost_table[0].threshold",
 		},
 		// CalibrationTarget: empty metric.
 		{

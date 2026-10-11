@@ -11,8 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strconv"
-	"strings"
 
 	yaml "go.yaml.in/yaml/v3"
 
@@ -52,7 +50,7 @@ type CalibrationTarget struct {
 }
 
 // EnergyCost maps an upper booster-value/catalogue-median ratio threshold
-// to an energy cost. A [Config.Energy].CostTable entry applies when the
+// to an energy cost. A [EnergyConfig.CostTable] entry applies when the
 // booster's ratio in percent is <= Threshold. The entry with the highest
 // Threshold acts as the catch-all for any ratio above it.
 // The table must be sorted in ascending order of Threshold.
@@ -82,7 +80,8 @@ type EnergyConfig struct {
 	SavingsCap int `yaml:"savings_cap"`
 
 	// CostTable maps booster-value/catalogue-median ratio thresholds to energy costs.
-	// Must be sorted in ascending order of Threshold. The last entry is the catch-all.
+	// Must be non-empty and sorted in ascending order of Threshold. The last entry
+	// is the catch-all for any ratio above the highest Threshold.
 	// Default table (from docs/core-features.md):
 	//   Threshold 50  (×0.5) → Cost 3
 	//   Threshold 100 (×1)   → Cost 5
@@ -100,14 +99,14 @@ type Config struct {
 	// ASSUMPTION: default 100 is a placeholder; the sweep calibrates this.
 	CoinRate domain.CoinRate `yaml:"coin_rate"`
 
-	// CounterSellPct is the percentage of a card's reference value the Counter
-	// pays the player when buying a card (default 60).
+	// CounterSellPct is the percentage of the reference value the player is paid
+	// when the player sells a card to the Counter (default 60).
 	CounterSellPct domain.Percent `yaml:"counter_sell_pct"`
 
-	// CounterBuyPct is the percentage of a card's reference value the Counter
-	// charges the player when selling a card (default 120).
-	// Invariant: CounterSellPct <= CounterBuyPct; a sell rate above the buy rate
-	// lets the player profit from a round trip through the Counter.
+	// CounterBuyPct is the percentage of the reference value the player pays
+	// when the player buys a card from the Counter (default 120).
+	// Invariant: CounterSellPct <= CounterBuyPct; a sell percentage above the buy
+	// percentage lets the player profit from a round trip through the Counter.
 	CounterBuyPct domain.Percent `yaml:"counter_buy_pct"`
 
 	// WelcomeBonus is the coins awarded on first launch (default 200, per core-features.md).
@@ -191,94 +190,18 @@ func Load(r io.Reader) (Config, error) {
 
 	lineKey := buildLineKeyMap(data)
 
+	// Completely empty file is valid: the pre-populated defaults are kept as-is.
 	cfg := defaults()
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
-	if err := dec.Decode(&cfg); err != nil {
-		if errors.Is(err, io.EOF) {
-			// Completely empty file: treat as empty mapping, keep all defaults.
-		} else {
-			return Config{}, enrichYAMLError(err, lineKey)
-		}
+	if err := dec.Decode(&cfg); err != nil && !errors.Is(err, io.EOF) {
+		return Config{}, enrichYAMLError(err, lineKey)
 	}
 
 	if err := validate(cfg); err != nil {
 		return Config{}, err
 	}
 	return cfg, nil
-}
-
-// buildLineKeyMap parses data into a yaml.Node tree and returns a map from each
-// value node's line number to its dotted key path (e.g. "energy.reserve_cap").
-// This enriches TypeError messages with the key name rather than just a line number.
-func buildLineKeyMap(data []byte) map[int]string {
-	var root yaml.Node
-	if err := yaml.Unmarshal(data, &root); err != nil {
-		return nil
-	}
-	m := make(map[int]string)
-	if root.Kind == yaml.DocumentNode && len(root.Content) > 0 {
-		walkNode(root.Content[0], "", m)
-	}
-	return m
-}
-
-// walkNode recursively walks a MappingNode, recording line -> dotted-key-path
-// for every key and its value node. Nested mappings are walked with a dotted prefix.
-func walkNode(n *yaml.Node, prefix string, m map[int]string) {
-	if n.Kind != yaml.MappingNode {
-		return
-	}
-	for i := 0; i+1 < len(n.Content); i += 2 {
-		keyNode := n.Content[i]
-		valNode := n.Content[i+1]
-		key := keyNode.Value
-		if prefix != "" {
-			key = prefix + "." + key
-		}
-		m[keyNode.Line] = key
-		m[valNode.Line] = key
-		walkNode(valNode, key, m)
-	}
-}
-
-// enrichYAMLError wraps a yaml decode error, replacing line numbers with key
-// names where available. Unknown-field errors already carry the field name;
-// type errors (yaml.TypeError) are enriched using the line-to-key map.
-func enrichYAMLError(err error, lineKey map[int]string) error {
-	var typeErr *yaml.TypeError
-	if !errors.As(err, &typeErr) {
-		return fmt.Errorf("load config: %w", err)
-	}
-	parts := make([]string, 0, len(typeErr.Errors))
-	for _, msg := range typeErr.Errors {
-		parts = append(parts, enrichTypeLine(msg, lineKey))
-	}
-	return fmt.Errorf("load config: %s", strings.Join(parts, "; "))
-}
-
-// enrichTypeLine replaces the "line N: <problem>" prefix with "key: <problem>"
-// when the line number maps to a known YAML key, leaving the message unchanged
-// otherwise.
-func enrichTypeLine(msg string, lineKey map[int]string) string {
-	const linePrefix = "line "
-	if !strings.HasPrefix(msg, linePrefix) {
-		return msg
-	}
-	rest := msg[len(linePrefix):]
-	colon := strings.IndexByte(rest, ':')
-	if colon < 0 {
-		return msg
-	}
-	lineNum, err := strconv.Atoi(rest[:colon])
-	if err != nil {
-		return msg
-	}
-	detail := strings.TrimSpace(rest[colon+1:])
-	if key, ok := lineKey[lineNum]; ok {
-		return key + ": " + detail
-	}
-	return msg
 }
 
 // validate checks semantic constraints on cfg and returns an error naming the
@@ -294,7 +217,7 @@ func validate(cfg Config) error {
 		return fmt.Errorf("config: counter_buy_pct must be > 0, got %d", cfg.CounterBuyPct)
 	}
 	if cfg.CounterSellPct > cfg.CounterBuyPct {
-		return fmt.Errorf("config: counter_sell_pct (%d) must be <= counter_buy_pct (%d); a sell rate above buy lets the player profit from a round trip",
+		return fmt.Errorf("config: counter_sell_pct (%d) must be <= counter_buy_pct (%d); a sell percentage above buy lets the player profit from a round trip",
 			cfg.CounterSellPct, cfg.CounterBuyPct)
 	}
 	if cfg.WelcomeBonus < 0 {
@@ -317,7 +240,7 @@ func validate(cfg Config) error {
 			return fmt.Errorf("config: initial_stock[%s] must be >= 0, got %d", r, v)
 		}
 	}
-	if err := validateCostTable(cfg.Energy.CostTable); err != nil {
+	if err := validateEnergy(cfg.Energy); err != nil {
 		return err
 	}
 	for i, t := range cfg.Targets {
@@ -328,13 +251,36 @@ func validate(cfg Config) error {
 	return nil
 }
 
-// validateCostTable checks that the energy cost table is sorted ascending by Threshold.
-func validateCostTable(table []EnergyCost) error {
-	for i := 1; i < len(table); i++ {
-		if table[i].Threshold <= table[i-1].Threshold {
+// validateEnergy checks the energy block fields and the cost table.
+func validateEnergy(e EnergyConfig) error {
+	if e.RechargePerTick <= 0 {
+		return fmt.Errorf("config: energy.recharge_per_tick must be > 0, got %d", e.RechargePerTick)
+	}
+	if e.ReserveCap <= 0 {
+		return fmt.Errorf("config: energy.reserve_cap must be > 0, got %d", e.ReserveCap)
+	}
+	if e.SavingsIntervalTicks <= 0 {
+		return fmt.Errorf("config: energy.savings_interval_ticks must be > 0, got %d", e.SavingsIntervalTicks)
+	}
+	if e.SavingsCap < 0 {
+		return fmt.Errorf("config: energy.savings_cap must be >= 0, got %d", e.SavingsCap)
+	}
+	if len(e.CostTable) == 0 {
+		return fmt.Errorf("config: energy.cost_table must not be empty")
+	}
+	for i, entry := range e.CostTable {
+		if entry.Threshold <= 0 {
+			return fmt.Errorf("config: energy.cost_table[%d].threshold must be > 0, got %d", i, entry.Threshold)
+		}
+		if entry.Cost <= 0 {
+			return fmt.Errorf("config: energy.cost_table[%d].cost must be > 0, got %d", i, entry.Cost)
+		}
+	}
+	for i := 1; i < len(e.CostTable); i++ {
+		if e.CostTable[i].Threshold <= e.CostTable[i-1].Threshold {
 			return fmt.Errorf(
 				"config: energy.cost_table: entry %d threshold (%d) must be > entry %d threshold (%d); table must be sorted ascending",
-				i, table[i].Threshold, i-1, table[i-1].Threshold,
+				i, e.CostTable[i].Threshold, i-1, e.CostTable[i-1].Threshold,
 			)
 		}
 	}
