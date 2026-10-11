@@ -33,7 +33,6 @@ func run(args []string, stdout io.Writer, stderr io.Writer) error {
 	}
 
 	// dispatch maps each subcommand name to its handler.
-	// Handlers currently return a not-implemented error until their story lands.
 	dispatch := map[string]func() error{
 		"simulate": func() error { return cmdSimulate(args[1:], stdout, stderr) },
 		"sweep":    func() error { return cmdSweep(args[1:], stdout, stderr) },
@@ -47,19 +46,4 @@ func run(args []string, stdout io.Writer, stderr io.Writer) error {
 		return fmt.Errorf("unknown subcommand %q", args[0])
 	}
 	return fn()
-}
-
-// cmdSweep will sweep the coin to USD rate over a grid (not yet implemented).
-func cmdSweep(_ []string, _ io.Writer, _ io.Writer) error {
-	return fmt.Errorf("sweep: not implemented")
-}
-
-// cmdCompare will compare two simulation results (not yet implemented).
-func cmdCompare(_ []string, _ io.Writer, _ io.Writer) error {
-	return fmt.Errorf("compare: not implemented")
-}
-
-// cmdDemo will run a sweep on the demo dataset (not yet implemented).
-func cmdDemo(_ []string, _ io.Writer, _ io.Writer) error {
-	return fmt.Errorf("demo: not implemented")
 }
