@@ -12,16 +12,19 @@ them elsewhere.
 
 | Rule | Where it is defined |
 |------|---------------------|
-| TDD, including a refactor step that prunes and merges tests | [`go-development`](.claude/skills/go-development/SKILL.md#development-loop--tdd) |
-| SOLID | [`go-development`](.claude/skills/go-development/SKILL.md#solid-in-go) |
-| Dependency injection, never patching | [`go-development`](.claude/skills/go-development/SKILL.md#dependency-injection--never-patch) |
-| Strategy pattern for varying behaviour | [`go-development`](.claude/skills/go-development/SKILL.md#strategy-pattern--the-default-for-varying-behaviour) |
-| Demo data in the same PR as the feature | [`go-development`](.claude/skills/go-development/SKILL.md#demo-data-ships-with-the-feature) |
+| Idiomatic Go: naming, errors, concurrency, testing, tooling | [`go-development`](.claude/skills/go-development/SKILL.md) |
+| KISS | [`go-house-style`](.claude/skills/go-house-style/SKILL.md#kiss) |
+| TDD, including a refactor step that prunes and merges tests | [`go-house-style`](.claude/skills/go-house-style/SKILL.md#development-loop--tdd) |
+| SOLID | [`go-house-style`](.claude/skills/go-house-style/SKILL.md#solid-in-go) |
+| Dependency injection, never patching | [`go-house-style`](.claude/skills/go-house-style/SKILL.md#dependency-injection--never-patch) |
+| Strategy pattern where it improves the code | [`go-house-style`](.claude/skills/go-house-style/SKILL.md#strategy-pattern--where-it-improves-the-code) |
+| Demo data in the same PR as the feature | [`crackapack-conventions`](.claude/skills/crackapack-conventions/SKILL.md#demo-data-ships-with-the-feature) |
 | Documentation and ADRs | [`project-documentation`](.claude/skills/project-documentation/SKILL.md) |
+| One decision per ADR; supersede ADRs, never amend them | [`project-documentation`](.claude/skills/project-documentation/SKILL.md#single-decision-per-adr) |
 | Whole-repo quality audits | [`codebase-audit`](.claude/skills/codebase-audit/SKILL.md) |
 
 Architecture decisions are recorded in [docs/adr/](docs/adr/). A change that contradicts an
-accepted ADR needs a new ADR first.
+accepted ADR needs a new ADR first, one that supersedes the old one.
 
 ## Commands
 
