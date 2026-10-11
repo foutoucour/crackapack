@@ -8,7 +8,20 @@ solo, local game. It is a personal project, published for anyone who wants to ru
 
 ## Status
 
-Pre-alpha. The design is settled; the Go module is not scaffolded yet.
+Pre-alpha. The simulation MVP exists; the following are not built yet: the UI,
+the NPC simulation, catalogue sync, and data persistence.
+
+## Try the simulation
+
+The demo command runs a coin-rate sweep on a built-in synthetic dataset with no
+files or network required:
+
+```
+go run ./cmd/crackapack demo
+```
+
+See [Simulation guide](docs/simulation.md) for the other commands (`simulate`,
+`sweep`, `compare`) and how to read the sweep table.
 
 ## Scope
 
@@ -37,6 +50,8 @@ images are downloaded on demand and cached.
 - [Architecture](docs/architecture.md) — the core, its adapters, and how the online option stays
   open
 - [Core features](docs/core-features.md) — boosters, energy, collection, the Counter, NPCs
+- [Simulation guide](docs/simulation.md) — commands, config keys, metric names, how to read the
+  sweep table
 - [Retention](docs/retention.md) — quests, milestones, badges, mini-games, events
 - [MTG vs Pokémon](docs/mtg-vs-pokemon.md) — what changes when adapting Holopocket to Magic
 - [Specs review](docs/specs-review.md) — V1 scope, build order, risks, open questions
