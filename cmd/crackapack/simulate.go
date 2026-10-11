@@ -217,6 +217,11 @@ func runSimulate(a simulateArgs) error {
 		name := code + ".json"
 		cat, err := domain.LoadSetCatalogue(a.catFS, name)
 		if err != nil {
+			// CatalogueError already names the file; avoid duplicating the name.
+			var ce *domain.CatalogueError
+			if errors.As(err, &ce) {
+				return err
+			}
 			return fmt.Errorf("catalogue %s: %w", name, err)
 		}
 		catalogues = append(catalogues, cat)
@@ -228,6 +233,11 @@ func runSimulate(a simulateArgs) error {
 		name := code + ".json"
 		pool, err := domain.LoadCardPool(a.catFS, name)
 		if err != nil {
+			// CatalogueError already names the file; avoid duplicating the name.
+			var ce *domain.CatalogueError
+			if errors.As(err, &ce) {
+				return err
+			}
 			return fmt.Errorf("supplementary %s: %w", name, err)
 		}
 		supplementary = append(supplementary, pool)

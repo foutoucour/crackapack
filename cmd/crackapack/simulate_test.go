@@ -236,21 +236,81 @@ func TestSimulate_badPricesFile(t *testing.T) {
 }
 
 // TestSimulate_missingCatalogueFile verifies that a non-existent set code
-// returns an error that mentions the file name.
+// returns an error that mentions the file name. It also checks that the
+// "catalogue <file>:" prefix is not doubled (no wrapping on top of CatalogueError).
 func TestSimulate_missingCatalogueFile(t *testing.T) {
 	t.Parallel()
 
 	rav := domaintest.NewRavnicaCatalogue()
 	var stdout strings.Builder
 	a, _ := buildTestArgs(t, []domain.SetCatalogue{rav}, nil, &stdout)
-	a.setCodes = append(a.setCodes, "BADCODE")
+	a.setCodes = append(a.setCodes, "NOPE")
 
 	err := runSimulate(a)
 	if err == nil {
 		t.Fatal("want error for missing catalogue file, got nil")
 	}
-	if !strings.Contains(err.Error(), "BADCODE.json") {
-		t.Errorf("error %q does not mention BADCODE.json", err.Error())
+	msg := err.Error()
+	if !strings.Contains(msg, "NOPE.json") {
+		t.Errorf("error does not mention NOPE.json: %q", msg)
+	}
+	// CatalogueError already prefixes with "catalogue <file>:"; runSimulate must
+	// not add another such prefix.
+	prefix := "catalogue NOPE.json:"
+	if count := strings.Count(msg, prefix); count != 1 {
+		t.Errorf("prefix %q appears %d times in error, want exactly 1: %q", prefix, count, msg)
+	}
+}
+
+// TestSimulate_badCardInCatalogue verifies that a catalogue with an invalid card
+// rarity returns an error whose "catalogue <file>:" prefix appears exactly once
+// (the CatalogueError is not double-wrapped).
+func TestSimulate_badCardInCatalogue(t *testing.T) {
+	t.Parallel()
+
+	// Build a MapFS with a corrupt RAV.json (unknown rarity "mythic").
+	badCatJSON := []byte(`{"data":{"code":"RAV","name":"Ravnica (bad)",` +
+		`"cards":[{"uuid":"rav-bad-001","name":"Bad Card","number":"1",` +
+		`"rarity":"mythic","finishes":["nonfoil"],"supertypes":[],"identifiers":{}}],` +
+		`"booster":{"draft":{"boosters":[{"contents":{"common":1},"weight":1}],` +
+		`"sheets":{"common":{"cards":{"rav-bad-001":10},"totalWeight":10,"foil":false,"balanceColors":false}}}}}}`)
+
+	rav := domaintest.NewRavnicaCatalogue()
+	prices := domaintest.NewPrices(rav, 1)
+	priceData, err := domaintest.PriceSnapshotToJSON(prices)
+	if err != nil {
+		t.Fatalf("PriceSnapshotToJSON: %v", err)
+	}
+
+	mapFS := fstest.MapFS{
+		"RAV.json":    &fstest.MapFile{Data: badCatJSON},
+		"prices.json": &fstest.MapFile{Data: priceData},
+	}
+	newOutput, _ := newMemOutput()
+	var stdout strings.Builder
+	a := simulateArgs{
+		configReader: strings.NewReader("run_days: 5\nseed: 42\n"),
+		catFS:        mapFS,
+		setCodes:     []string{"RAV"},
+		pricesFS:     mapFS,
+		pricesName:   "prices.json",
+		player:       "collector",
+		policies:     buildPolicies(),
+		newOutput:    newOutput,
+		stdout:       &stdout,
+	}
+
+	runErr := runSimulate(a)
+	if runErr == nil {
+		t.Fatal("want error for bad card, got nil")
+	}
+	msg := runErr.Error()
+	if !strings.Contains(msg, "RAV.json") {
+		t.Errorf("error does not mention RAV.json: %q", msg)
+	}
+	prefix := "catalogue RAV.json:"
+	if count := strings.Count(msg, prefix); count != 1 {
+		t.Errorf("prefix %q appears %d times in error, want exactly 1: %q", prefix, count, msg)
 	}
 }
 

@@ -1,7 +1,10 @@
 package domaintest_test
 
 import (
-	"reflect"
+	"bytes"
+	"fmt"
+	"maps"
+	"slices"
 	"testing"
 	"testing/fstest"
 
@@ -9,33 +12,179 @@ import (
 	"github.com/foutoucour/crackapack/internal/domain/domaintest"
 )
 
-// TestCatalogueToJSON_roundTripRavnica verifies that CatalogueToJSON produces
-// valid JSON that LoadSetCatalogue can parse, and that re-serialising and
-// re-loading gives byte-stable results.
+// ---- comparison helpers ----------------------------------------------------
+
+// checkCatalogueEqualToOriginal compares got against want field by field and
+// returns a slice of human-readable difference messages. nil vs empty slices
+// are treated as equal so that the serialiser's normalisation (the loader
+// always returns a non-nil empty slice for an absent JSON array) does not
+// produce false failures.
+//
+// Fields checked: Code, Name, every card's Name/Number/Rarity/IsBasicLand/
+// ScryfallID/Finishes/Colors, every sheet's Cards(id+weight,same order)/
+// TotalWeight/Foil/BalanceColors, every booster option's Contents+Weight
+// in order.
+func checkCatalogueEqualToOriginal(got, want domain.SetCatalogue) []string {
+	var errs []string
+
+	if got.Code != want.Code {
+		errs = append(errs, "Code: got "+got.Code+", want "+want.Code)
+	}
+	if got.Name != want.Name {
+		errs = append(errs, "Name: got "+got.Name+", want "+want.Name)
+	}
+	errs = append(errs, checkCards(got.Cards, want.Cards)...)
+	errs = append(errs, checkSheets(got.Sheets, want.Sheets)...)
+	errs = append(errs, checkBoosterOptions(got.BoosterOptions, want.BoosterOptions)...)
+	return errs
+}
+
+func checkCards(got, want map[domain.CardID]domain.Card) []string {
+	var errs []string
+	if len(got) != len(want) {
+		errs = append(errs, sprint("len(Cards): got %d, want %d", len(got), len(want)))
+	}
+	for id, wantCard := range want {
+		gotCard, ok := got[id]
+		if !ok {
+			errs = append(errs, sprint("card %q: missing", id))
+			continue
+		}
+		if gotCard.Name != wantCard.Name {
+			errs = append(errs, sprint("card %q: Name got %q, want %q", id, gotCard.Name, wantCard.Name))
+		}
+		if gotCard.Number != wantCard.Number {
+			errs = append(errs, sprint("card %q: Number got %q, want %q", id, gotCard.Number, wantCard.Number))
+		}
+		if gotCard.Rarity != wantCard.Rarity {
+			errs = append(errs, sprint("card %q: Rarity got %q, want %q", id, gotCard.Rarity, wantCard.Rarity))
+		}
+		if gotCard.IsBasicLand != wantCard.IsBasicLand {
+			errs = append(errs, sprint("card %q: IsBasicLand got %v, want %v", id, gotCard.IsBasicLand, wantCard.IsBasicLand))
+		}
+		if gotCard.ScryfallID != wantCard.ScryfallID {
+			errs = append(errs, sprint("card %q: ScryfallID got %q, want %q", id, gotCard.ScryfallID, wantCard.ScryfallID))
+		}
+		// slices.Equal treats nil and []T{} as equal (both have length 0, no elements differ).
+		if !slices.Equal(gotCard.Finishes, wantCard.Finishes) {
+			errs = append(errs, sprint("card %q: Finishes got %v, want %v", id, gotCard.Finishes, wantCard.Finishes))
+		}
+		if !slices.Equal(gotCard.Colors, wantCard.Colors) {
+			errs = append(errs, sprint("card %q: Colors got %v, want %v", id, gotCard.Colors, wantCard.Colors))
+		}
+	}
+	return errs
+}
+
+func checkSheets(got, want map[string]domain.Sheet) []string {
+	var errs []string
+	if len(got) != len(want) {
+		errs = append(errs, sprint("len(Sheets): got %d, want %d", len(got), len(want)))
+	}
+	for name, wantSheet := range want {
+		gotSheet, ok := got[name]
+		if !ok {
+			errs = append(errs, sprint("sheet %q: missing", name))
+			continue
+		}
+		if gotSheet.TotalWeight != wantSheet.TotalWeight {
+			errs = append(errs, sprint("sheet %q: TotalWeight got %d, want %d",
+				name, gotSheet.TotalWeight, wantSheet.TotalWeight))
+		}
+		if gotSheet.Foil != wantSheet.Foil {
+			errs = append(errs, sprint("sheet %q: Foil got %v, want %v", name, gotSheet.Foil, wantSheet.Foil))
+		}
+		if gotSheet.BalanceColors != wantSheet.BalanceColors {
+			errs = append(errs, sprint("sheet %q: BalanceColors got %v, want %v",
+				name, gotSheet.BalanceColors, wantSheet.BalanceColors))
+		}
+		// SheetCard is a struct of two comparable fields; slices.Equal handles nil vs empty.
+		if !slices.Equal(gotSheet.Cards, wantSheet.Cards) {
+			errs = append(errs, sprint("sheet %q: Cards got %v, want %v",
+				name, gotSheet.Cards, wantSheet.Cards))
+		}
+	}
+	return errs
+}
+
+func checkBoosterOptions(got, want []domain.BoosterOption) []string {
+	var errs []string
+	if len(got) != len(want) {
+		errs = append(errs, sprint("len(BoosterOptions): got %d, want %d", len(got), len(want)))
+		return errs
+	}
+	for i := range want {
+		if got[i].Weight != want[i].Weight {
+			errs = append(errs, sprint("BoosterOptions[%d]: Weight got %d, want %d",
+				i, got[i].Weight, want[i].Weight))
+		}
+		if !maps.Equal(got[i].Contents, want[i].Contents) {
+			errs = append(errs, sprint("BoosterOptions[%d]: Contents got %v, want %v",
+				i, got[i].Contents, want[i].Contents))
+		}
+	}
+	return errs
+}
+
+// assertCatalogueEqualToOriginal is the test-reporting wrapper for
+// checkCatalogueEqualToOriginal.
+func assertCatalogueEqualToOriginal(t *testing.T, got, want domain.SetCatalogue) {
+	t.Helper()
+	for _, msg := range checkCatalogueEqualToOriginal(got, want) {
+		t.Error(msg)
+	}
+}
+
+// checkCardPoolEqualToOriginal checks Code, Name and Cards of a loaded card
+// pool against the original builder output, normalising nil vs empty slices.
+// Sheets and BoosterOptions are not checked because CardPoolToJSON does not
+// serialise them.
+func checkCardPoolEqualToOriginal(got, want domain.SetCatalogue) []string {
+	var errs []string
+	if got.Code != want.Code {
+		errs = append(errs, sprint("Code: got %q, want %q", got.Code, want.Code))
+	}
+	if got.Name != want.Name {
+		errs = append(errs, sprint("Name: got %q, want %q", got.Name, want.Name))
+	}
+	errs = append(errs, checkCards(got.Cards, want.Cards)...)
+	if len(got.Sheets) != 0 {
+		errs = append(errs, sprint("Sheets: got %d, want 0 (card pool has no booster section)", len(got.Sheets)))
+	}
+	if len(got.BoosterOptions) != 0 {
+		errs = append(errs, sprint("BoosterOptions: got %d, want 0", len(got.BoosterOptions)))
+	}
+	return errs
+}
+
+// sprint is a thin sprintf wrapper to avoid importing fmt in production-facing
+// test helpers. It uses fmt under the hood.
+func sprint(format string, args ...any) string {
+	return fmt.Sprintf(format, args...)
+}
+
+// ---- round-trip tests ------------------------------------------------------
+
 func TestCatalogueToJSON_roundTripRavnica(t *testing.T) {
 	t.Parallel()
-	cat := domaintest.NewRavnicaCatalogue()
-	roundTripSetCatalogue(t, cat)
+	assertSetCatalogueRoundTrip(t, domaintest.NewRavnicaCatalogue())
 }
 
 func TestCatalogueToJSON_roundTripClassic(t *testing.T) {
 	t.Parallel()
-	cat := domaintest.NewClassicCatalogue()
-	roundTripSetCatalogue(t, cat)
+	assertSetCatalogueRoundTrip(t, domaintest.NewClassicCatalogue())
 }
 
 func TestCatalogueToJSON_roundTripTimeSpiralMain(t *testing.T) {
 	t.Parallel()
 	tsp, _ := domaintest.NewTimeSpiralCatalogues()
-	roundTripSetCatalogue(t, tsp)
+	assertSetCatalogueRoundTrip(t, tsp)
 }
 
-// roundTripSetCatalogue is a shared helper that asserts:
-//  1. CatalogueToJSON succeeds and produces parseable JSON.
-//  2. The loaded catalogue has the correct Code, Name, card count, sheet count,
-//     and booster option count.
-//  3. Re-serialising and re-loading gives a reflect.DeepEqual result (stability).
-func roundTripSetCatalogue(t *testing.T, cat domain.SetCatalogue) {
+// assertSetCatalogueRoundTrip is the shared round-trip helper for full catalogues.
+// It serialises cat with CatalogueToJSON, loads the JSON with LoadSetCatalogue,
+// and performs a strict field-by-field comparison against the ORIGINAL builder output.
+func assertSetCatalogueRoundTrip(t *testing.T, cat domain.SetCatalogue) {
 	t.Helper()
 
 	data, err := domaintest.CatalogueToJSON(cat)
@@ -47,61 +196,16 @@ func roundTripSetCatalogue(t *testing.T, cat domain.SetCatalogue) {
 	}
 
 	mapFS := fstest.MapFS{cat.Code + ".json": &fstest.MapFile{Data: data}}
-	got1, err := domain.LoadSetCatalogue(mapFS, cat.Code+".json")
+	got, err := domain.LoadSetCatalogue(mapFS, cat.Code+".json")
 	if err != nil {
-		t.Fatalf("LoadSetCatalogue (first load): %v", err)
+		t.Fatalf("LoadSetCatalogue: %v", err)
 	}
 
-	// Structural checks against the original builder output.
-	if got1.Code != cat.Code {
-		t.Errorf("Code = %q, want %q", got1.Code, cat.Code)
-	}
-	if got1.Name != cat.Name {
-		t.Errorf("Name = %q, want %q", got1.Name, cat.Name)
-	}
-	if len(got1.Cards) != len(cat.Cards) {
-		t.Errorf("len(Cards) = %d, want %d", len(got1.Cards), len(cat.Cards))
-	}
-	if len(got1.Sheets) != len(cat.Sheets) {
-		t.Errorf("len(Sheets) = %d, want %d", len(got1.Sheets), len(cat.Sheets))
-	}
-	if len(got1.BoosterOptions) != len(cat.BoosterOptions) {
-		t.Errorf("len(BoosterOptions) = %d, want %d", len(got1.BoosterOptions), len(cat.BoosterOptions))
-	}
-
-	// Verify all original card IDs are present with matching Rarity and IsBasicLand.
-	for id, wantCard := range cat.Cards {
-		gotCard, ok := got1.Cards[id]
-		if !ok {
-			t.Errorf("card %q missing after round-trip", id)
-			continue
-		}
-		if gotCard.Rarity != wantCard.Rarity {
-			t.Errorf("card %q: Rarity = %q, want %q", id, gotCard.Rarity, wantCard.Rarity)
-		}
-		if gotCard.IsBasicLand != wantCard.IsBasicLand {
-			t.Errorf("card %q: IsBasicLand = %v, want %v", id, gotCard.IsBasicLand, wantCard.IsBasicLand)
-		}
-	}
-
-	// Stability: re-serialise got1 and load again; the two loads must be equal.
-	data2, err := domaintest.CatalogueToJSON(got1)
-	if err != nil {
-		t.Fatalf("CatalogueToJSON (second serialise): %v", err)
-	}
-	mapFS2 := fstest.MapFS{cat.Code + ".json": &fstest.MapFile{Data: data2}}
-	got2, err := domain.LoadSetCatalogue(mapFS2, cat.Code+".json")
-	if err != nil {
-		t.Fatalf("LoadSetCatalogue (second load): %v", err)
-	}
-	if !reflect.DeepEqual(got1, got2) {
-		t.Error("catalogue differs between first and second round-trip load")
-	}
+	assertCatalogueEqualToOriginal(t, got, cat)
 }
 
-// TestCardPoolToJSON_roundTripTSB verifies that CardPoolToJSON produces JSON
-// that LoadCardPool can parse, with correct Code, Name, and Cards.
-// Sheets and BoosterOptions are not preserved by design.
+// TestCardPoolToJSON_roundTripTSB verifies that CardPoolToJSON → LoadCardPool
+// preserves Code, Name, and all card fields against the ORIGINAL builder output.
 func TestCardPoolToJSON_roundTripTSB(t *testing.T) {
 	t.Parallel()
 
@@ -121,61 +225,49 @@ func TestCardPoolToJSON_roundTripTSB(t *testing.T) {
 		t.Fatalf("LoadCardPool: %v", err)
 	}
 
-	if got.Code != tsb.Code {
-		t.Errorf("Code = %q, want %q", got.Code, tsb.Code)
-	}
-	if got.Name != tsb.Name {
-		t.Errorf("Name = %q, want %q", got.Name, tsb.Name)
-	}
-	if len(got.Cards) != len(tsb.Cards) {
-		t.Errorf("len(Cards) = %d, want %d", len(got.Cards), len(tsb.Cards))
-	}
-	for id := range tsb.Cards {
-		if _, ok := got.Cards[id]; !ok {
-			t.Errorf("card %q missing after round-trip", id)
-		}
-	}
-	// Sheets and BoosterOptions are not serialised by CardPoolToJSON.
-	if len(got.Sheets) != 0 {
-		t.Errorf("Sheets: got %d, want 0 (card pool has no booster section)", len(got.Sheets))
-	}
-	if len(got.BoosterOptions) != 0 {
-		t.Errorf("BoosterOptions: got %d, want 0", len(got.BoosterOptions))
+	for _, msg := range checkCardPoolEqualToOriginal(got, tsb) {
+		t.Error(msg)
 	}
 }
 
-// TestCardPoolToJSON_stability verifies that CardPoolToJSON → LoadCardPool → CardPoolToJSON
-// produces identical bytes on the second serialisation.
-func TestCardPoolToJSON_stability(t *testing.T) {
+// TestCatalogueComparison_detectsMutation is a negative test that proves
+// checkCatalogueEqualToOriginal can report a difference. It serialises the
+// Ravnica catalogue to JSON, replaces the colors of one card (dropping "W" to
+// empty), loads the mutated JSON, and asserts that the comparison helper
+// returns at least one error message.
+func TestCatalogueComparison_detectsMutation(t *testing.T) {
 	t.Parallel()
 
-	_, tsb := domaintest.NewTimeSpiralCatalogues()
+	original := domaintest.NewRavnicaCatalogue()
 
-	data1, err := domaintest.CardPoolToJSON(tsb)
+	data, err := domaintest.CatalogueToJSON(original)
 	if err != nil {
-		t.Fatalf("CardPoolToJSON (first): %v", err)
+		t.Fatalf("CatalogueToJSON: %v", err)
 	}
-	mapFS := fstest.MapFS{tsb.Code + ".json": &fstest.MapFile{Data: data1}}
-	got1, err := domain.LoadCardPool(mapFS, tsb.Code+".json")
+
+	// Drop the first occurrence of ["W"] from the colors field. rav-c-000 is
+	// serialised first (ascending UUID order) and has Colors: []string{"W"}.
+	// Replacing "W" with an empty array changes that card's colors so that the
+	// comparison helper must report a mismatch on Colors.
+	mutated := bytes.Replace(data, []byte(`["W"]`), []byte(`[]`), 1)
+	if bytes.Equal(mutated, data) {
+		t.Fatal("mutation did not change the JSON; serialiser format may have changed")
+	}
+
+	mapFS := fstest.MapFS{original.Code + ".json": &fstest.MapFile{Data: mutated}}
+	loaded, err := domain.LoadSetCatalogue(mapFS, original.Code+".json")
 	if err != nil {
-		t.Fatalf("LoadCardPool: %v", err)
+		t.Fatalf("LoadSetCatalogue with mutated JSON: %v", err)
 	}
-	data2, err := domaintest.CardPoolToJSON(got1)
-	if err != nil {
-		t.Fatalf("CardPoolToJSON (second): %v", err)
-	}
-	mapFS2 := fstest.MapFS{tsb.Code + ".json": &fstest.MapFile{Data: data2}}
-	got2, err := domain.LoadCardPool(mapFS2, tsb.Code+".json")
-	if err != nil {
-		t.Fatalf("LoadCardPool (second): %v", err)
-	}
-	if !reflect.DeepEqual(got1, got2) {
-		t.Error("card pool differs between first and second round-trip load")
+
+	diffs := checkCatalogueEqualToOriginal(loaded, original)
+	if len(diffs) == 0 {
+		t.Error("expected comparison to detect the Colors mutation but no differences were reported")
 	}
 }
 
-// TestPriceSnapshotToJSON_roundTrip verifies that PriceSnapshotToJSON produces
-// JSON that LoadPriceSnapshot reads back to an equal PriceSnapshot.
+// ---- price snapshot round-trip ---------------------------------------------
+
 func TestPriceSnapshotToJSON_roundTrip(t *testing.T) {
 	t.Parallel()
 
@@ -195,13 +287,13 @@ func TestPriceSnapshotToJSON_roundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadPriceSnapshot: %v", err)
 	}
-	if !reflect.DeepEqual(snap, got) {
+	if !maps.Equal(snap, got) {
 		t.Errorf("PriceSnapshot differs after round-trip: got %v, want %v", got, snap)
 	}
 }
 
-// TestMergePrices_combinesDistinctIDs verifies that MergePrices merges two
-// non-overlapping snapshots into one that contains all entries.
+// ---- MergePrices tests -----------------------------------------------------
+
 func TestMergePrices_combinesDistinctIDs(t *testing.T) {
 	t.Parallel()
 
@@ -224,7 +316,6 @@ func TestMergePrices_combinesDistinctIDs(t *testing.T) {
 	}
 }
 
-// TestMergePrices_lastWins verifies that the last snapshot wins on duplicate IDs.
 func TestMergePrices_lastWins(t *testing.T) {
 	t.Parallel()
 
@@ -238,8 +329,8 @@ func TestMergePrices_lastWins(t *testing.T) {
 	}
 }
 
-// TestNewMapFS_containsExpectedKeys verifies that NewMapFS produces a MapFS
-// with catalogue files and prices.json.
+// ---- NewMapFS test ---------------------------------------------------------
+
 func TestNewMapFS_containsExpectedKeys(t *testing.T) {
 	t.Parallel()
 
@@ -278,7 +369,7 @@ func TestNewMapFS_containsExpectedKeys(t *testing.T) {
 		}
 	}
 
-	// TSB is a card pool (parseable by LoadCardPool, NOT by LoadSetCatalogue).
+	// TSB is a card pool (parseable by LoadCardPool, not by LoadSetCatalogue).
 	if _, err := domain.LoadCardPool(mapFS, "TSB.json"); err != nil {
 		t.Errorf("LoadCardPool(TSB.json): %v", err)
 	}
