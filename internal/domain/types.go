@@ -26,3 +26,7 @@ type CoinRate int64
 // PriceSnapshot is the fixed set of prices a simulation runs on. A card absent from it has
 // no price and falls back to the configured fallback price.
 type PriceSnapshot map[CardID]USDCents
+
+// Percent is a whole percentage: 100 means 100%. The Counter's rates are Percents (60 to sell,
+// 120 to buy), so a price scaled by a rate stays an integer computation.
+type Percent int64
