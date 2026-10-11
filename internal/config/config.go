@@ -140,6 +140,11 @@ type Config struct {
 
 	// Targets are calibration pass/fail conditions evaluated by T-011.
 	Targets []CalibrationTarget `yaml:"targets"`
+
+	// SweepRates is the grid of coin-per-USD rates used by the sweep subcommand.
+	// Each entry must be > 0 and the list must be strictly ascending.
+	// Default: [10, 25, 50, 100, 250, 500].
+	SweepRates []domain.CoinRate `yaml:"sweep_rates"`
 }
 
 // defaults returns a Config pre-populated with the documented starting values.
@@ -173,6 +178,7 @@ func defaults() Config {
 		FallbackPrice:  1, // ASSUMPTION
 		SessionsPerDay: 3, // ASSUMPTION
 		RunDays:        90,
+		SweepRates:     []domain.CoinRate{10, 25, 50, 100, 250, 500},
 	}
 }
 
@@ -247,6 +253,9 @@ func validate(cfg Config) error {
 		if err := validateTarget(i, t); err != nil {
 			return err
 		}
+	}
+	if err := validateSweepRates(cfg.SweepRates); err != nil {
+		return err
 	}
 	return nil
 }
