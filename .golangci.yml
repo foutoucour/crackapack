@@ -38,3 +38,7 @@ linters:
       forbid:
         - pattern: "time\\.Now"
           msg: "inject a Clock instead of calling time.Now directly"
+
+formatters:
+  enable:
+    - gofmt

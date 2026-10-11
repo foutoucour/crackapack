@@ -38,7 +38,7 @@ func TestJournalPost(t *testing.T) {
 			},
 		},
 		{
-			name: "daily reward credits player",
+			name:  "daily reward credits player",
 			entry: domain.Entry{From: domain.AccountDailyReward, To: domain.AccountPlayer, Amount: 100, Memo: "daily"},
 			wantBalance: map[domain.Account]domain.Coins{
 				domain.AccountDailyReward: -100,
