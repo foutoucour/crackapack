@@ -9,9 +9,9 @@ Accepted — 2026-10-11
 The simulation sweeps the coin-to-USD rate over a grid (for example 10, 25, 50, 100, 250,
 500 coins per USD) and compares results across runs. Two requirements follow:
 
-- Money arithmetic must be deterministic and reproducible. `float64` introduces non-determinism
-  at the bit level (platforms may round differently) and its rounding behaviour is invisible to
-  the reader.
+- Money arithmetic must be exact and reproducible. `float64` rounds implicitly, so sums depend on
+  the order of operations and two runs that differ only in the coin rate would not compare
+  cleanly.
 - A single price-to-coin expression must absorb Counter percentages (sell at 60%, buy at 120%)
   without compounding truncation. Applying the percentage in a separate step after converting
   to coins would truncate twice, widening the buy/sell spread non-uniformly at low rates.
@@ -38,7 +38,7 @@ returns `ErrSubCoin` instead of a silent zero. When any input is negative it ret
 
 - All money arithmetic uses integer types; `float64` is excluded from the domain.
 - The single-truncation formula guarantees that the buy price is always at least twice the sell
-  price (`floor(2x) >= 2·floor(x)` for x ≥ 0), so a sell-then-buy round trip at the Counter
+  price (`floor(2x) >= 2·floor(x)` for x ≥ 0), so a buy-then-sell round trip at the Counter
   never profits. This is verified by a property test in `money_test.go`.
 - Callers that display a card price must handle `ErrSubCoin` explicitly; the card cannot be
   silently treated as free.
