@@ -37,7 +37,7 @@ type InvalidKeepError struct {
 
 // Error implements the error interface.
 func (e *InvalidKeepError) Error() string {
-	return fmt.Sprintf("collection: keep must be between 1 and 4 inclusive, got %d", e.Keep)
+	return fmt.Sprintf("collection: keep must be between 1 and %d inclusive, got %d", PlaysetSize, e.Keep)
 }
 
 // RarityProgress holds the owned and total card count for one rarity within a set binder.
@@ -139,7 +139,7 @@ func (c *Collection) BinderProgress(cat SetCatalogue) Progress {
 			p.Owned++
 			rp.Owned++
 		}
-		if copies >= 4 {
+		if copies >= PlaysetSize {
 			p.Playsets++
 		}
 		p.ByRarity[card.Rarity] = rp
@@ -154,7 +154,7 @@ func (c *Collection) BinderProgress(cat SetCatalogue) Progress {
 // to replace — are kept. Results are sorted by (CardKey.ID, CardKey.Finish) ascending for
 // determinism; callers must not rely on map iteration order.
 func (c *Collection) DuplicatesAbove(keep int) ([]Surplus, error) {
-	if keep < 1 || keep > 4 {
+	if keep < 1 || keep > PlaysetSize {
 		return nil, &InvalidKeepError{Keep: keep}
 	}
 

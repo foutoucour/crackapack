@@ -52,3 +52,7 @@ type Booster struct {
 type BoosterGenerator interface {
 	Generate(cat SetCatalogue, rng *rand.Rand) (Booster, error)
 }
+
+// PlaysetSize is the number of copies of a card that make a playset, the reference unit of
+// Magic collecting.
+const PlaysetSize = 4
