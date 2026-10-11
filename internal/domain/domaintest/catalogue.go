@@ -19,7 +19,7 @@ import (
 //   - 2 basic lands (common rarity, nonfoil+foil, IsBasicLand=true)
 //   - a "colorshifted" sheet mixing 4 uncommons (weight 30) and 2 rares (weight 10)
 //   - a "common" sheet (BalanceColors=true) covering commons and basics
-//   - two BoosterOptions
+//   - two BoosterOptions, each a 15-card booster
 //
 // Sheet.Cards slices are sorted by ID ascending for reproducible weighted draws.
 func NewCatalogue(seed uint64) domain.SetCatalogue {
@@ -154,8 +154,8 @@ func NewCatalogue(seed uint64) domain.SetCatalogue {
 		Cards:  cards,
 		Sheets: sheets,
 		BoosterOptions: []domain.BoosterOption{
-			{Contents: map[string]int{"common": 10, "uncommon": 3, "rare": 1}, Weight: 4},
-			{Contents: map[string]int{"common": 9, "uncommon": 3, "colorshifted": 1, "rare": 1}, Weight: 1},
+			{Contents: map[string]int{"common": 11, "uncommon": 3, "rare": 1}, Weight: 4},
+			{Contents: map[string]int{"common": 10, "uncommon": 3, "colorshifted": 1, "rare": 1}, Weight: 1},
 		},
 	}
 }

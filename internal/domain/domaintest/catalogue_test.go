@@ -199,3 +199,19 @@ func TestNewPrices_deterministic(t *testing.T) {
 		t.Error("two calls with the same seed produced different price snapshots")
 	}
 }
+
+func TestNewCatalogue_boostersHaveFifteenCards(t *testing.T) {
+	t.Parallel()
+	const boosterSize = 15
+	cat := domaintest.NewCatalogue(42)
+
+	for i, opt := range cat.BoosterOptions {
+		total := 0
+		for _, n := range opt.Contents {
+			total += n
+		}
+		if total != boosterSize {
+			t.Errorf("booster option %d has %d cards, want %d", i, total, boosterSize)
+		}
+	}
+}
