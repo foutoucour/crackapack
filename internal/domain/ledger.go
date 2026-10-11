@@ -10,11 +10,6 @@ const (
 	// transaction that would make its balance negative.
 	AccountPlayer Account = "player"
 
-	// AccountCounter is the game's bank. It is intentionally not guarded: the Counter must
-	// credit the player immediately on a sale, so its balance must be allowed to run negative
-	// until a purchase or an NPC flow refills it. Guarding it would block valid sales.
-	AccountCounter Account = "counter"
-
 	// AccountWelcomeBonus is the source account for the one-time welcome coin grant.
 	// It is unguarded: a negative balance represents coins created by the game.
 	AccountWelcomeBonus Account = "welcome_bonus"
@@ -23,12 +18,14 @@ const (
 	// It is unguarded for the same reason as AccountWelcomeBonus.
 	AccountDailyReward Account = "daily_reward"
 
-	// AccountCounterSale is the sink account that tracks coins the Counter pays out
-	// when the player sells a card. It is unguarded.
+	// AccountCounterSale is the source account for coins the Counter pays the player when the
+	// player sells a card to it: the sale posts from AccountCounterSale to AccountPlayer. It is
+	// unguarded, and its negative balance is the total paid out by the Counter.
 	AccountCounterSale Account = "counter_sale"
 
-	// AccountCounterPurchase is the sink account that tracks coins the Counter receives
-	// when the player buys a card. It is unguarded.
+	// AccountCounterPurchase is the sink account for coins the player pays the Counter when the
+	// player buys a card from it: the purchase posts from AccountPlayer to AccountCounterPurchase.
+	// It is unguarded, and its balance is the total spent at the Counter.
 	AccountCounterPurchase Account = "counter_purchase"
 )
 
@@ -56,7 +53,7 @@ type Entry struct {
 // Balance is O(1). The entries slice is retained for audit; retrieve a copy with Entries.
 //
 // Guarded accounts (AccountPlayer by default) are rejected on Post if the transaction would
-// make their balance negative. AccountCounter and all source/sink accounts are not guarded.
+// make their balance negative. All source and sink accounts are not guarded.
 //
 // The zero value is not useful; use NewJournal.
 type Journal struct {

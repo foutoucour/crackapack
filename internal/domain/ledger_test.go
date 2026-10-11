@@ -31,10 +31,10 @@ func TestJournalPost(t *testing.T) {
 			setup: func(j *domain.Journal) {
 				mustPost(t, j, domain.Entry{From: domain.AccountWelcomeBonus, To: domain.AccountPlayer, Amount: 100})
 			},
-			entry: domain.Entry{From: domain.AccountPlayer, To: domain.AccountCounter, Amount: 50},
+			entry: domain.Entry{From: domain.AccountPlayer, To: domain.AccountCounterPurchase, Amount: 50},
 			wantBalance: map[domain.Account]domain.Coins{
-				domain.AccountPlayer:  50,
-				domain.AccountCounter: 50,
+				domain.AccountPlayer:          50,
+				domain.AccountCounterPurchase: 50,
 			},
 		},
 		{
@@ -47,7 +47,7 @@ func TestJournalPost(t *testing.T) {
 		},
 		{
 			name:    "player overdraft rejected",
-			entry:   domain.Entry{From: domain.AccountPlayer, To: domain.AccountCounter, Amount: 1},
+			entry:   domain.Entry{From: domain.AccountPlayer, To: domain.AccountCounterPurchase, Amount: 1},
 			wantErr: domain.ErrInsufficientBalance,
 		},
 		{
@@ -66,13 +66,13 @@ func TestJournalPost(t *testing.T) {
 			wantErr: domain.ErrNonPositiveAmount,
 		},
 		{
-			// AccountCounter is not guarded by default; it must be allowed to run negative
-			// so that a Counter sale credits the player even when the Counter is empty.
-			name:  "counter can go negative (not guarded)",
-			entry: domain.Entry{From: domain.AccountCounter, To: domain.AccountPlayer, Amount: 100},
+			// Source accounts are not guarded: a Counter sale must credit the player without
+			// the Counter needing a prior balance.
+			name:  "counter sale source can go negative (not guarded)",
+			entry: domain.Entry{From: domain.AccountCounterSale, To: domain.AccountPlayer, Amount: 100},
 			wantBalance: map[domain.Account]domain.Coins{
-				domain.AccountCounter: -100,
-				domain.AccountPlayer:  100,
+				domain.AccountCounterSale: -100,
+				domain.AccountPlayer:      100,
 			},
 		},
 	}
@@ -107,13 +107,11 @@ func TestJournalSumZeroInvariant(t *testing.T) {
 	rng := rand.New(rand.NewPCG(42, 0))
 
 	j := domain.NewJournal()
-	// Fund player and counter so valid transactions can flow.
+	// Fund the player so valid transactions can flow.
 	mustPost(t, j, domain.Entry{From: domain.AccountWelcomeBonus, To: domain.AccountPlayer, Amount: 10_000})
-	mustPost(t, j, domain.Entry{From: domain.AccountDailyReward, To: domain.AccountCounter, Amount: 10_000})
 
 	allAccounts := []domain.Account{
 		domain.AccountPlayer,
-		domain.AccountCounter,
 		domain.AccountWelcomeBonus,
 		domain.AccountDailyReward,
 		domain.AccountCounterSale,
@@ -140,17 +138,17 @@ func TestJournalRejectionIsAtomic(t *testing.T) {
 	mustPost(t, j, domain.Entry{From: domain.AccountWelcomeBonus, To: domain.AccountPlayer, Amount: 100})
 
 	snapPlayer := j.Balance(domain.AccountPlayer)
-	snapCounter := j.Balance(domain.AccountCounter)
+	snapPurchase := j.Balance(domain.AccountCounterPurchase)
 
-	err := j.Post(domain.Entry{From: domain.AccountPlayer, To: domain.AccountCounter, Amount: 200})
+	err := j.Post(domain.Entry{From: domain.AccountPlayer, To: domain.AccountCounterPurchase, Amount: 200})
 	if !errors.Is(err, domain.ErrInsufficientBalance) {
 		t.Fatalf("want ErrInsufficientBalance, got %v", err)
 	}
 	if got := j.Balance(domain.AccountPlayer); got != snapPlayer {
 		t.Errorf("player balance changed on rejected post: got %d, want %d", got, snapPlayer)
 	}
-	if got := j.Balance(domain.AccountCounter); got != snapCounter {
-		t.Errorf("counter balance changed on rejected post: got %d, want %d", got, snapCounter)
+	if got := j.Balance(domain.AccountCounterPurchase); got != snapPurchase {
+		t.Errorf("counter purchase balance changed on rejected post: got %d, want %d", got, snapPurchase)
 	}
 	if got := j.SumAllBalances(); got != 0 {
 		t.Errorf("SumAllBalances() = %d after rejected post, want 0", got)

@@ -1,5 +1,7 @@
 package domain
 
+import "math/rand/v2"
+
 // Rarity is the rarity printed on a card. The V1 catalogue (2005-2007) has no mythics.
 // Special is the rarity of Time Spiral's timeshifted cards.
 type Rarity string
@@ -30,3 +32,23 @@ type PriceSnapshot map[CardID]USDCents
 // Percent is a whole percentage: 100 means 100%. The Counter's rates are Percents (60 to sell,
 // 120 to buy), so a price scaled by a rate stays an integer computation.
 type Percent int64
+
+// CardKey identifies one collectible: a printing in a given finish. The collection and the
+// Counter's stock are both keyed by it.
+type CardKey struct {
+	ID     CardID
+	Finish Finish
+}
+
+// Booster is the cards drawn from one pack, in reveal order with the rare last.
+type Booster struct {
+	SetCode string
+	Cards   []CardKey
+}
+
+// BoosterGenerator builds one booster from a set catalogue. Randomness comes only from rng, so
+// a booster is reproducible from the seed. Implementations must not depend on map iteration
+// order: sort keys before drawing.
+type BoosterGenerator interface {
+	Generate(cat SetCatalogue, rng *rand.Rand) (Booster, error)
+}
