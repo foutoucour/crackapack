@@ -36,10 +36,10 @@ func NewCatalogue(seed uint64) domain.SetCatalogue {
 			finishes = append(finishes, domain.FinishFoil)
 		}
 		cards[id] = domain.Card{
-			ID:      id,
-			Name:    fmt.Sprintf("Common %d", i),
-			Number:  fmt.Sprintf("%d", i+1),
-			Rarity:  domain.RarityCommon,
+			ID:       id,
+			Name:     fmt.Sprintf("Common %d", i),
+			Number:   fmt.Sprintf("%d", i+1),
+			Rarity:   domain.RarityCommon,
 			Finishes: finishes,
 		}
 		commonSheet = append(commonSheet, domain.SheetCard{ID: id, Weight: rng.IntN(100) + 1})
@@ -65,10 +65,10 @@ func NewCatalogue(seed uint64) domain.SetCatalogue {
 	for i := range 4 {
 		id := domain.CardID(fmt.Sprintf("synth-u-%04d", i))
 		cards[id] = domain.Card{
-			ID:      id,
-			Name:    fmt.Sprintf("Uncommon %d", i),
-			Number:  fmt.Sprintf("%d", 13+i),
-			Rarity:  domain.RarityUncommon,
+			ID:       id,
+			Name:     fmt.Sprintf("Uncommon %d", i),
+			Number:   fmt.Sprintf("%d", 13+i),
+			Rarity:   domain.RarityUncommon,
 			Finishes: []domain.Finish{domain.FinishNonFoil, domain.FinishFoil},
 		}
 		uncommonSheet = append(uncommonSheet, domain.SheetCard{ID: id, Weight: rng.IntN(100) + 1})
@@ -80,10 +80,10 @@ func NewCatalogue(seed uint64) domain.SetCatalogue {
 	for i := range 2 {
 		id := domain.CardID(fmt.Sprintf("synth-r-%04d", i))
 		cards[id] = domain.Card{
-			ID:      id,
-			Name:    fmt.Sprintf("Rare %d", i),
-			Number:  fmt.Sprintf("%d", 17+i),
-			Rarity:  domain.RarityRare,
+			ID:       id,
+			Name:     fmt.Sprintf("Rare %d", i),
+			Number:   fmt.Sprintf("%d", 17+i),
+			Rarity:   domain.RarityRare,
 			Finishes: []domain.Finish{domain.FinishNonFoil, domain.FinishFoil},
 		}
 		rareSheet = append(rareSheet, domain.SheetCard{ID: id, Weight: rng.IntN(100) + 1})
@@ -96,10 +96,10 @@ func NewCatalogue(seed uint64) domain.SetCatalogue {
 	for i := range 4 {
 		id := domain.CardID(fmt.Sprintf("synth-cs-u-%04d", i))
 		cards[id] = domain.Card{
-			ID:      id,
-			Name:    fmt.Sprintf("Colorshifted Uncommon %d", i),
-			Number:  fmt.Sprintf("%d", 19+i),
-			Rarity:  domain.RarityUncommon,
+			ID:       id,
+			Name:     fmt.Sprintf("Colorshifted Uncommon %d", i),
+			Number:   fmt.Sprintf("%d", 19+i),
+			Rarity:   domain.RarityUncommon,
 			Finishes: []domain.Finish{domain.FinishNonFoil},
 		}
 		colorshiftedSheet = append(colorshiftedSheet, domain.SheetCard{ID: id, Weight: 30})
@@ -107,10 +107,10 @@ func NewCatalogue(seed uint64) domain.SetCatalogue {
 	for i := range 2 {
 		id := domain.CardID(fmt.Sprintf("synth-cs-r-%04d", i))
 		cards[id] = domain.Card{
-			ID:      id,
-			Name:    fmt.Sprintf("Colorshifted Rare %d", i),
-			Number:  fmt.Sprintf("%d", 23+i),
-			Rarity:  domain.RarityRare,
+			ID:       id,
+			Name:     fmt.Sprintf("Colorshifted Rare %d", i),
+			Number:   fmt.Sprintf("%d", 23+i),
+			Rarity:   domain.RarityRare,
 			Finishes: []domain.Finish{domain.FinishNonFoil},
 		}
 		colorshiftedSheet = append(colorshiftedSheet, domain.SheetCard{ID: id, Weight: 10})
@@ -167,10 +167,10 @@ func NewTimeshiftedCatalogue(seed uint64) domain.SetCatalogue {
 	for i := range 10 {
 		id := domain.CardID(fmt.Sprintf("synth-tsb-%04d", i))
 		cards[id] = domain.Card{
-			ID:      id,
-			Name:    fmt.Sprintf("Timeshifted %d", i),
-			Number:  fmt.Sprintf("%d", i+1),
-			Rarity:  domain.RaritySpecial,
+			ID:       id,
+			Name:     fmt.Sprintf("Timeshifted %d", i),
+			Number:   fmt.Sprintf("%d", i+1),
+			Rarity:   domain.RaritySpecial,
 			Finishes: []domain.Finish{domain.FinishNonFoil, domain.FinishFoil},
 		}
 		specialSheet = append(specialSheet, domain.SheetCard{ID: id, Weight: rng.IntN(100) + 1})

@@ -138,6 +138,89 @@ func TestLoadSetCatalogue_errors(t *testing.T) {
 			file:      "set.json",
 			wantField: "data.cards[0].rarity",
 		},
+		// Fix 2: JSON type errors use te.Field from *json.UnmarshalTypeError.
+		{
+			name: "JSON type error uses field path",
+			setupFS: func() fstest.MapFS {
+				return fstest.MapFS{"set.json": &fstest.MapFile{Data: []byte(
+					`{"data":{"code":"SYN","name":"X","cards":[],"booster":{"draft":{"boosters":[],"sheets":{` +
+						`"common":{"cards":{},"totalWeight":"bad","foil":false,"balanceColors":false}}}}}}`,
+				)}}
+			},
+			file:      "set.json",
+			wantField: "data.booster.draft.sheets.common.totalWeight",
+		},
+		// Fix 3: structural validations that would corrupt draws.
+		{
+			name: "empty uuid",
+			setupFS: func() fstest.MapFS {
+				return fstest.MapFS{"set.json": &fstest.MapFile{Data: []byte(
+					`{"data":{"code":"SYN","name":"X","cards":[` +
+						`{"uuid":"","name":"n","number":"1","rarity":"common","finishes":["nonfoil"],"supertypes":[],"identifiers":{}}` +
+						`],"booster":{"draft":{"boosters":[],"sheets":{}}}}}`,
+				)}}
+			},
+			file:      "set.json",
+			wantField: "data.cards[0].uuid",
+		},
+		{
+			name: "duplicate uuid",
+			setupFS: func() fstest.MapFS {
+				return fstest.MapFS{"set.json": &fstest.MapFile{Data: []byte(
+					`{"data":{"code":"SYN","name":"X","cards":[` +
+						`{"uuid":"u1","name":"n","number":"1","rarity":"common","finishes":["nonfoil"],"supertypes":[],"identifiers":{}},` +
+						`{"uuid":"u1","name":"m","number":"2","rarity":"common","finishes":["nonfoil"],"supertypes":[],"identifiers":{}}` +
+						`],"booster":{"draft":{"boosters":[],"sheets":{}}}}}`,
+				)}}
+			},
+			file:      "set.json",
+			wantField: "data.cards[1].uuid",
+		},
+		{
+			name: "unknown finish",
+			setupFS: func() fstest.MapFS {
+				return fstest.MapFS{"set.json": &fstest.MapFile{Data: []byte(
+					`{"data":{"code":"SYN","name":"X","cards":[` +
+						`{"uuid":"u1","name":"n","number":"1","rarity":"common","finishes":["foil-etched"],"supertypes":[],"identifiers":{}}` +
+						`],"booster":{"draft":{"boosters":[],"sheets":{}}}}}`,
+				)}}
+			},
+			file:      "set.json",
+			wantField: "data.cards[0].finishes[0]",
+		},
+		{
+			name: "sheet card weight zero",
+			setupFS: func() fstest.MapFS {
+				return fstest.MapFS{"set.json": &fstest.MapFile{Data: []byte(
+					`{"data":{"code":"SYN","name":"X","cards":[],"booster":{"draft":{"boosters":[],"sheets":{` +
+						`"common":{"cards":{"uuid-aa":0},"totalWeight":0,"foil":false,"balanceColors":false}}}}}}`,
+				)}}
+			},
+			file:      "set.json",
+			wantField: "data.booster.draft.sheets.common.cards.uuid-aa",
+		},
+		{
+			name: "sheet card weight negative",
+			setupFS: func() fstest.MapFS {
+				return fstest.MapFS{"set.json": &fstest.MapFile{Data: []byte(
+					`{"data":{"code":"SYN","name":"X","cards":[],"booster":{"draft":{"boosters":[],"sheets":{` +
+						`"common":{"cards":{"uuid-aa":-1},"totalWeight":-1,"foil":false,"balanceColors":false}}}}}}`,
+				)}}
+			},
+			file:      "set.json",
+			wantField: "data.booster.draft.sheets.common.cards.uuid-aa",
+		},
+		{
+			name: "sheet totalWeight mismatch",
+			setupFS: func() fstest.MapFS {
+				return fstest.MapFS{"set.json": &fstest.MapFile{Data: []byte(
+					`{"data":{"code":"SYN","name":"X","cards":[],"booster":{"draft":{"boosters":[],"sheets":{` +
+						`"common":{"cards":{"uuid-aa":100},"totalWeight":999,"foil":false,"balanceColors":false}}}}}}`,
+				)}}
+			},
+			file:      "set.json",
+			wantField: "data.booster.draft.sheets.common.totalWeight",
+		},
 	}
 
 	for _, tt := range tests {

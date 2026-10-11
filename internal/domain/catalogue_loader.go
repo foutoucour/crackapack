@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"sort"
@@ -60,6 +61,16 @@ func isValidRarity(r Rarity) bool {
 	}
 }
 
+// isValidFinish reports whether f is a recognised card finish.
+func isValidFinish(f Finish) bool {
+	switch f {
+	case FinishNonFoil, FinishFoil:
+		return true
+	default:
+		return false
+	}
+}
+
 // LoadSetCatalogue reads one MTGJSON-shaped set file from fsys and returns the
 // parsed SetCatalogue. name is used in error messages and must be a valid fs.FS path.
 // Sheet.Cards slices are sorted by ID ascending so that weighted draws over an
@@ -71,8 +82,14 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 	}
 
 	var raw mtgSetFile
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return SetCatalogue{}, &CatalogueError{File: name, Field: "(json)", Err: err}
+	if jsonErr := json.Unmarshal(data, &raw); jsonErr != nil {
+		var te *json.UnmarshalTypeError
+		if errors.As(jsonErr, &te) {
+			// te.Field is the full dotted path (e.g. "data.booster.draft.sheets.common.totalWeight").
+			return SetCatalogue{}, &CatalogueError{File: name, Field: te.Field, Err: jsonErr}
+		}
+		// Syntax errors carry no field information.
+		return SetCatalogue{}, &CatalogueError{File: name, Field: "(json)", Err: jsonErr}
 	}
 
 	d := raw.Data
@@ -88,7 +105,25 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 	}
 
 	cards := make(map[CardID]Card, len(d.Cards))
+	seen := make(map[CardID]int, len(d.Cards)) // uuid -> first index, for duplicate detection
 	for i, mc := range d.Cards {
+		if mc.UUID == "" {
+			return SetCatalogue{}, &CatalogueError{
+				File:  name,
+				Field: fmt.Sprintf("data.cards[%d].uuid", i),
+				Err:   fmt.Errorf("uuid must not be empty"),
+			}
+		}
+		id := CardID(mc.UUID)
+		if first, dup := seen[id]; dup {
+			return SetCatalogue{}, &CatalogueError{
+				File:  name,
+				Field: fmt.Sprintf("data.cards[%d].uuid", i),
+				Err:   fmt.Errorf("duplicate uuid %q (first at index %d)", mc.UUID, first),
+			}
+		}
+		seen[id] = i
+
 		r := Rarity(mc.Rarity)
 		if !isValidRarity(r) {
 			return SetCatalogue{}, &CatalogueError{
@@ -97,6 +132,20 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 				Err:   fmt.Errorf("unknown rarity %q", mc.Rarity),
 			}
 		}
+
+		finishes := make([]Finish, 0, len(mc.Finishes))
+		for j, fin := range mc.Finishes {
+			f := Finish(fin)
+			if !isValidFinish(f) {
+				return SetCatalogue{}, &CatalogueError{
+					File:  name,
+					Field: fmt.Sprintf("data.cards[%d].finishes[%d]", i, j),
+					Err:   fmt.Errorf("unknown finish %q", fin),
+				}
+			}
+			finishes = append(finishes, f)
+		}
+
 		isBasic := false
 		for _, st := range mc.Supertypes {
 			if st == "Basic" {
@@ -104,11 +153,7 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 				break
 			}
 		}
-		finishes := make([]Finish, len(mc.Finishes))
-		for j, fin := range mc.Finishes {
-			finishes[j] = Finish(fin)
-		}
-		id := CardID(mc.UUID)
+
 		cards[id] = Card{
 			ID:          id,
 			Name:        mc.Name,
@@ -126,8 +171,25 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 		// booster sheets reference timeshifted cards that live in the separate TSB
 		// set file and are absent from the TSP cards array.
 		sc := make([]SheetCard, 0, len(ms.Cards))
+		weightSum := 0
 		for uid, w := range ms.Cards {
+			if w <= 0 {
+				return SetCatalogue{}, &CatalogueError{
+					File:  name,
+					Field: fmt.Sprintf("data.booster.draft.sheets.%s.cards.%s", sname, uid),
+					Err:   fmt.Errorf("weight must be strictly positive, got %d", w),
+				}
+			}
+			weightSum += w
 			sc = append(sc, SheetCard{ID: CardID(uid), Weight: w})
+		}
+		if weightSum != ms.TotalWeight {
+			return SetCatalogue{}, &CatalogueError{
+				File:  name,
+				Field: fmt.Sprintf("data.booster.draft.sheets.%s.totalWeight", sname),
+				Err: fmt.Errorf("totalWeight %d does not match sum of card weights %d",
+					ms.TotalWeight, weightSum),
+			}
 		}
 		sort.Slice(sc, func(i, j int) bool { return sc[i].ID < sc[j].ID })
 		sheets[sname] = Sheet{
