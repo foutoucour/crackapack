@@ -56,3 +56,6 @@ type BoosterGenerator interface {
 // PlaysetSize is the number of copies of a card that make a playset, the reference unit of
 // Magic collecting.
 const PlaysetSize = 4
+
+// TicksPerDay is the number of simulation ticks in one game day: a tick is 10 minutes.
+const TicksPerDay = 144

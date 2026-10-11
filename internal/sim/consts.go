@@ -11,5 +11,7 @@
 //   - Same seed + config + price snapshot → byte-identical JSON and CSV output.
 package sim
 
+import "github.com/foutoucour/crackapack/internal/domain"
+
 // TicksPerDay is the number of 10-minute ticks in one simulated day (24 h ÷ 10 min).
-const TicksPerDay = 144
+const TicksPerDay = domain.TicksPerDay
