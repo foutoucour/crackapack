@@ -9,9 +9,9 @@ import (
 )
 
 // validSetJSON returns a minimal valid MTGJSON-shaped set file with three cards:
-//   - uuid-aa: common, nonfoil, has ScryfallID, not basic
-//   - uuid-bb: common, nonfoil+foil, basic land
-//   - uuid-cc: rare, nonfoil+foil, not basic
+//   - uuid-aa: common, nonfoil, has ScryfallID, not basic, Colors=["W"]
+//   - uuid-bb: common, nonfoil+foil, basic land, colourless (no colors field)
+//   - uuid-cc: rare, nonfoil+foil, not basic, Colors=["U","B"] (multi-colour)
 //
 // The common sheet lists uuid-bb before uuid-aa so the ordering test is meaningful.
 func validSetJSON() string {
@@ -27,6 +27,7 @@ func validSetJSON() string {
         "rarity": "common",
         "finishes": ["nonfoil"],
         "supertypes": [],
+        "colors": ["W"],
         "identifiers": {"scryfallId": "scry-0001"}
       },
       {
@@ -45,6 +46,7 @@ func validSetJSON() string {
         "rarity": "rare",
         "finishes": ["nonfoil", "foil"],
         "supertypes": [],
+        "colors": ["U", "B"],
         "identifiers": {}
       }
     ],
@@ -221,6 +223,18 @@ func TestLoadSetCatalogue_errors(t *testing.T) {
 			file:      "set.json",
 			wantField: "data.booster.draft.sheets.common.totalWeight",
 		},
+		{
+			name: "unknown color letter",
+			setupFS: func() fstest.MapFS {
+				return fstest.MapFS{"set.json": &fstest.MapFile{Data: []byte(
+					`{"data":{"code":"SYN","name":"X","cards":[` +
+						`{"uuid":"u1","name":"n","number":"1","rarity":"common","finishes":["nonfoil"],"supertypes":[],"colors":["X"],"identifiers":{}}` +
+						`],"booster":{"draft":{"boosters":[],"sheets":{}}}}}`,
+				)}}
+			},
+			file:      "set.json",
+			wantField: "data.cards[0].colors[0]",
+		},
 	}
 
 	for _, tt := range tests {
@@ -276,21 +290,25 @@ func TestLoadSetCatalogue_success(t *testing.T) {
 		finishes    []domain.Finish
 		isBasicLand bool
 		scryfallID  string
+		colors      []string
 	}{
 		{
 			id: "uuid-aa", name: "Common Card", number: "1",
 			rarity: domain.RarityCommon, finishes: []domain.Finish{domain.FinishNonFoil},
 			isBasicLand: false, scryfallID: "scry-0001",
+			colors: []string{"W"},
 		},
 		{
 			id: "uuid-bb", name: "Snow-Covered Island", number: "2",
 			rarity: domain.RarityCommon, finishes: []domain.Finish{domain.FinishNonFoil, domain.FinishFoil},
 			isBasicLand: true, scryfallID: "",
+			colors: nil,
 		},
 		{
 			id: "uuid-cc", name: "Rare Card", number: "3",
 			rarity: domain.RarityRare, finishes: []domain.Finish{domain.FinishNonFoil, domain.FinishFoil},
 			isBasicLand: false, scryfallID: "",
+			colors: []string{"U", "B"},
 		},
 	}
 	for _, want := range cardTests {
@@ -322,6 +340,15 @@ func TestLoadSetCatalogue_success(t *testing.T) {
 		}
 		if got.ScryfallID != want.scryfallID {
 			t.Errorf("card %q: ScryfallID = %q, want %q", want.id, got.ScryfallID, want.scryfallID)
+		}
+		if len(got.Colors) != len(want.colors) {
+			t.Errorf("card %q: Colors = %v, want %v", want.id, got.Colors, want.colors)
+		} else {
+			for i, c := range want.colors {
+				if got.Colors[i] != c {
+					t.Errorf("card %q: Colors[%d] = %q, want %q", want.id, i, got.Colors[i], c)
+				}
+			}
 		}
 	}
 

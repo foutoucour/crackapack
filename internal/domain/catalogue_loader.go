@@ -27,6 +27,7 @@ type mtgCard struct {
 	Rarity     string   `json:"rarity"`
 	Finishes   []string `json:"finishes"`
 	Supertypes []string `json:"supertypes"`
+	Colors     []string `json:"colors"`
 	// Identifiers is an inline struct matching the MTGJSON identifiers object.
 	Identifiers struct {
 		ScryfallID string `json:"scryfallId"`
@@ -55,6 +56,16 @@ type mtgSheet struct {
 func isValidRarity(r Rarity) bool {
 	switch r {
 	case RarityCommon, RarityUncommon, RarityRare, RaritySpecial:
+		return true
+	default:
+		return false
+	}
+}
+
+// isValidColor reports whether c is a recognised Magic colour letter (WUBRG).
+func isValidColor(c string) bool {
+	switch c {
+	case "W", "U", "B", "R", "G":
 		return true
 	default:
 		return false
@@ -146,6 +157,18 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 			finishes = append(finishes, f)
 		}
 
+		colors := make([]string, 0, len(mc.Colors))
+		for j, col := range mc.Colors {
+			if !isValidColor(col) {
+				return SetCatalogue{}, &CatalogueError{
+					File:  name,
+					Field: fmt.Sprintf("data.cards[%d].colors[%d]", i, j),
+					Err:   fmt.Errorf("unknown color %q", col),
+				}
+			}
+			colors = append(colors, col)
+		}
+
 		isBasic := false
 		for _, st := range mc.Supertypes {
 			if st == "Basic" {
@@ -162,6 +185,7 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 			Finishes:    finishes,
 			IsBasicLand: isBasic,
 			ScryfallID:  mc.Identifiers.ScryfallID,
+			Colors:      colors,
 		}
 	}
 

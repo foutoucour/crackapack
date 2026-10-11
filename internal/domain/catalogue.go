@@ -26,7 +26,8 @@ type Card struct {
 	Rarity      Rarity
 	Finishes    []Finish
 	IsBasicLand bool
-	ScryfallID  string // empty when absent from the source file
+	ScryfallID  string   // empty when absent from the source file
+	Colors      []string // MTGJSON "colors", e.g. ["W","U"]; empty means colourless or data absent
 }
 
 // Sheet is one named card pool within a booster definition.

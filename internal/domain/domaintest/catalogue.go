@@ -27,6 +27,11 @@ func NewCatalogue(seed uint64) domain.SetCatalogue {
 
 	cards := make(map[domain.CardID]domain.Card)
 
+	// commonColors cycles the five Magic colours across the ten commons so that the
+	// colour-balanced "common" sheet (BalanceColors=true) can guarantee all five colours.
+	// Basic lands remain colourless (empty Colors).
+	commonColors := [5]string{"W", "U", "B", "R", "G"}
+
 	// Commons: synth-c-0000 through synth-c-0009.
 	commonSheet := make([]domain.SheetCard, 0, 12)
 	for i := range 10 {
@@ -41,6 +46,7 @@ func NewCatalogue(seed uint64) domain.SetCatalogue {
 			Number:   fmt.Sprintf("%d", i+1),
 			Rarity:   domain.RarityCommon,
 			Finishes: finishes,
+			Colors:   []string{commonColors[i%5]},
 		}
 		commonSheet = append(commonSheet, domain.SheetCard{ID: id, Weight: rng.IntN(100) + 1})
 	}
