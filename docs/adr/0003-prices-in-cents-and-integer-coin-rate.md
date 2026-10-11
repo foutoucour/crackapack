@@ -37,9 +37,11 @@ returns `ErrSubCoin` instead of a silent zero. When any input is negative it ret
 ## Consequences
 
 - All money arithmetic uses integer types; `float64` is excluded from the domain.
-- The single-truncation formula guarantees that the buy price is always at least twice the sell
-  price (`floor(2x) >= 2·floor(x)` for x ≥ 0), so a buy-then-sell round trip at the Counter
-  never profits. This is verified by a property test in `money_test.go`.
+- The single-truncation formula is monotonic in the percentage, so the buy price is never below
+  the sell price whenever `counter_buy_pct` is at least `counter_sell_pct`, which the
+  configuration enforces: a buy-then-sell round trip at the Counter never profits. At the default
+  60% and 120% the buy price is at least twice the sell price (`floor(2x) >= 2·floor(x)` for
+  x ≥ 0), a property tested in `money_test.go`; other pairs lose less than half.
 - Callers that display a card price must handle `ErrSubCoin` explicitly; the card cannot be
   silently treated as free.
 - The safe input range is documented in the `PriceToCoins` doc comment. For realistic game

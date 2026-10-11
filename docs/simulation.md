@@ -97,7 +97,12 @@ All config keys and their defaults are listed in
 | Sweep | `sweep_rates`, `targets` | Grid and calibration conditions |
 
 Omit the config file entirely to use all defaults. Only the keys you set are
-overridden; every other key keeps its default value.
+overridden; every other key keeps its default value, and a key set to `null` counts as not set.
+
+Loading rejects settings that would make a run meaningless, naming the key: `sessions_per_day`
+above the 144 ticks of a day, an energy cost no larger reserve plus savings can pay
+(`energy.cost_table[i].cost` above `reserve_cap + savings_cap`), and a `days_to_*` target whose
+maximum exceeds `run_days`.
 
 ### Catalogue directory
 
@@ -114,13 +119,17 @@ A JSON object mapping MTGJSON UUID strings to integer prices in US cents:
 ## Reading the sweep table
 
 The sweep prints a table with one row per rate and one column per calibration
-target (plus `final_balance` and `unsold_duplicate_copies` when not already
-targets). Each cell shows the metric value and `PASS` or `FAIL`.
+target, plus the headline metrics `final_balance`, `sub_coin_cards`,
+`daily_reward_commons` and `unsold_duplicate_copies` when they are not already
+targets. Each target cell shows the metric value and `PASS` or `FAIL`.
 
 The last line reports passing rates. When the passing rates form a contiguous block
 in the grid, the report shows the range. When no rate passes, the line reads
 "Passing rates: none". When no targets are configured, the line reads
 "no targets configured".
+
+`sweep.json` repeats the outcome for programs: the per-rate summaries and outcomes, the passing
+rates, and `contiguous`, which is present (`true` or `false`) only when at least one rate passes.
 
 ## Summary metric names
 
@@ -128,18 +137,20 @@ in the grid, the report shows the range. When no rate passes, the line reads
 snake\_case; set-specific keys use the pattern `<name>.<setcode>` with the set
 code lowercased.
 
-A milestone not reached within the run is encoded as `float64(RunDays + 1)` — a
-censored value above the run horizon that no valid `at_most` target can satisfy.
+A milestone not reached within the run is encoded as `float64(RunDays + 1)`, a censored value
+above the run horizon. Config validation keeps it from passing by accident: an `at_most` or
+`between` target on a `days_to_*` metric must have a maximum no greater than `run_days`.
 
 | Metric | Definition |
 |--------|-----------|
 | `final_balance` | Player coin balance after the last day |
 | `total_refused_trades` | Sum of sell attempts refused by the Counter (ErrSubCoin) across all days; volume signal for stuck inventory |
-| `sub_coin_cards` | Distinct non-foil, non-basic-land cards whose Counter sell value rounds to zero at the configured rate; zero is the calibration target |
+| `sub_coin_cards` | Distinct non-foil, non-basic-land cards, openable sets and supplementary pools included, that the Counter refuses to buy because the sale is worth less than one coin at the configured rate (a zero price counts); zero is the usual calibration target |
 | `daily_reward_commons` | `floor(DailyReward / median_common_buy_coins)`; how many commons the daily reward buys at the Counter |
-| `unsold_duplicate_copies` | Copies above a playset (4) still held at the end of the run; non-zero when sub-coin cards cannot be sold |
-| `days_to_50pct_cu.<setcode>` | First day (1-based) where commons+uncommons owned ≥ 50% of the set total |
-| `days_to_100pct_cu.<setcode>` | First day (1-based) where commons+uncommons owned = set total |
+| `unpriced_cards` | Distinct non-basic-land cards, supplementary pools included, absent from the price snapshot and therefore priced at `fallback_price`; a count close to the whole catalogue means the snapshot is keyed wrongly |
+| `unsold_duplicate_copies` | Copies above a playset (4) still held at the end of the run, whatever the policy's own keep count; non-zero when sub-coin cards cannot be sold |
+| `days_to_50pct_cu.<setcode>` | First day (1-based) where the commons and uncommons owned reach 50% of the set's commons and uncommons |
+| `days_to_100pct_cu.<setcode>` | First day (1-based) where every common and uncommon of the set is owned |
 
 ## Player policies
 

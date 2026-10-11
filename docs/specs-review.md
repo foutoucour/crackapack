@@ -101,7 +101,7 @@ away or makes the collection too easy.
 | Counter stock dries up on rares | Share of casuals, NPC opening pace, initial Counter stock |
 | Inflation: the player gets rich fast | Capped rewards; cosmetic coin sinks |
 | Collection too easy: everything can be bought at the Counter | Purchase price at 120% or more, limited stock |
-| Arbitrage | Both Counter prices come from one reference, so a round trip loses half. NPC trades never have a negative margin |
+| Arbitrage | Both Counter prices come from one reference, so a round trip loses half at the default rates and never gains. NPC trades never have a negative margin |
 | Commons worth nothing | Playsets, milestones, playset hunters among the NPCs |
 
 - **Coin ↔ USD rate:** to be set, the whole economy depends on it.

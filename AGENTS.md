@@ -30,7 +30,7 @@ accepted ADR needs a new ADR first, one that supersedes the old one.
 
 - `go test -race ./...` — run all tests
 - `golangci-lint run` — lint
-- `go run ./cmd/crackapack` — run the app locally
+- `go run ./cmd/crackapack` — print the usage and the list of subcommands
 - `go run ./cmd/crackapack simulate --catalogue-dir ./catalogues --sets RAV,CLS --prices prices.json --out ./out` — run one solo-loop simulation
 - `go run ./cmd/crackapack sweep --catalogue-dir ./catalogues --sets RAV,CLS --prices prices.json --out ./sweep-out` — sweep the coin-per-USD rate over a grid and report calibration results
 - `go run ./cmd/crackapack compare [--days-csv delta.csv] <a.json> <b.json>` — compare two simulation results

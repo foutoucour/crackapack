@@ -184,7 +184,8 @@ coins into cards without an NPC.
 - **Bulk sale:** "sell everything above the playset" in one click.
 
 Both prices derive from one reference, so buying a card and selling it back loses half of its
-value. The 60% and 120% rates are starting values to calibrate.
+value at the default rates, and never gains at any rate the configuration accepts. The 60% and 120%
+rates are starting values to calibrate.
 
 ## Trades with NPCs
 
