@@ -17,10 +17,11 @@ func TestRun(t *testing.T) {
 		wantUsage      bool
 	}{
 		{
-			name:           "simulate returns not-implemented error naming the subcommand",
+			name:           "simulate with no flags returns missing required flags error",
 			args:           []string{"simulate"},
 			wantErr:        true,
-			wantErrContain: "simulate: not implemented",
+			wantErrContain: "crackapack simulate",
+			wantUsage:      true,
 		},
 		{
 			name:           "sweep returns not-implemented error naming the subcommand",

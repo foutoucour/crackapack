@@ -49,11 +49,6 @@ func run(args []string, stdout io.Writer, stderr io.Writer) error {
 	return fn()
 }
 
-// cmdSimulate will run one solo-loop simulation (not yet implemented).
-func cmdSimulate(_ []string, _ io.Writer, _ io.Writer) error {
-	return fmt.Errorf("simulate: not implemented")
-}
-
 // cmdSweep will sweep the coin to USD rate over a grid (not yet implemented).
 func cmdSweep(_ []string, _ io.Writer, _ io.Writer) error {
 	return fmt.Errorf("sweep: not implemented")
