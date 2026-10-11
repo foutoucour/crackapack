@@ -189,10 +189,20 @@ func splitCodes(raw string) []string {
 	return out
 }
 
-// runSimulate is the testable core of the simulate subcommand. It loads all
-// inputs, constructs the simulation engine, executes the run, and writes outputs.
-// All returned errors include the relevant file or flag name.
-func runSimulate(a simulateArgs) error {
+// inputs holds the loaded simulation inputs produced by loadInputs.
+type inputs struct {
+	cfg           config.Config
+	catalogues    []domain.SetCatalogue
+	supplementary []domain.SetCatalogue
+	prices        domain.PriceSnapshot
+	// policyFn returns a fresh PlayerPolicy on each call. Sweep calls it once per rate.
+	policyFn func() sim.PlayerPolicy
+}
+
+// loadInputs performs the shared loading steps for the simulate and sweep subcommands:
+// config, catalogues, supplementary pools, prices, and player policy lookup.
+// All error messages match what simulate_test.go pins; do not change them.
+func loadInputs(a simulateArgs) (inputs, error) {
 	// 1. Load config. nil reader means "all defaults".
 	reader := a.configReader
 	if reader == nil {
@@ -200,7 +210,7 @@ func runSimulate(a simulateArgs) error {
 	}
 	cfg, err := config.Load(reader)
 	if err != nil {
-		return fmt.Errorf("config: %w", err)
+		return inputs{}, fmt.Errorf("config: %w", err)
 	}
 
 	// 2. Load openable catalogues (booster.draft section required).
@@ -212,9 +222,9 @@ func runSimulate(a simulateArgs) error {
 			// CatalogueError already names the file; avoid duplicating the name.
 			var ce *domain.CatalogueError
 			if errors.As(err, &ce) {
-				return err
+				return inputs{}, err
 			}
-			return fmt.Errorf("catalogue %s: %w", name, err)
+			return inputs{}, fmt.Errorf("catalogue %s: %w", name, err)
 		}
 		catalogues = append(catalogues, cat)
 	}
@@ -228,9 +238,9 @@ func runSimulate(a simulateArgs) error {
 			// CatalogueError already names the file; avoid duplicating the name.
 			var ce *domain.CatalogueError
 			if errors.As(err, &ce) {
-				return err
+				return inputs{}, err
 			}
-			return fmt.Errorf("supplementary %s: %w", name, err)
+			return inputs{}, fmt.Errorf("supplementary %s: %w", name, err)
 		}
 		supplementary = append(supplementary, pool)
 	}
@@ -238,7 +248,7 @@ func runSimulate(a simulateArgs) error {
 	// 4. Load price snapshot.
 	prices, err := domain.LoadPriceSnapshot(a.pricesFS, a.pricesName)
 	if err != nil {
-		return fmt.Errorf("prices %q: %w", a.pricesName, err)
+		return inputs{}, fmt.Errorf("prices %q: %w", a.pricesName, err)
 	}
 
 	// 5. Pick player policy.
@@ -249,15 +259,33 @@ func runSimulate(a simulateArgs) error {
 			names = append(names, k)
 		}
 		sort.Strings(names)
-		return fmt.Errorf("unknown player %q; valid names: %s",
+		return inputs{}, fmt.Errorf("unknown player %q; valid names: %s",
 			a.player, strings.Join(names, ", "))
 	}
 
+	return inputs{
+		cfg:           cfg,
+		catalogues:    catalogues,
+		supplementary: supplementary,
+		prices:        prices,
+		policyFn:      policyFn,
+	}, nil
+}
+
+// runSimulate is the testable core of the simulate subcommand. It loads all
+// inputs, constructs the simulation engine, executes the run, and writes outputs.
+// All returned errors include the relevant file or flag name.
+func runSimulate(a simulateArgs) error {
+	in, err := loadInputs(a)
+	if err != nil {
+		return err
+	}
+
 	// 6. Build RNG from the config seed, as documented in sim.NewEngine.
-	rng := rand.New(rand.NewPCG(cfg.Seed, cfg.Seed))
+	rng := rand.New(rand.NewPCG(in.cfg.Seed, in.cfg.Seed))
 
 	// 7. Build and run the engine.
-	engine, err := sim.NewEngine(cfg, catalogues, supplementary, prices, policyFn(), rng)
+	engine, err := sim.NewEngine(in.cfg, in.catalogues, in.supplementary, in.prices, in.policyFn(), rng)
 	if err != nil {
 		return fmt.Errorf("engine: %w", err)
 	}
