@@ -5,6 +5,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/foutoucour/crackapack/internal/config"
 )
@@ -98,9 +99,12 @@ func WriteSweepText(w io.Writer, sr SweepResult, targets []config.CalibrationTar
 		rows[i] = row
 	}
 
+	// Use rune count for widths: headers may contain multi-byte runes (≤, ≥, –).
+	// Data cells are ASCII so rune count == byte count there, but the same
+	// measurement keeps the logic consistent.
 	widths := make([]int, len(cols))
 	for j, col := range cols {
-		w := len(col.header)
+		w := utf8.RuneCountInString(col.header)
 		if w < 4 {
 			w = 4
 		}
@@ -114,7 +118,7 @@ func WriteSweepText(w io.Writer, sr SweepResult, targets []config.CalibrationTar
 	}
 	for i := range sr.Rates {
 		for j := range cols {
-			if n := len(rows[i][j]); n > widths[j] {
+			if n := utf8.RuneCountInString(rows[i][j]); n > widths[j] {
 				widths[j] = n
 			}
 		}
@@ -166,7 +170,7 @@ func writeNoTargetsReport(w io.Writer, sr SweepResult) error {
 	}
 	widths := make([]int, len(headlines))
 	for j, h := range headlines {
-		widths[j] = len(h)
+		widths[j] = utf8.RuneCountInString(h)
 		if widths[j] < 4 {
 			widths[j] = 4
 		}
@@ -181,7 +185,7 @@ func writeNoTargetsReport(w io.Writer, sr SweepResult) error {
 			} else {
 				row[j] = formatFloat(v)
 			}
-			if n := len(row[j]); n > widths[j] {
+			if n := utf8.RuneCountInString(row[j]); n > widths[j] {
 				widths[j] = n
 			}
 		}
@@ -267,10 +271,13 @@ func formatFloat(v float64) string {
 	return strconv.FormatFloat(v, 'g', -1, 64)
 }
 
-// padLeft returns s right-aligned in a field of width w.
+// padLeft returns s right-aligned in a field of w runes.
+// Width is measured in runes so that multi-byte characters (≤, ≥, –) in
+// header strings do not cause misaligned table columns.
 func padLeft(s string, w int) string {
-	if len(s) >= w {
+	n := utf8.RuneCountInString(s)
+	if n >= w {
 		return s
 	}
-	return strings.Repeat(" ", w-len(s)) + s
+	return strings.Repeat(" ", w-n) + s
 }

@@ -34,8 +34,11 @@ type sweepJSONReport struct {
 	PassingRates []domain.CoinRate `json:"passing_rates"`
 	RangeMin     domain.CoinRate   `json:"range_min,omitempty"`
 	RangeMax     domain.CoinRate   `json:"range_max,omitempty"`
-	Contiguous   bool              `json:"contiguous,omitempty"`
-	Rates        []sweepJSONRate   `json:"rates"`
+	// Contiguous is a *bool so the key is absent when no rate passes (nil) and
+	// explicitly false when rates pass but are non-contiguous. A plain bool with
+	// omitempty would silently omit the key when false (a gap), hiding the gap.
+	Contiguous *bool           `json:"contiguous,omitempty"`
+	Rates      []sweepJSONRate `json:"rates"`
 }
 
 // WriteSweepJSON writes a machine-readable sweep.json to w.
@@ -61,12 +64,19 @@ func WriteSweepJSON(w io.Writer, sr SweepResult) error {
 		}
 	}
 
+	// Set Contiguous only when there are passing rates; nil means "not applicable".
+	var contiguous *bool
+	if len(sr.PassingRates) > 0 {
+		c := sr.Contiguous
+		contiguous = &c
+	}
+
 	report := sweepJSONReport{
 		NoTargets:    sr.NoTargets,
 		PassingRates: passing,
 		RangeMin:     sr.RangeMin,
 		RangeMax:     sr.RangeMax,
-		Contiguous:   sr.Contiguous,
+		Contiguous:   contiguous,
 		Rates:        rates,
 	}
 

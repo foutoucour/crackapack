@@ -1,8 +1,10 @@
 package sim_test
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/foutoucour/crackapack/internal/config"
 	"github.com/foutoucour/crackapack/internal/domain"
@@ -221,5 +223,144 @@ func TestWriteSweepJSON_deterministicOutput(t *testing.T) {
 	}
 	if out1.String() != out2.String() {
 		t.Error("two calls with identical input produced different JSON")
+	}
+}
+
+// TestWriteSweepText_unicodeHeaderAlignment reproduces defect 6.
+// Headers containing multi-byte runes (≤, ≥, –) must produce table lines
+// that all have the same rune-count width as the separator row.
+func TestWriteSweepText_unicodeHeaderAlignment(t *testing.T) {
+	t.Parallel()
+
+	grid := []domain.CoinRate{10, 100}
+	targets := []config.CalibrationTarget{atMost("sub_coin_cards", 0)}
+	// Header for the target column is "sub_coin_cards (≤0)" — contains multi-byte ≤.
+	sr := buildSweepResult(grid, "sub_coin_cards",
+		map[domain.CoinRate]float64{10: 5, 100: 0},
+		map[domain.CoinRate]bool{10: false, 100: true},
+		targets,
+	)
+	sr.PassingRates = []domain.CoinRate{100}
+	sr.RangeMin, sr.RangeMax = 100, 100
+	sr.Contiguous = true
+
+	var out strings.Builder
+	if err := sim.WriteSweepText(&out, sr, targets); err != nil {
+		t.Fatalf("WriteSweepText: %v", err)
+	}
+
+	// Extract the table lines (lines containing | or +--).
+	lines := strings.Split(strings.TrimRight(out.String(), "\n"), "\n")
+	var tableLines []string
+	for _, line := range lines {
+		if strings.ContainsAny(line, "|+") {
+			tableLines = append(tableLines, line)
+		}
+	}
+	// Separator line contains only ASCII dashes; its rune width == visual width.
+	// Ensure there is a separator (second line).
+	if len(tableLines) < 3 {
+		t.Fatalf("expected header + separator + >=1 data rows, got %d table lines", len(tableLines))
+	}
+	separatorLine := tableLines[1]
+	wantWidth := utf8.RuneCountInString(separatorLine)
+	for i, line := range tableLines {
+		got := utf8.RuneCountInString(line)
+		if got != wantWidth {
+			t.Errorf("table line %d rune width = %d, want %d (separator width)\nline:      %q\nseparator: %q",
+				i, got, wantWidth, line, separatorLine)
+		}
+	}
+}
+
+// TestWriteSweepJSON_contiguous_nonePass reproduces defect 7:
+// when no rates pass, "contiguous" must be absent from sweep.json.
+func TestWriteSweepJSON_contiguous_nonePass(t *testing.T) {
+	t.Parallel()
+
+	grid := []domain.CoinRate{10, 100}
+	targets := []config.CalibrationTarget{atMost("sub_coin_cards", 0)}
+	sr := buildSweepResult(grid, "sub_coin_cards",
+		map[domain.CoinRate]float64{10: 5, 100: 1},
+		map[domain.CoinRate]bool{10: false, 100: false},
+		targets,
+	)
+	// PassingRates is empty; sr.Contiguous is false (zero value).
+
+	var out strings.Builder
+	if err := sim.WriteSweepJSON(&out, sr); err != nil {
+		t.Fatalf("WriteSweepJSON: %v", err)
+	}
+	if strings.Contains(out.String(), `"contiguous"`) {
+		t.Errorf("contiguous key must be absent when no rates pass; got:\n%s", out.String())
+	}
+}
+
+// TestWriteSweepJSON_contiguous_true verifies that a contiguous passing range
+// emits "contiguous": true.
+func TestWriteSweepJSON_contiguous_true(t *testing.T) {
+	t.Parallel()
+
+	grid := []domain.CoinRate{10, 100}
+	targets := []config.CalibrationTarget{atMost("sub_coin_cards", 0)}
+	sr := buildSweepResult(grid, "sub_coin_cards",
+		map[domain.CoinRate]float64{10: 0, 100: 0},
+		map[domain.CoinRate]bool{10: true, 100: true},
+		targets,
+	)
+	sr.PassingRates = []domain.CoinRate{10, 100}
+	sr.RangeMin, sr.RangeMax = 10, 100
+	sr.Contiguous = true
+
+	var out strings.Builder
+	if err := sim.WriteSweepJSON(&out, sr); err != nil {
+		t.Fatalf("WriteSweepJSON: %v", err)
+	}
+
+	var report map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(out.String()), &report); err != nil {
+		t.Fatalf("parse JSON: %v", err)
+	}
+	raw, ok := report["contiguous"]
+	if !ok {
+		t.Fatal("contiguous key must be present when rates pass")
+	}
+	if string(raw) != "true" {
+		t.Errorf("contiguous = %s, want true", raw)
+	}
+}
+
+// TestWriteSweepJSON_contiguous_false verifies that a non-contiguous passing range
+// emits "contiguous": false (not omitted).
+func TestWriteSweepJSON_contiguous_false(t *testing.T) {
+	t.Parallel()
+
+	// Three-rate grid; first and last pass, middle fails → gap.
+	grid := []domain.CoinRate{10, 50, 100}
+	targets := []config.CalibrationTarget{atMost("x", 1)}
+	sr := buildSweepResult(grid, "x",
+		map[domain.CoinRate]float64{10: 0, 50: 5, 100: 0},
+		map[domain.CoinRate]bool{10: true, 50: false, 100: true},
+		targets,
+	)
+	sr.PassingRates = []domain.CoinRate{10, 100}
+	sr.RangeMin, sr.RangeMax = 10, 100
+	sr.Contiguous = false
+
+	var out strings.Builder
+	if err := sim.WriteSweepJSON(&out, sr); err != nil {
+		t.Fatalf("WriteSweepJSON: %v", err)
+	}
+
+	var report map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(out.String()), &report); err != nil {
+		t.Fatalf("parse JSON: %v", err)
+	}
+	raw, ok := report["contiguous"]
+	if !ok {
+		t.Fatal("contiguous key must be present (even when false) when passing rates exist but are non-contiguous")
+	}
+	if string(raw) != "false" {
+		t.Errorf("contiguous = %s, want false", raw)
 	}
 }
