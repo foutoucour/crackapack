@@ -71,10 +71,12 @@ func (CollectorPolicy) RunSession(s Session) {
 			break // remaining candidates are at least as expensive; stop
 		}
 		if err := s.BuyCard(c.key); err != nil {
-			if errors.Is(err, domain.ErrOutOfStock) {
-				continue // card not in stock; try next
+			if errors.Is(err, domain.ErrOutOfStock) || errors.Is(err, domain.ErrSubCoin) {
+				continue // card not in stock or sub-coin; try next
 			}
-			// ErrInsufficientBalance or sub-coin: stop buying.
+			// ErrInsufficientBalance or unexpected error: list is sorted ascending,
+			// so if the player cannot afford this card, all later ones cost at least
+			// as much. Stop buying.
 			break
 		}
 		// Refresh balance after successful purchase.
@@ -190,8 +192,8 @@ func buildBuyCandidates(v WorldView) []buyCandidate {
 				price = v.FallbackPrice
 			}
 			buyCoins, err := domain.PriceToCoins(price, v.CoinRate, v.CounterBuyPct)
-			if err != nil {
-				continue // sub-coin card: skip
+			if err != nil || buyCoins == 0 {
+				continue // sub-coin or zero-priced card: skip
 			}
 			candidates = append(candidates, buyCandidate{
 				key:      domain.CardKey{ID: id, Finish: domain.FinishNonFoil},

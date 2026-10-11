@@ -247,6 +247,50 @@ func TestCollector_neverDropsBelowFloor(t *testing.T) {
 	}
 }
 
+// TestCollector_zeroPricedCardDoesNotBlockBuying reproduces defect 1.
+// A catalogue with one 0-priced unowned card and one normally-priced unowned
+// card must result in the normally-priced card being bought; the 0-priced card
+// must not appear in buy calls at all, and must not cause the loop to stop.
+func TestCollector_zeroPricedCardDoesNotBlockBuying(t *testing.T) {
+	t.Parallel()
+	zeroID := domain.CardID("card-zero")
+	normalID := domain.CardID("card-normal")
+	cat := domain.SetCatalogue{
+		Code: "SET",
+		Cards: map[domain.CardID]domain.Card{
+			zeroID:   {ID: zeroID, Rarity: domain.RarityCommon, Finishes: []domain.Finish{domain.FinishNonFoil}},
+			normalID: {ID: normalID, Rarity: domain.RarityRare, Finishes: []domain.Finish{domain.FinishNonFoil}},
+		},
+	}
+	// zeroID price 0 → buyCoins 0 (zero price returns (0,nil) from PriceToCoins).
+	// normalID price 167 cents → floor(167*100*120/10000) = 200 coins.
+	prices := domain.PriceSnapshot{zeroID: 0, normalID: 167}
+	sp := map[string]domain.Progress{"SET": {
+		ByRarity: map[domain.Rarity]domain.RarityProgress{
+			domain.RarityCommon: {Owned: 0, Total: 1},
+			domain.RarityRare:   {Owned: 0, Total: 1},
+		},
+	}}
+	v := makeView(1000, 100, 0, sp, map[string]int{"SET": 5}, []domain.SetCatalogue{cat}, prices, nil)
+	fs := &fakeSession{views: []sim.WorldView{v}}
+
+	sim.NewCollectorPolicy().RunSession(fs)
+
+	normalKey := domain.CardKey{ID: normalID, Finish: domain.FinishNonFoil}
+	zeroKey := domain.CardKey{ID: zeroID, Finish: domain.FinishNonFoil}
+
+	bought := make(map[domain.CardKey]bool)
+	for _, k := range fs.buyCalls {
+		bought[k] = true
+	}
+	if bought[zeroKey] {
+		t.Error("zero-priced card should never be attempted for purchase (buildBuyCandidates must skip it)")
+	}
+	if !bought[normalKey] {
+		t.Errorf("normal-priced card should be bought after zero-priced card is skipped; buyCalls = %v", fs.buyCalls)
+	}
+}
+
 func TestCollector_skipsOutOfStockCards(t *testing.T) {
 	t.Parallel()
 	cardA := domain.CardID("card-a")
