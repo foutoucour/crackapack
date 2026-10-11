@@ -17,7 +17,9 @@ linters:
           list-mode: lax
           files:
             - "**/internal/domain/*.go"
+            - "**/internal/domain/**/*.go"
             - "!**/internal/domain/*_test.go"
+            - "!**/internal/domain/**/*_test.go"
           deny:
             - pkg: "database/sql"
               desc: "internal/domain must not import database/sql; expose an interface"

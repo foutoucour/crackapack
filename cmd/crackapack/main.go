@@ -11,10 +11,10 @@ import (
 const usage = `usage: crackapack <subcommand>
 
 Subcommands:
-  simulate  run the NPC economy simulation
-  sweep     sweep all card sets
-  compare   compare two collections
-  demo      run the app on the demo dataset
+  simulate  run one solo-loop simulation
+  sweep     sweep the coin to USD rate over a grid
+  compare   compare two simulation results
+  demo      run a sweep on the demo dataset
 `
 
 func main() {
@@ -49,22 +49,22 @@ func run(args []string, stdout io.Writer, stderr io.Writer) error {
 	return fn()
 }
 
-// cmdSimulate will run the NPC economy simulation (not yet implemented).
+// cmdSimulate will run one solo-loop simulation (not yet implemented).
 func cmdSimulate(_ []string, _ io.Writer, _ io.Writer) error {
 	return fmt.Errorf("simulate: not implemented")
 }
 
-// cmdSweep will sweep all card sets (not yet implemented).
+// cmdSweep will sweep the coin to USD rate over a grid (not yet implemented).
 func cmdSweep(_ []string, _ io.Writer, _ io.Writer) error {
 	return fmt.Errorf("sweep: not implemented")
 }
 
-// cmdCompare will compare two collections (not yet implemented).
+// cmdCompare will compare two simulation results (not yet implemented).
 func cmdCompare(_ []string, _ io.Writer, _ io.Writer) error {
 	return fmt.Errorf("compare: not implemented")
 }
 
-// cmdDemo will run the app on the demo dataset (not yet implemented).
+// cmdDemo will run a sweep on the demo dataset (not yet implemented).
 func cmdDemo(_ []string, _ io.Writer, _ io.Writer) error {
 	return fmt.Errorf("demo: not implemented")
 }
