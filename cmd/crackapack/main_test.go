@@ -36,10 +36,9 @@ func TestRun(t *testing.T) {
 			wantErrContain: "compare",
 		},
 		{
-			name:           "demo with no arguments returns an error naming the subcommand",
-			args:           []string{"demo"},
-			wantErr:        true,
-			wantErrContain: "demo",
+			name:    "demo with no arguments runs the demo sweep and succeeds",
+			args:    []string{"demo"},
+			wantErr: false,
 		},
 		{
 			name:           "unknown subcommand returns usage error",
