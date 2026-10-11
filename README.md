@@ -17,7 +17,7 @@ Pre-alpha. The design is settled; the Go module is not scaffolded yet.
 - Booster opening at real pack collation rates
 - Collection and binders
 - An economy in coins, with a counter to sell and buy cards
-- A market driven by hundreds of NPCs that own real collections
+- Hundreds of NPCs that own real collections and trade with you
 - Quests, mini-games and local events
 
 **Out of scope:** multiplayer, online server, accounts, playing games, deck building, real money,
@@ -29,15 +29,17 @@ Time Spiral, Planar Chaos and Future Sight. Everything is in English, cards incl
 ## How it will run
 
 `crackapack` is a single executable per OS. It serves its UI on `localhost` and opens your
-browser. The first launch downloads the card catalogue; later launches only fetch what changed.
-Card images are downloaded on demand and cached.
+browser. The first launch downloads the card catalogue and later launches keep it up to date. Card
+images are downloaded on demand and cached.
 
 ## Documentation
 
 - [Architecture](docs/architecture.md) — the core, its adapters, and how the online option stays
   open
-- [Data pipeline](docs/data-pipeline.md) — where card data comes from and how updates reach the
-  client
+- [Core features](docs/core-features.md) — boosters, energy, collection, the Counter, NPCs
+- [Retention](docs/retention.md) — quests, milestones, badges, mini-games, events
+- [MTG vs Pokémon](docs/mtg-vs-pokemon.md) — what changes when adapting Holopocket to Magic
+- [Specs review](docs/specs-review.md) — V1 scope, build order, risks, open questions
 - [Architecture decisions](docs/adr/)
 
 ## Contributing

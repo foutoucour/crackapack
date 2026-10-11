@@ -13,14 +13,14 @@ flowchart TB
         Domain["Domain<br/>boosters, collection, economy, ledger, NPCs"]
         Store["Store adapter<br/>SQLite"]
         API["API adapter<br/>HTTP + JSON"]
-        Sync["Sync adapter<br/>catalogue deltas"]
+        Sync["Sync adapter<br/>catalogue updates"]
         Web["Embedded web client"]
         Store --> Domain
         API --> Domain
         Sync --> Domain
         Web --> API
     end
-    Sync -->|manifest + changed sets| Releases[(Published card data)]
+    Sync -->|set files| Sources[(MTGJSON, Scryfall)]
     Browser[Browser on localhost] --> Web
 ```
 
@@ -35,10 +35,11 @@ Adapters implement those interfaces and depend on the domain, never the reverse.
 - The store adapter persists state in SQLite, through a pure-Go driver so the binary builds without
   CGO.
 - The API adapter translates HTTP requests into domain calls and holds no business rules.
-- The sync adapter keeps the local catalogue up to date, see [Data pipeline](data-pipeline.md).
+- The sync adapter keeps the local catalogue up to date, see
+  [Legal and data](core-features.md#legal-and-data).
 
 `cmd/crackapack` is the only place where real adapters are built and wired together. `demo/` holds
-the deterministic demo dataset. `tools/` holds Go programs run by CI, including the data pipeline.
+the deterministic demo dataset. `tools/` holds Go programs run by CI.
 
 ## Local storage
 
