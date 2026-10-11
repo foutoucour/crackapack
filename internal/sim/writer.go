@@ -34,6 +34,55 @@ func csvRarities() []domain.Rarity {
 	}
 }
 
+// column is a named numeric metric for one simulated day.
+// It is shared between WriteCSV and the comparison writer (WriteComparisonCSV)
+// so both always emit the same column set in the same order.
+type column struct {
+	name  string
+	value int64
+}
+
+// dayColumns returns all per-day metrics in the stable CSV column order.
+// The returned slice does not include the "day" column (always first, emitted separately).
+// setCodes must be sorted ascending.
+//
+// Accessing nil maps in DayMetrics (MoneySupply, StockByRarity, SetProgress)
+// returns zero values; callers may safely pass a zero-valued DayMetrics to
+// derive column names without needing real data.
+func dayColumns(d DayMetrics, setCodes []string) []column {
+	accounts := csvAccounts()
+	rarities := csvRarities()
+
+	cols := make([]column, 0, len(accounts)+len(rarities)+6+5*len(setCodes))
+
+	for _, a := range accounts {
+		cols = append(cols, column{name: string(a), value: int64(d.MoneySupply[a])})
+	}
+	for _, r := range rarities {
+		cols = append(cols, column{name: "stock_" + string(r), value: int64(d.StockByRarity[r])})
+	}
+	cols = append(cols,
+		column{name: "collection_usd", value: int64(d.CollectionUSD)},
+		column{name: "collection_coins", value: int64(d.CollectionCoins)},
+		column{name: "boosters_opened", value: int64(d.BoostersOpened)},
+		column{name: "cards_sold", value: int64(d.CardsSold)},
+		column{name: "cards_bought", value: int64(d.CardsBought)},
+		column{name: "trades_refused", value: int64(d.TradesRefused)},
+	)
+	for _, code := range setCodes {
+		lc := strings.ToLower(code)
+		sp := d.SetProgress[code]
+		cols = append(cols,
+			column{name: lc + "_owned", value: int64(sp.Owned)},
+			column{name: lc + "_total", value: int64(sp.Total)},
+			column{name: lc + "_cu_owned", value: int64(sp.CUOwned)},
+			column{name: lc + "_cu_total", value: int64(sp.CUTotal)},
+			column{name: lc + "_playsets", value: int64(sp.Playsets)},
+		)
+	}
+	return cols
+}
+
 // WriteJSON encodes r as JSON and writes it to w.
 // encoding/json sorts string-kinded map keys (Account, Rarity, string) alphabetically,
 // ensuring byte-identical output for equal inputs.
@@ -61,20 +110,26 @@ func WriteJSON(w io.Writer, r Result) error {
 // Set codes are determined from the first DayMetrics entry if present.
 func WriteCSV(w io.Writer, r Result) error {
 	cw := csv.NewWriter(w)
-
-	// Determine set codes from the first day's metrics, sorted ascending.
 	setCodes := extractSetCodes(r.Days)
-	accounts := csvAccounts()
-	rarities := csvRarities()
 
-	// Build header.
-	header := buildCSVHeader(setCodes, accounts, rarities)
+	// Build header from stable column names via dayColumns.
+	headerCols := dayColumns(DayMetrics{}, setCodes)
+	header := make([]string, 0, 1+len(headerCols))
+	header = append(header, "day")
+	for _, c := range headerCols {
+		header = append(header, c.name)
+	}
 	if err := cw.Write(header); err != nil {
 		return fmt.Errorf("write csv header: %w", err)
 	}
 
 	for _, d := range r.Days {
-		row := buildCSVRow(d, setCodes, accounts, rarities)
+		cols := dayColumns(d, setCodes)
+		row := make([]string, 0, 1+len(cols))
+		row = append(row, strconv.Itoa(d.Day))
+		for _, c := range cols {
+			row = append(row, strconv.FormatInt(c.value, 10))
+		}
 		if err := cw.Write(row); err != nil {
 			return fmt.Errorf("write csv row day %d: %w", d.Day, err)
 		}
@@ -126,58 +181,4 @@ func extractSetCodes(days []DayMetrics) []string {
 	}
 	sort.Strings(codes)
 	return codes
-}
-
-// buildCSVHeader constructs the header row.
-func buildCSVHeader(setCodes []string, accounts []domain.Account, rarities []domain.Rarity) []string {
-	var h []string
-	h = append(h, "day")
-	for _, a := range accounts {
-		h = append(h, string(a))
-	}
-	for _, r := range rarities {
-		h = append(h, "stock_"+string(r))
-	}
-	h = append(h, "collection_usd", "collection_coins")
-	h = append(h, "boosters_opened", "cards_sold", "cards_bought", "trades_refused")
-	for _, code := range setCodes {
-		lc := strings.ToLower(code)
-		h = append(h,
-			lc+"_owned",
-			lc+"_total",
-			lc+"_cu_owned",
-			lc+"_cu_total",
-			lc+"_playsets",
-		)
-	}
-	return h
-}
-
-// buildCSVRow constructs one data row for a DayMetrics.
-func buildCSVRow(d DayMetrics, setCodes []string, accounts []domain.Account, rarities []domain.Rarity) []string {
-	var row []string
-	row = append(row, strconv.Itoa(d.Day))
-	for _, a := range accounts {
-		row = append(row, strconv.FormatInt(int64(d.MoneySupply[a]), 10))
-	}
-	for _, r := range rarities {
-		row = append(row, strconv.Itoa(d.StockByRarity[r]))
-	}
-	row = append(row, strconv.FormatInt(int64(d.CollectionUSD), 10))
-	row = append(row, strconv.FormatInt(int64(d.CollectionCoins), 10))
-	row = append(row, strconv.Itoa(d.BoostersOpened))
-	row = append(row, strconv.Itoa(d.CardsSold))
-	row = append(row, strconv.Itoa(d.CardsBought))
-	row = append(row, strconv.Itoa(d.TradesRefused))
-	for _, code := range setCodes {
-		sp := d.SetProgress[code]
-		row = append(row,
-			strconv.Itoa(sp.Owned),
-			strconv.Itoa(sp.Total),
-			strconv.Itoa(sp.CUOwned),
-			strconv.Itoa(sp.CUTotal),
-			strconv.Itoa(sp.Playsets),
-		)
-	}
-	return row
 }
