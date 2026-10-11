@@ -1,0 +1,38 @@
+version: "2"
+
+linters:
+  # standard enables: errcheck, gosimple, govet, ineffassign, staticcheck, unused
+  default: standard
+  enable:
+    - depguard
+    - exhaustive
+    - forbidigo
+    - gochecknoglobals
+    - gochecknoinits
+
+  settings:
+    depguard:
+      rules:
+        domain-no-infra:
+          list-mode: lax
+          files:
+            - "**/internal/domain/*.go"
+            - "!**/internal/domain/*_test.go"
+          deny:
+            - pkg: "database/sql"
+              desc: "internal/domain must not import database/sql; expose an interface"
+            - pkg: "net/http"
+              desc: "internal/domain must not import net/http; expose an interface"
+            - pkg: "os"
+              desc: "internal/domain must not import os; inject fs.FS instead"
+
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintln
+        - fmt.Fprintf
+
+    forbidigo:
+      forbid:
+        - pattern: "time\\.Now"
+          msg: "inject a Clock instead of calling time.Now directly"

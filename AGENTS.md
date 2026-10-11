@@ -28,13 +28,13 @@ accepted ADR needs a new ADR first, one that supersedes the old one.
 
 ## Commands
 
-The Go module does not exist yet. Once it is scaffolded, these are the commands, and this section
-must be updated to match the real ones:
-
 - `go test -race ./...` — run all tests
 - `golangci-lint run` — lint
 - `go run ./cmd/crackapack` — run the app locally
-- `go run ./cmd/crackapack demo` — run the app on the demo dataset
+- `go run ./cmd/crackapack simulate` — run the NPC economy simulation (being implemented)
+- `go run ./cmd/crackapack sweep` — sweep all card sets (being implemented)
+- `go run ./cmd/crackapack compare` — compare two collections (being implemented)
+- `go run ./cmd/crackapack demo` — run the app on the demo dataset (being implemented)
 
 ## Language
 
