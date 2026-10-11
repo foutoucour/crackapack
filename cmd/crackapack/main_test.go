@@ -24,22 +24,22 @@ func TestRun(t *testing.T) {
 			wantUsage:      true,
 		},
 		{
-			name:           "sweep returns not-implemented error naming the subcommand",
+			name:           "sweep with no arguments returns an error naming the subcommand",
 			args:           []string{"sweep"},
 			wantErr:        true,
-			wantErrContain: "sweep: not implemented",
+			wantErrContain: "sweep",
 		},
 		{
-			name:           "compare returns not-implemented error naming the subcommand",
+			name:           "compare with no arguments returns an error naming the subcommand",
 			args:           []string{"compare"},
 			wantErr:        true,
-			wantErrContain: "compare: not implemented",
+			wantErrContain: "compare",
 		},
 		{
-			name:           "demo returns not-implemented error naming the subcommand",
+			name:           "demo with no arguments returns an error naming the subcommand",
 			args:           []string{"demo"},
 			wantErr:        true,
-			wantErrContain: "demo: not implemented",
+			wantErrContain: "demo",
 		},
 		{
 			name:           "unknown subcommand returns usage error",
