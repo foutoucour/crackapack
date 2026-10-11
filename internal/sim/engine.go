@@ -15,17 +15,18 @@ import (
 // Run may be called at most once: the engine mutates its domain objects
 // (journal, energy, collection, counter) and there is no reset path.
 type Engine struct {
-	cfg          config.Config
-	catalogues   []domain.SetCatalogue // openable sets only
-	prices       domain.PriceSnapshot
-	journal      *domain.Journal
-	energy       *domain.Energy
-	collection   *domain.Collection
-	counter      *domain.Counter
-	opener       *domain.Opener
-	policy       PlayerPolicy
-	boosterCosts map[string]int // setCode -> energy cost; openable sets only
-	ran          bool           // guards against calling Run more than once
+	cfg           config.Config
+	catalogues    []domain.SetCatalogue // openable sets only
+	supplementary []domain.SetCatalogue // supplementary pools (Counter-only, no binder progress)
+	prices        domain.PriceSnapshot
+	journal       *domain.Journal
+	energy        *domain.Energy
+	collection    *domain.Collection
+	counter       *domain.Counter
+	opener        *domain.Opener
+	policy        PlayerPolicy
+	boosterCosts  map[string]int // setCode -> energy cost; openable sets only
+	ran           bool           // guards against calling Run more than once
 
 	// per-day session counters; reset at the start of each day
 	dayBoostersOpened int
@@ -63,6 +64,30 @@ func NewEngine(
 	}
 	if rng == nil {
 		return nil, fmt.Errorf("sim: rng must not be nil")
+	}
+
+	// Validate that the price snapshot matches at least one catalogue card.
+	// A snapshot that matches no card at all is almost certainly keyed with the
+	// wrong identifiers; fail fast rather than silently using fallback_price for
+	// every card.
+	{
+		var totalNonBasic, priced int
+		allForCheck := make([]domain.SetCatalogue, 0, len(catalogues)+len(supplementary))
+		allForCheck = append(allForCheck, catalogues...)
+		allForCheck = append(allForCheck, supplementary...)
+		for _, cat := range allForCheck {
+			for id, card := range cat.Cards {
+				if !card.IsBasicLand {
+					totalNonBasic++
+					if _, ok := prices[id]; ok {
+						priced++
+					}
+				}
+			}
+		}
+		if totalNonBasic > 0 && priced == 0 {
+			return nil, fmt.Errorf("sim: price snapshot matches none of the %d catalogue cards: check that it is keyed by MTGJSON uuid", totalNonBasic)
+		}
 	}
 
 	// Build energy.
@@ -145,16 +170,17 @@ func NewEngine(
 	}
 
 	return &Engine{
-		cfg:          cfg,
-		catalogues:   catalogues,
-		prices:       prices,
-		journal:      journal,
-		energy:       energy,
-		collection:   domain.NewCollection(),
-		counter:      counter,
-		opener:       opener,
-		policy:       policy,
-		boosterCosts: boosterCosts,
+		cfg:           cfg,
+		catalogues:    catalogues,
+		supplementary: supplementary,
+		prices:        prices,
+		journal:       journal,
+		energy:        energy,
+		collection:    domain.NewCollection(),
+		counter:       counter,
+		opener:        opener,
+		policy:        policy,
+		boosterCosts:  boosterCosts,
 	}, nil
 }
 
@@ -231,6 +257,7 @@ func (e *Engine) Run() (Result, error) {
 		days,
 		e.cfg.RunDays,
 		e.catalogues,
+		e.supplementary,
 		e.prices,
 		e.cfg.FallbackPrice,
 		e.cfg.CoinRate,

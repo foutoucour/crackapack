@@ -3,6 +3,7 @@ package sim_test
 import (
 	"bytes"
 	"math/rand/v2"
+	"strings"
 	"testing"
 
 	"github.com/foutoucour/crackapack/internal/config"
@@ -278,6 +279,144 @@ func TestRun_secondCallReturnsError(t *testing.T) {
 	}
 	if _, err := e.Run(); err == nil {
 		t.Error("second Run: want error, got nil")
+	}
+}
+
+// TestNewEngine_errorWhenNoPricesMatchCatalogueCards reproduces defect 4.
+// When the price snapshot matches none of the catalogue cards, NewEngine must
+// return a descriptive error rather than silently falling back for every card.
+func TestNewEngine_errorWhenNoPricesMatchCatalogueCards(t *testing.T) {
+	t.Parallel()
+
+	mainCard := domain.Card{
+		ID:       "main-r-001",
+		Name:     "Main Rare",
+		Number:   "1",
+		Rarity:   domain.RarityRare,
+		Finishes: []domain.Finish{domain.FinishNonFoil},
+	}
+	mainCat := domain.SetCatalogue{
+		Code:  "MAN",
+		Name:  "Main Set",
+		Cards: map[domain.CardID]domain.Card{"main-r-001": mainCard},
+		Sheets: map[string]domain.Sheet{
+			"rare": {
+				Name:        "rare",
+				Cards:       []domain.SheetCard{{ID: "main-r-001", Weight: 10}},
+				TotalWeight: 10,
+			},
+		},
+		BoosterOptions: []domain.BoosterOption{
+			{Contents: map[string]int{"rare": 1}, Weight: 1},
+		},
+	}
+
+	// Price snapshot with a completely wrong key — none of the catalogue cards are priced.
+	wrongPrices := domain.PriceSnapshot{"totally-wrong-uuid": 100}
+
+	cfg := smallConfig()
+	cfg.RunDays = 1
+	rng := rand.New(rand.NewPCG(cfg.Seed, cfg.Seed))
+
+	_, err := sim.NewEngine(cfg, []domain.SetCatalogue{mainCat}, nil, wrongPrices, sim.NewCollectorPolicy(), rng)
+	if err == nil {
+		t.Fatal("want error when price snapshot matches no catalogue card, got nil")
+	}
+	if !strings.Contains(err.Error(), "price snapshot matches none") {
+		t.Errorf("error %q does not contain expected message 'price snapshot matches none'", err.Error())
+	}
+}
+
+// TestRun_unpricedCardsInSummary verifies the unpriced_cards metric is present
+// and reflects cards absent from the price snapshot.
+func TestRun_unpricedCardsInSummary(t *testing.T) {
+	t.Parallel()
+	cfg := smallConfig()
+	cfg.RunDays = 1
+	e := buildEngine(t, cfg, sim.NewCollectorPolicy())
+	result, err := e.Run()
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	// unpriced_cards must be present (domaintest.NewPrices intentionally omits the last card).
+	v, ok := result.Summary["unpriced_cards"]
+	if !ok {
+		t.Fatal("unpriced_cards missing from Summary")
+	}
+	if v < 1 {
+		t.Errorf("unpriced_cards = %v, want >= 1 (NewPrices omits the last card)", v)
+	}
+}
+
+// TestRun_subCoinCardsIncludesSupplementaryInSummary reproduces defect 3.
+// A supplementary catalogue with a cheap card must contribute to sub_coin_cards.
+func TestRun_subCoinCardsIncludesSupplementaryInSummary(t *testing.T) {
+	t.Parallel()
+
+	mainCard := domain.Card{
+		ID:       "main-r-002",
+		Name:     "Main Rare",
+		Number:   "1",
+		Rarity:   domain.RarityRare,
+		Finishes: []domain.Finish{domain.FinishNonFoil},
+	}
+	mainCat := domain.SetCatalogue{
+		Code:  "MAN",
+		Name:  "Main Set",
+		Cards: map[domain.CardID]domain.Card{"main-r-002": mainCard},
+		Sheets: map[string]domain.Sheet{
+			"rare": {
+				Name:        "rare",
+				Cards:       []domain.SheetCard{{ID: "main-r-002", Weight: 10}},
+				TotalWeight: 10,
+			},
+		},
+		BoosterOptions: []domain.BoosterOption{
+			{Contents: map[string]int{"rare": 1}, Weight: 1},
+		},
+	}
+
+	// Supplementary card with price 1 cent: sell value at rate 10, sell 60%
+	// = floor(1*10*60/10000) = 0 → ErrSubCoin.
+	suppCard := domain.Card{
+		ID:       "supp-sp-001",
+		Name:     "Supp Special",
+		Number:   "1",
+		Rarity:   domain.RaritySpecial,
+		Finishes: []domain.Finish{domain.FinishNonFoil},
+	}
+	suppCat := domain.SetCatalogue{
+		Code:  "SUP",
+		Name:  "Supplementary Set",
+		Cards: map[domain.CardID]domain.Card{"supp-sp-001": suppCard},
+	}
+
+	prices := domain.PriceSnapshot{
+		"main-r-002":  500, // well-priced
+		"supp-sp-001": 1,   // sub-coin at low rate
+	}
+
+	cfg := smallConfig()
+	cfg.RunDays = 1
+	cfg.CoinRate = 10 // low rate so 1 cent → sub-coin
+	rng := rand.New(rand.NewPCG(cfg.Seed, cfg.Seed))
+
+	e, err := sim.NewEngine(cfg, []domain.SetCatalogue{mainCat}, []domain.SetCatalogue{suppCat}, prices, sim.NewCollectorPolicy(), rng)
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+	result, err := e.Run()
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	v, ok := result.Summary["sub_coin_cards"]
+	if !ok {
+		t.Fatal("sub_coin_cards missing from Summary")
+	}
+	// supp-sp-001 is sub-coin; sub_coin_cards must be >= 1.
+	if v < 1 {
+		t.Errorf("sub_coin_cards = %v, want >= 1 (supplementary sub-coin card must be counted)", v)
 	}
 }
 

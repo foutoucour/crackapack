@@ -64,16 +64,24 @@ type DayMetrics struct {
 //   - total_refused_trades: sum of TradesRefused across all days; a volume signal
 //     for stuck inventory (one sub-coin card above playset generates one refusal
 //     per copy per session per day). Use sub_coin_cards for the distinct-card count.
-//   - sub_coin_cards: distinct non-foil, non-basic-land cards whose Counter sell
-//     value (at SellPct) is sub-coin at the configured rate; the economy is
-//     calibrated when this is zero
+//   - sub_coin_cards: distinct non-foil, non-basic-land cards across openable and
+//     supplementary catalogues whose Counter sell value (at SellPct) is sub-coin
+//     at the configured rate, including cards priced at zero (zero price returns
+//     (0, nil) from PriceToCoins but the Counter refuses it identically to ErrSubCoin);
+//     the economy is calibrated when this is zero
 //   - daily_reward_commons: floor(DailyReward / medianCommonBuyCoins) where
-//     medianCommonBuyCoins is PriceToCoins(median common non-basic price, rate, BuyPct);
-//     0 when the median converts to sub-coin
+//     medianCommonBuyCoins is PriceToCoins(median common non-basic price, rate, BuyPct)
+//     over openable and supplementary catalogues; 0 when the median converts to sub-coin
+//   - unpriced_cards: distinct non-basic-land cards across openable and supplementary
+//     catalogues that are absent from the price snapshot and use fallback_price
 //   - unsold_duplicate_copies: copies above a playset (domain.PlaysetSize) still
-//     held at the end of the run; non-zero when sub-coin cards cannot be sold
+//     held at the end of the run; non-zero when sub-coin cards cannot be sold.
+//     This is a policy-independent measure: it counts copies above domain.PlaysetSize
+//     regardless of the policy's own keep count.
 //   - days_to_50pct_cu.<setcode>: first 1-based day where CUOwned/CUTotal >= 0.5
+//     (openable catalogues only)
 //   - days_to_100pct_cu.<setcode>: first 1-based day where CUOwned == CUTotal
+//     (openable catalogues only)
 type Summary map[string]float64
 
 // Result is the complete output of one simulation run.
@@ -84,10 +92,16 @@ type Result struct {
 
 // computeSummary derives the Summary from the day metrics, run parameters,
 // and the final collection state.
+//
+// cats holds the openable catalogues; supplementary holds extra catalogues whose
+// cards are known to the Counter but not tracked in binder progress. sub_coin_cards,
+// daily_reward_commons, and unpriced_cards are computed over cats+supplementary.
+// days_to_* metrics are computed over cats only.
 func computeSummary(
 	days []DayMetrics,
 	runDays int,
 	cats []domain.SetCatalogue,
+	supplementary []domain.SetCatalogue,
 	prices domain.PriceSnapshot,
 	fallback domain.USDCents,
 	coinRate domain.CoinRate,
@@ -97,6 +111,11 @@ func computeSummary(
 	collection *domain.Collection,
 ) Summary {
 	s := make(Summary)
+
+	// Combine openable + supplementary for metrics that span all known cards.
+	allCats := make([]domain.SetCatalogue, 0, len(cats)+len(supplementary))
+	allCats = append(allCats, cats...)
+	allCats = append(allCats, supplementary...)
 
 	// final_balance
 	if len(days) > 0 {
@@ -111,16 +130,22 @@ func computeSummary(
 	}
 	s["total_refused_trades"] = float64(totalRefused)
 
-	// sub_coin_cards: distinct non-foil, non-basic-land cards whose sell value is sub-coin
-	s["sub_coin_cards"] = float64(countSubCoinCards(cats, prices, fallback, coinRate, sellPct))
+	// sub_coin_cards: distinct non-foil, non-basic-land cards across openable and
+	// supplementary catalogues whose Counter sell value is sub-coin (including zero price).
+	s["sub_coin_cards"] = float64(countSubCoinCards(allCats, prices, fallback, coinRate, sellPct))
 
-	// daily_reward_commons
-	s["daily_reward_commons"] = float64(dailyRewardCommons(cats, prices, fallback, coinRate, buyPct, dailyReward))
+	// daily_reward_commons: median over commons of openable + supplementary.
+	s["daily_reward_commons"] = float64(dailyRewardCommons(allCats, prices, fallback, coinRate, buyPct, dailyReward))
+
+	// unpriced_cards: distinct non-basic-land cards absent from the price snapshot.
+	s["unpriced_cards"] = float64(countUnpricedCards(allCats, prices))
 
 	// unsold_duplicate_copies: copies above a playset still held at end of run.
+	// This is a policy-independent measure; it always uses domain.PlaysetSize regardless
+	// of the policy's own keep count.
 	s["unsold_duplicate_copies"] = float64(countUnsoldDuplicates(collection))
 
-	// days_to_50pct_cu.<setcode> and days_to_100pct_cu.<setcode>
+	// days_to_50pct_cu.<setcode> and days_to_100pct_cu.<setcode> (openable catalogues only).
 	censored := float64(runDays + 1)
 	for _, cat := range cats {
 		code := strings.ToLower(cat.Code)
@@ -182,11 +207,34 @@ func countSubCoinCards(
 		if !ok {
 			price = fallback
 		}
-		_, err := domain.PriceToCoins(price, rate, sellPct)
-		if err != nil {
-			// Both ErrSubCoin and a zero price (returns nil with 0) count here.
-			// PriceToCoins returns ErrSubCoin when result rounds to zero on a non-zero price.
+		coins, err := domain.PriceToCoins(price, rate, sellPct)
+		// Count as sub-coin when PriceToCoins errors (ErrSubCoin for non-zero prices that
+		// round down) OR when coins == 0 with no error (zero price returns (0, nil) but the
+		// Counter's tradeCoins refuses it identically, wrapping ErrSubCoin).
+		if err != nil || coins == 0 {
 			count++
+		}
+	}
+	return count
+}
+
+// countUnpricedCards counts distinct non-basic-land cards across cats whose
+// CardID is absent from prices (they use fallback_price instead).
+func countUnpricedCards(cats []domain.SetCatalogue, prices domain.PriceSnapshot) int {
+	seen := make(map[domain.CardID]struct{})
+	count := 0
+	for _, cat := range cats {
+		for id, card := range cat.Cards {
+			if card.IsBasicLand {
+				continue
+			}
+			if _, dup := seen[id]; dup {
+				continue
+			}
+			seen[id] = struct{}{}
+			if _, ok := prices[id]; !ok {
+				count++
+			}
 		}
 	}
 	return count
