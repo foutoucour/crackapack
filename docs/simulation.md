@@ -16,6 +16,9 @@ The inputs the simulation reads are defined in [Core features](core-features.md)
 
 ## Commands
 
+Every subcommand accepts `--help` for detailed usage. Shell completion scripts
+are available via `crackapack completion <shell>` (bash, zsh, fish, PowerShell).
+
 ### simulate
 
 Run one solo-loop simulation and write results to a directory.
@@ -57,9 +60,11 @@ Compare two simulation results (JSON files produced by simulate or sweep).
 ```
 go run ./cmd/crackapack compare before/result.json after/result.json
 go run ./cmd/crackapack compare --days-csv delta.csv before/result.json after/result.json
+go run ./cmd/crackapack compare before/result.json after/result.json --days-csv delta.csv
 ```
 
 Reports which summary metrics changed and, optionally, the per-day delta as CSV.
+Flags may appear before or after the positional file paths.
 
 ### demo
 

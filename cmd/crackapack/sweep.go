@@ -1,8 +1,6 @@
 package main
 
 import (
-	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"math/rand/v2"
@@ -11,50 +9,21 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/foutoucour/crackapack/internal/config"
 	"github.com/foutoucour/crackapack/internal/domain"
 	"github.com/foutoucour/crackapack/internal/sim"
 )
 
-const sweepUsage = `usage: crackapack sweep [flags]
-
-Run the same simulation for each coin-per-USD rate in the sweep grid,
-evaluate calibration targets, and report which rates pass.
-
-Flags:
-  --config <file>
-        YAML config file (optional; omit to use all defaults)
-  --catalogue-dir <dir>
-        directory containing <CODE>.json MTGJSON set files (required)
-  --sets <CODE,...>
-        comma-separated set codes to open, e.g. RAV,CLS (required)
-  --supplementary <CODE,...>
-        comma-separated card-pool-only codes, e.g. TSB (optional)
-  --prices <file>
-        JSON price snapshot file (required)
-  --player <name>
-        player policy name (default: collector)
-  --out <dir>
-        output root directory (required)
-        writes <out>/rate-<N>/result.json, <out>/rate-<N>/days.csv, <out>/sweep.json
-  --rates <N,...>
-        comma-separated coin-per-USD rates (overrides sweep_rates in config)
-
-Example:
-  crackapack sweep \
-    --catalogue-dir ./catalogues \
-    --sets RAV,CLS \
-    --prices ./prices.json \
-    --out ./sweep-out
-`
-
-// cmdSweep handles the sweep subcommand. It parses flags, wires OS dependencies,
-// and delegates to runSweep. Errors are returned with a "crackapack sweep: " prefix.
+// cmdSweep is a shim kept for backward-compatible test invocation.
 func cmdSweep(args []string, stdout, stderr io.Writer) error {
-	fset := flag.NewFlagSet("sweep", flag.ContinueOnError)
-	fset.SetOutput(stderr)
-	fset.Usage = func() { fmt.Fprint(stderr, sweepUsage) }
+	return run(append([]string{"sweep"}, args...), stdout, stderr)
+}
 
+// newSweepCmd returns the cobra command for the sweep subcommand.
+// stdout receives the sweep table; stderr receives errors, usage, and help.
+func newSweepCmd(stdout, stderr io.Writer) *cobra.Command {
 	var (
 		configPath string
 		catDir     string
@@ -66,94 +35,110 @@ func cmdSweep(args []string, stdout, stderr io.Writer) error {
 		ratesRaw   string
 	)
 
-	fset.StringVar(&configPath, "config", "", "YAML config file (optional; omit for defaults)")
-	fset.StringVar(&catDir, "catalogue-dir", "", "catalogue directory (required)")
-	fset.StringVar(&setsRaw, "sets", "", "comma-separated openable set codes (required)")
-	fset.StringVar(&suppRaw, "supplementary", "", "comma-separated card-pool-only codes (optional)")
-	fset.StringVar(&pricesPath, "prices", "", "JSON price snapshot file (required)")
-	fset.StringVar(&player, "player", "collector", `player policy name (default "collector")`)
-	fset.StringVar(&outDir, "out", "", "output root directory (required)")
-	fset.StringVar(&ratesRaw, "rates", "", "comma-separated coin-per-USD rates (overrides config sweep_rates)")
+	cmd := &cobra.Command{
+		Use:   "sweep",
+		Short: "sweep the coin-per-USD rate over a grid and report calibration results",
+		Long: `Run the same simulation for each coin-per-USD rate in the sweep grid,
+evaluate calibration targets against each run, and report which rates pass.
 
-	if err := fset.Parse(args); err != nil {
-		if errors.Is(err, flag.ErrHelp) {
+The sweep grid is taken from sweep_rates in the config file. Pass --rates N,...
+to override it on the command line.`,
+		Example: `  crackapack sweep \
+    --catalogue-dir ./catalogues \
+    --sets RAV,CLS \
+    --prices ./prices.json \
+    --out ./sweep-out`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var missing []string
+			if catDir == "" {
+				missing = append(missing, "--catalogue-dir")
+			}
+			if setsRaw == "" {
+				missing = append(missing, "--sets")
+			}
+			if pricesPath == "" {
+				missing = append(missing, "--prices")
+			}
+			if outDir == "" {
+				missing = append(missing, "--out")
+			}
+			if len(missing) > 0 {
+				if err := cmd.Usage(); err != nil {
+					return err
+				}
+				return fmt.Errorf("crackapack sweep: required flags not set: %s",
+					strings.Join(missing, ", "))
+			}
+
+			var rates []domain.CoinRate
+			if ratesRaw != "" {
+				parsed, err := parseRates(ratesRaw)
+				if err != nil {
+					return fmt.Errorf("crackapack sweep: --rates: %w", err)
+				}
+				rates = parsed
+			}
+
+			var configReader io.Reader
+			if configPath != "" {
+				f, err := os.Open(configPath)
+				if err != nil {
+					return fmt.Errorf("crackapack sweep: config %q: %w", configPath, err)
+				}
+				defer func() { _ = f.Close() }()
+				configReader = f
+			}
+
+			catFS := os.DirFS(catDir)
+			pricesFS := os.DirFS(filepath.Dir(pricesPath))
+			pricesName := filepath.Base(pricesPath)
+
+			if err := os.MkdirAll(outDir, 0o755); err != nil {
+				return fmt.Errorf("crackapack sweep: --out %q: %w", outDir, err)
+			}
+			newOutput := func(name string) (io.WriteCloser, error) {
+				full := filepath.Join(outDir, name)
+				if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+					return nil, err
+				}
+				return os.Create(full)
+			}
+
+			a := sweepArgs{
+				configReader: configReader,
+				catFS:        catFS,
+				setCodes:     splitCodes(setsRaw),
+				suppCodes:    splitCodes(suppRaw),
+				pricesFS:     pricesFS,
+				pricesName:   pricesName,
+				player:       player,
+				policies:     buildPolicies(),
+				rates:        rates,
+				newOutput:    newOutput,
+				stdout:       stdout,
+			}
+
+			if err := runSweep(a); err != nil {
+				return fmt.Errorf("crackapack sweep: %w", err)
+			}
 			return nil
-		}
-		return fmt.Errorf("crackapack sweep: %w", err)
+		},
 	}
+	// cobra help and usage go to stderr to match existing test assertions.
+	cmd.SetOut(stderr)
+	cmd.SetErr(stderr)
 
-	var missing []string
-	if catDir == "" {
-		missing = append(missing, "--catalogue-dir")
-	}
-	if setsRaw == "" {
-		missing = append(missing, "--sets")
-	}
-	if pricesPath == "" {
-		missing = append(missing, "--prices")
-	}
-	if outDir == "" {
-		missing = append(missing, "--out")
-	}
-	if len(missing) > 0 {
-		fset.Usage()
-		return fmt.Errorf("crackapack sweep: required flags not set: %s", strings.Join(missing, ", "))
-	}
+	f := cmd.Flags()
+	f.StringVar(&configPath, "config", "", "YAML config file (optional; omit for defaults)")
+	f.StringVar(&catDir, "catalogue-dir", "", "catalogue directory containing <CODE>.json files (required)")
+	f.StringVar(&setsRaw, "sets", "", "comma-separated openable set codes, e.g. RAV,CLS (required)")
+	f.StringVar(&suppRaw, "supplementary", "", "comma-separated card-pool-only codes, e.g. TSB (optional)")
+	f.StringVar(&pricesPath, "prices", "", "JSON price snapshot file (required)")
+	f.StringVar(&player, "player", "collector", "player policy name")
+	f.StringVar(&outDir, "out", "", "output root directory (required)")
+	f.StringVar(&ratesRaw, "rates", "", "comma-separated coin-per-USD rates (overrides sweep_rates in config)")
 
-	// Parse --rates flag when provided.
-	var rates []domain.CoinRate
-	if ratesRaw != "" {
-		parsed, err := parseRates(ratesRaw)
-		if err != nil {
-			return fmt.Errorf("crackapack sweep: --rates: %w", err)
-		}
-		rates = parsed
-	}
-
-	var configReader io.Reader
-	if configPath != "" {
-		f, err := os.Open(configPath)
-		if err != nil {
-			return fmt.Errorf("crackapack sweep: config %q: %w", configPath, err)
-		}
-		defer func() { _ = f.Close() }()
-		configReader = f
-	}
-
-	catFS := os.DirFS(catDir)
-	pricesFS := os.DirFS(filepath.Dir(pricesPath))
-	pricesName := filepath.Base(pricesPath)
-
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
-		return fmt.Errorf("crackapack sweep: --out %q: %w", outDir, err)
-	}
-
-	newOutput := func(name string) (io.WriteCloser, error) {
-		full := filepath.Join(outDir, name)
-		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
-			return nil, err
-		}
-		return os.Create(full)
-	}
-
-	a := sweepArgs{
-		configReader: configReader,
-		catFS:        catFS,
-		setCodes:     splitCodes(setsRaw),
-		suppCodes:    splitCodes(suppRaw),
-		pricesFS:     pricesFS,
-		pricesName:   pricesName,
-		player:       player,
-		policies:     buildPolicies(),
-		rates:        rates,
-		newOutput:    newOutput,
-		stdout:       stdout,
-	}
-
-	if err := runSweep(a); err != nil {
-		return fmt.Errorf("crackapack sweep: %w", err)
-	}
-	return nil
+	return cmd
 }
 
 // runSweep is the testable core of the sweep subcommand. It loads inputs, runs
@@ -209,8 +194,7 @@ func runSweep(a sweepArgs) error {
 		return err
 	}
 
-	// Write per-rate reports. Abort all writes on the first unknown-metric error
-	// (already caught by Sweep above), so by the time we write, sr is valid.
+	// Write per-rate reports.
 	for _, rr := range sr.Rates {
 		rateDir := fmt.Sprintf("rate-%d", rr.Rate)
 

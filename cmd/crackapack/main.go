@@ -1,21 +1,13 @@
 // Command crackapack is the single binary entry point for the crackapack application.
-// It dispatches CLI subcommands to their respective handlers.
+// It dispatches CLI subcommands through a cobra command tree.
 package main
 
 import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
-
-const usage = `usage: crackapack <subcommand>
-
-Subcommands:
-  simulate  run one solo-loop simulation
-  sweep     sweep the coin to USD rate over a grid
-  compare   compare two simulation results
-  demo      run a sweep on the demo dataset
-`
 
 func main() {
 	if err := run(os.Args[1:], os.Stdout, os.Stderr); err != nil {
@@ -26,24 +18,17 @@ func main() {
 
 // run dispatches CLI subcommands and writes output to stdout and stderr.
 // It is extracted from main so dispatch logic can be tested without process exit.
-func run(args []string, stdout io.Writer, stderr io.Writer) error {
-	if len(args) == 0 {
-		fmt.Fprint(stderr, usage)
-		return fmt.Errorf("no subcommand given")
+func run(args []string, stdout, stderr io.Writer) error {
+	root := newRootCmd(stdout, stderr)
+	root.SetArgs(args)
+	if err := root.Execute(); err != nil {
+		// cobra reports an unknown subcommand as: unknown command "X" for "crackapack".
+		// Reformat to our convention and print usage so the user sees what is available.
+		if strings.HasPrefix(err.Error(), "unknown command ") && len(args) > 0 {
+			fmt.Fprint(stderr, root.UsageString())
+			return fmt.Errorf("unknown subcommand %q", args[0])
+		}
+		return err
 	}
-
-	// dispatch maps each subcommand name to its handler.
-	dispatch := map[string]func() error{
-		"simulate": func() error { return cmdSimulate(args[1:], stdout, stderr) },
-		"sweep":    func() error { return cmdSweep(args[1:], stdout, stderr) },
-		"compare":  func() error { return cmdCompare(args[1:], stdout, stderr) },
-		"demo":     func() error { return cmdDemo(args[1:], stdout, stderr) },
-	}
-
-	fn, ok := dispatch[args[0]]
-	if !ok {
-		fmt.Fprint(stderr, usage)
-		return fmt.Errorf("unknown subcommand %q", args[0])
-	}
-	return fn()
+	return nil
 }
