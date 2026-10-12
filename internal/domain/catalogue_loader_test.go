@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -398,6 +399,31 @@ func TestLoadSetCatalogue_success(t *testing.T) {
 	}
 	if opt.Contents["rare"] != 1 {
 		t.Errorf("BoosterOptions[0].Contents[rare] = %d, want 1", opt.Contents["rare"])
+	}
+}
+
+// A card that is in the set file but in no booster sheet (a collector-numbered promo, for
+// example) can never be opened, so it must not count towards the set's totals.
+func TestLoadSetCatalogue_dropsCardsNoBoosterSheetContains(t *testing.T) {
+	t.Parallel()
+
+	promo := `{"uuid": "uuid-promo", "name": "Promo Uncommon", "number": "14★", "rarity": "uncommon",
+		"finishes": ["nonfoil"], "identifiers": {}},`
+	data := strings.Replace(validSetJSON(), `"cards": [`, `"cards": [`+promo, 1)
+	fsys := fstest.MapFS{"set.json": &fstest.MapFile{Data: []byte(data)}}
+
+	cat, err := domain.LoadSetCatalogue(fsys, "set.json")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if _, ok := cat.Cards["uuid-promo"]; ok {
+		t.Error("card in no booster sheet is in the catalogue, want it dropped")
+	}
+	for _, id := range []domain.CardID{"uuid-aa", "uuid-bb", "uuid-cc"} {
+		if _, ok := cat.Cards[id]; !ok {
+			t.Errorf("card %q is in a booster sheet but missing from the catalogue", id)
+		}
 	}
 }
 

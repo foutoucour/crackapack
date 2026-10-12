@@ -113,7 +113,8 @@ maximum exceeds `run_days`.
 
 A directory of MTGJSON v5 set files, one per set code (`RAV.json`, `TSP.json`,
 …). Openable sets (passed via `--sets`) must have a `booster.draft` section.
-Supplementary pools (`--supplementary`) do not require it.
+Supplementary pools (`--supplementary`) do not require it. An openable set keeps only the cards
+that a booster sheet contains, see [ADR-0007](adr/0007-catalogues-count-only-obtainable-cards.md).
 
 ### Price snapshot JSON
 

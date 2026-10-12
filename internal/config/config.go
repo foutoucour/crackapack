@@ -122,7 +122,7 @@ type EnergyConfig struct {
 // calibrated through simulation.
 type Config struct {
 	// CoinRate is the number of coins one US dollar is worth.
-	// ASSUMPTION: default 100 is a placeholder; the sweep calibrates this.
+	// The default is 100, see docs/adr/0006-coin-rate-is-100-per-dollar.md.
 	CoinRate domain.CoinRate `yaml:"coin_rate"`
 
 	// CounterSellPct is the percentage of the reference value the player is paid
@@ -177,7 +177,7 @@ type Config struct {
 // [Load] overlays the YAML file on top, leaving absent fields at their defaults.
 func defaults() Config {
 	return Config{
-		CoinRate:       100, // ASSUMPTION: calibrated by sweep; see docs/specs-review.md
+		CoinRate:       100, // see docs/adr/0006-coin-rate-is-100-per-dollar.md
 		CounterSellPct: 60,
 		CounterBuyPct:  120,
 		WelcomeBonus:   200,
