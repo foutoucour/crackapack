@@ -172,7 +172,7 @@ snapshots downloaded with the `tools/fetchdata` downloader on 2026-10-11.
   [ADR-0008](adr/0008-energy-cost-reference-is-the-catalogue-directory.md), so a different
   directory moves them.
 - **Coins per booster:** Counter sales of the `cash-out` player divided by boosters opened.
-- **Solo runs at the mixed tier:** each set ran alone with its energy cost fixed to that tier, so
+- **Solo runs at the tier above:** each set ran alone with its energy cost fixed to that tier, so
   the numbers do not depend on how a policy shares energy between sets.
 
 | Set | Booster value | Tier (longest wait) | Coins per booster | Coins per energy | Per energy vs 2005-2007 |
@@ -220,7 +220,7 @@ missing cards. Days until the five 2005-2007 binders are complete, across 5 seed
   by 19 and 6 percent, inside the baseline's range.
 - With DRK, ICE, HML or FEM added the median is 35 to 42 days, and with 3ED or 4ED it is 49 to 52.
   Those runs are slower than the baseline because the extra set shares the same energy.
-- Alone at the mixed tier, the same player has `coins_after_full_binder` of 25.1 million on
+- Alone at the tier above, the same player has `coins_after_full_binder` of 25.1 million on
   Alpha, 16.0 million on Arabian Nights and 13.5 million on Beta. On a 2005-2007 set it is
   0.32 to 0.50 million.
 
