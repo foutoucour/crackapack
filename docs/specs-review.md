@@ -137,6 +137,103 @@ What the sweep leaves open (see [Open questions](#open-questions)):
 - The collector's reserve rule: `collectorReserveDays = 1` is an assumption; a
   higher value slows buying and may change which rates pass.
 
+## Expensive old sets and the 12-energy cap
+
+The cap is a coin faucet for the first-edition-era sets. It is not one for any set from Mirage
+(1996) to Tenth Edition (2007), the priciest of which pays out under 3 times the 2005-2007 sets
+per unit of energy. The five V1 sets tested are worth $5 to $13 per booster, far from the problem.
+
+### Which sets can be simulated
+
+- **Before Mirage:** none loads as downloaded. MTGJSON gives these sets a `booster.default`
+  definition and no `booster.draft`, so the loader stops with `data.booster.draft: missing or empty`.
+  - Checked: LEA, LEB, 2ED, 3ED, 4ED, ARN, ATQ, LEG, DRK, FEM, ICE, HML, ALL.
+  - Their cards only use common, uncommon and rare, so the rarity check is not the obstacle.
+- **Mirage to Tenth Edition:** all 33 expansions and core sets checked, from MIR to 10E, load as
+  downloaded and ran alone for 90 days. Portal, Chronicles and promo sets were not checked.
+- **Test workaround, no code change:** copy the file and expose `default` as `draft`. The 12
+  pre-Mirage sets other than ALL ran this way, in a directory outside the repository.
+
+```
+jq '.data.booster = {draft: .data.booster.default}' LEA.json > old-sets/LEA.json
+```
+
+### What was run
+
+Every figure is the mean of seeds 1 to 5, over 90 days, at 100 coins per dollar, from TCGplayer
+snapshots downloaded with the `tools/fetchdata` downloader on 2026-10-11.
+
+- **Booster value:** the engine's expected value of one booster, in dollars.
+- **Tier:** the energy cost the set gets in a run with the five 2005-2007 sets (RAV, GPT, DIS, CSP,
+  TSP). In a run of those five alone, they get 5 or 8.
+- **Coins per booster:** Counter sales of the `cash-out` player divided by boosters opened.
+- **Solo runs at the mixed tier:** each set ran alone with its energy cost fixed to that tier, so
+  the numbers do not depend on how a policy shares energy between sets.
+
+| Set | Booster value | Tier (longest wait) | Coins per booster | Coins per energy | Per energy vs 2005-2007 |
+|-----|--------------:|---------------------|------------------:|-----------------:|------------------------:|
+| LEA Alpha | $1,079.81 | 12 (160 min) | 61,786 | 5,149 | ×65 |
+| LEB Beta | $663.44 | 12 (160 min) | 36,440 | 3,037 | ×38 |
+| ARN Arabian Nights | $635.92 | 12 (160 min) | 37,116 | 3,093 | ×39 |
+| 2ED Unlimited | $449.94 | 12 (160 min) | 21,708 | 1,809 | ×23 |
+| ATQ Antiquities | $223.06 | 12 (160 min) | 12,553 | 1,046 | ×13 |
+| LEG Legends | $162.21 | 12 (160 min) | 7,793 | 649 | ×8.2 |
+| 3ED Revised | $69.98 | 12 (160 min) | 2,988 | 249 | ×3.1 |
+| STH Stronghold, the priciest of Mirage to 10E | $48.34 | 12 (160 min) | 2,617 | 218 | ×2.7 |
+| DRK The Dark | $19.47 | 12 (160 min) | 1,041 | 87 | ×1.1 |
+| ICE Ice Age | $12.82 | 8 (80 min) | 713 | 89 | ×1.1 |
+| 4ED Fourth Edition | $8.79 | 8 (80 min) | 480 | 60 | ×0.8 |
+| HML Homelands | $3.31 | 3 (30 min) | 191 | 64 | ×0.8 |
+| FEM Fallen Empires | $3.02 | 3 (30 min) | 177 | 59 | ×0.7 |
+| 2005-2007, five sets | $5.12 to $12.82 | 5 or 8 (50 or 80 min) | 291 to 704, mean 492 | 58 to 92, mean 79.5 | ×1 |
+
+- Seed to seed, Alpha's ratio stays between ×64 and ×66.
+- One Alpha booster pays about 618 daily rewards (100 coins each).
+- Over 90 days the `cash-out` player ends with 31.4 million coins on Alpha and 0.36 to 0.57 million
+  on a 2005-2007 set.
+- The cap is flat: a $70 Revised booster and a $1,080 Alpha booster both cost 12 energy.
+- Matching the 2005-2007 coins per energy would take about 780 energy for Alpha
+  (61,786 ÷ 79.5), against the 210 that the reserve and savings can hold. A longer tier table
+  cannot close that gap.
+
+### What it does to the pace
+
+The `collector` player, with the five 2005-2007 sets plus one old set, spends the Counter's coins on
+missing cards. Days until the five 2005-2007 binders are complete, across 5 seeds and 5 sets:
+
+| Added set | Median days | Range | Coins spent at the Counter |
+|-----------|------------:|-------|---------------------------:|
+| None | 32 | 22 to 39 | 73,749 |
+| LEA | 6 | 5 to 8 | 1,403,542 |
+| LEB | 7 | 6 to 9 | 1,209,854 |
+| ARN | 13 | 11 to 15 | 291,913 |
+| 2ED | 22 | 18 to 30 | 948,461 |
+| ATQ | 26 | 21 to 28 | 144,674 |
+| LEG | 30 | 25 to 56 | 437,837 |
+
+- LEA, LEB and ARN cut the median by 59 to 81 percent, and 2ED by about a third. ATQ and LEG cut it
+  by 19 and 6 percent, inside the baseline's range.
+- With DRK, ICE, HML or FEM added the median is 35 to 42 days, and with 3ED or 4ED it is 49 to 52.
+  Those runs are slower than the baseline because the extra set shares the same energy.
+- Alone at the mixed tier, the same player has `coins_after_full_binder` of 25.1 million on
+  Alpha, 16.0 million on Arabian Nights and 13.5 million on Beta. On a 2005-2007 set it is
+  0.32 to 0.50 million.
+
+### Limits of this test
+
+- **Prices:** Alpha, Beta and Unlimited have rares with no TCGplayer price. The simulation prices
+  them at `fallback_price` and the Counter refuses to buy them (`sub_coin_cards` equals
+  `unpriced_cards`): 101 cards on Alpha (96 are rares), 62 on Beta, and 4 rares on Unlimited, among
+  them Black Lotus, Mox Jet and Mox Sapphire. Their booster values are lower bounds.
+- **Layouts:** the pre-Mirage `default` definitions are taken as MTGJSON gives them, and their
+  fidelity to the real boosters was not checked. ARN, ATQ, DRK, FEM and HML boosters hold 8 cards,
+  and V1 is limited to 15-card boosters, see [Contradictions to fix](#contradictions-to-fix).
+- **Not covered:** coin rates other than 100, NPC trades (not built), any remedy, sets outside the
+  46 checked here, and the V1 sets Planar Chaos and Future Sight, which the 2005-2007 data lacks.
+- **Loader support:** the least invasive way to make pre-Mirage sets loadable is to accept
+  `booster.default` when `booster.draft` is absent. It is not built, and no ADR is written until a
+  remedy for the faucet is chosen.
+
 ## Simulating the economy
 
 Some risks only show after weeks of play: the collection's value growing through trades, or the
@@ -215,8 +312,9 @@ The most uncertain item is the NPC simulation's behaviour at scale. Hosting no l
   target is per set, since finishing every set takes years.
 - [ ] Energy cost tiers are relative to the median booster value of the sets loaded in a run. Which
   median applies in the game: the whole catalogue, or what the player has unlocked?
-- [ ] Booster energy cost stops at 12 while booster values vary widely. Do very expensive sets create
-  too many coins through the Counter? The sweep has only run on 2005 to 2007 sets.
+- [x] Booster energy cost stops at 12 while booster values vary widely. Do very expensive sets create
+  too many coins through the Counter? Yes for first-edition-era sets, no inside 1996 to 2007. See
+  [Expensive old sets and the 12-energy cap](#expensive-old-sets-and-the-12-energy-cap).
 - [ ] Default number of NPCs and archetype split.
 - [ ] Initial Counter stock: which cards?
 - [x] Format and location of the configuration file (YAML, passed via `--config`; see [ADR-0002](adr/0002-yaml-config-format.md)).

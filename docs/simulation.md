@@ -135,6 +135,10 @@ A directory of MTGJSON v5 set files, one per set code (`RAV.json`, `TSP.json`,
 Supplementary pools (`--supplementary`) do not require it. An openable set keeps only the cards
 that a booster sheet contains, see [ADR-0007](adr/0007-catalogues-count-only-obtainable-cards.md).
 
+MTGJSON files for sets before Mirage (1996) have no `booster.draft`, so the loader rejects them.
+[Which sets can be simulated](specs-review.md#which-sets-can-be-simulated) lists them and the
+workaround.
+
 ### Price snapshot JSON
 
 A JSON object mapping MTGJSON UUID strings to integer prices in US cents:
