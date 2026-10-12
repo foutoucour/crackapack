@@ -38,8 +38,8 @@ code.
 | Alternative | Why not chosen |
 |---|---|
 | Keep `flag` package | Stops at first positional argument; no generated help or completion; required-flag validation and usage must be hand-written in every subcommand. |
-| `urfave/cli v3` | Active project but less widely adopted than cobra; would gain the same features at the cost of a less familiar API; the Go module ecosystem heavily favours cobra. |
-| `kong` | Struct-tag based configuration is concise for simple CLIs but makes dependency injection (injecting `io.Writer` into subcommands) awkward; adds a less common dependency. |
+| `urfave/cli v3` | Would also give subcommands and generated help. Less widely used than cobra, and v3 is a recent major version. |
+| `kong` | Flags and subcommands are declared as Go structs, which needs the least wiring code. A less common library with a different mental model for contributors. |
 
 ## Consequences
 
