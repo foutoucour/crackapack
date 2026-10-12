@@ -34,3 +34,9 @@ go.work.sum
 
 # Built binary
 /crackapack
+
+# Real data downloaded by tools/fetchdata
+/catalogues/
+/prices.json
+.claude/output
+.claude/ralph-prd.json
