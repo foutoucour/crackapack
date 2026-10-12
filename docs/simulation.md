@@ -135,6 +135,17 @@ A directory of MTGJSON v5 set files, one per set code (`RAV.json`, `TSP.json`,
 Supplementary pools (`--supplementary`) do not require it. An openable set keeps only the cards
 that a booster sheet contains, see [ADR-0007](adr/0007-catalogues-count-only-obtainable-cards.md).
 
+The directory also sets the reference of the energy cost tiers. A booster's cost is its average
+value relative to the median over every openable set in the directory, not only the sets in `--sets`,
+see [ADR-0008](adr/0008-energy-cost-reference-is-the-catalogue-directory.md).
+- A file counts when it is named `<CODE>.json` with an upper-case code and has a `booster.draft`
+  section. Other files, such as `prices.json` or a pool without `booster.draft` like `TSB.json`, are
+  skipped.
+- A set file with any other defect, such as malformed JSON or an unknown rarity, stops the run with
+  an error that names the file, even when it is not in `--sets`.
+- Compare runs on the same directory. Adding or removing a set file moves the median, and so every
+  cost.
+
 ### Price snapshot JSON
 
 A JSON object mapping MTGJSON UUID strings to integer prices in US cents:
@@ -181,9 +192,9 @@ above the run horizon. Config validation keeps it from passing by accident: an `
 | `max_booster_wait_minutes` | Longest wait, from empty reserve and empty savings, to afford one booster of any openable set. It follows from the energy settings and does not depend on play |
 
 Judge the pace of one set by running it alone, with `--sets RAV` for example. With several sets the
-player shares energy between them, so every set takes longer. A set run alone always lands in the
-×1 energy tier, because booster costs are relative to the median booster value of the openable sets
-in the run.
+player shares energy between them, so every set takes longer. A set costs the same energy alone or
+with others, because booster costs are relative to the median of the [catalogue directory](#catalogue-directory),
+so `max_booster_wait_minutes` only changes when a set with a higher cost joins the run.
 
 ## Player policies
 
