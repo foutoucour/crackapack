@@ -111,6 +111,12 @@ func NewEngine(
 		}
 	}
 
+	// A reference set no price covers would be valued at fallback_price and collapse the median,
+	// moving every energy cost a tier without a sign.
+	if err := checkReferencePriced(o.reference, catalogues, prices); err != nil {
+		return nil, err
+	}
+
 	// Build energy.
 	energyParams := domain.EnergyParams{
 		RechargePerTick:      cfg.Energy.RechargePerTick,
@@ -357,6 +363,35 @@ func (e *Engine) snapshotDay(day int) (DayMetrics, error) {
 		CardsBought:     e.dayCardsBought,
 		TradesRefused:   e.dayTradesRefused,
 	}, nil
+}
+
+// checkReferencePriced returns an error naming the first reference catalogue, other than the
+// openable ones, whose non-basic cards are all absent from the price snapshot. Partial coverage
+// is not checked.
+func checkReferencePriced(reference, openable []domain.SetCatalogue, prices domain.PriceSnapshot) error {
+	isOpenable := make(map[string]bool, len(openable))
+	for _, cat := range openable {
+		isOpenable[cat.Code] = true
+	}
+	for _, cat := range reference {
+		if isOpenable[cat.Code] {
+			continue
+		}
+		var nonBasic, priced int
+		for id, card := range cat.Cards {
+			if card.IsBasicLand {
+				continue
+			}
+			nonBasic++
+			if _, ok := prices[id]; ok {
+				priced++
+			}
+		}
+		if nonBasic > 0 && priced == 0 {
+			return fmt.Errorf("sim: price snapshot has no price for any card of the reference set %q: fetch the prices of every set of the catalogue directory, for example with one tools/fetchdata call for all of them", cat.Code)
+		}
+	}
+	return nil
 }
 
 // boosterAverageValues returns the average booster value of each catalogue, in order.

@@ -2,6 +2,7 @@ package sim_test
 
 import (
 	"math/rand/v2"
+	"strings"
 	"testing"
 
 	"github.com/foutoucour/crackapack/internal/domain"
@@ -74,5 +75,29 @@ func TestNewEngine_energyCostIgnoresWhichSetsAreRun(t *testing.T) {
 				t.Errorf("max_booster_wait_minutes = %v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+// A reference set that no price covers would be valued at fallback_price and collapse the median,
+// moving every cost a tier without a sign, so the engine refuses it.
+func TestNewEngine_errorWhenReferenceSetHasNoPrice(t *testing.T) {
+	t.Parallel()
+	openable := domaintest.NewRavnicaCatalogue()
+	unpriced := domaintest.NewClassicCatalogue()
+	prices := domaintest.NewPrices(openable, 1)
+	cfg := smallConfig()
+	rng := rand.New(rand.NewPCG(cfg.Seed, cfg.Seed))
+
+	_, err := sim.NewEngine(cfg, []domain.SetCatalogue{openable}, nil, prices, sim.NewCollectorPolicy(), rng,
+		sim.WithReferenceCatalogues([]domain.SetCatalogue{openable, unpriced}))
+
+	if err == nil {
+		t.Fatal("want an error for a reference set with no price, got nil")
+	}
+	if !strings.Contains(err.Error(), unpriced.Code) {
+		t.Errorf("error does not name %s: %q", unpriced.Code, err.Error())
+	}
+	if !strings.Contains(err.Error(), "fetchdata") {
+		t.Errorf("error does not say how to fetch the prices: %q", err.Error())
 	}
 }

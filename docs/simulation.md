@@ -146,6 +146,11 @@ see [ADR-0008](adr/0008-energy-cost-reference-is-the-catalogue-directory.md).
 - Compare runs on the same directory. Adding or removing a set file moves the median, and so every
   cost.
 
+The price snapshot has to cover every set file of the directory. A set with no price in it would be
+valued at `fallback_price` and pull the median down, so the run stops with an error naming the set.
+`tools/fetchdata` writes prices only for the sets of one call and overwrites `prices.json`, so
+download all the sets of the directory in a single call.
+
 ### Price snapshot JSON
 
 A JSON object mapping MTGJSON UUID strings to integer prices in US cents:
