@@ -32,6 +32,7 @@ accepted ADR needs a new ADR first, one that supersedes the old one.
 - `golangci-lint run` — lint
 - `go mod tidy -diff` — check that `go.mod` and `go.sum` are tidy
 - `go run ./cmd/crackapack` — print the usage and the list of subcommands
+- `go run ./tools/fetchdata --sets RAV,TSP,TSB` — download real MTGJSON catalogues and a price snapshot into `./catalogues` and `./prices.json`
 - `go run ./cmd/crackapack simulate --catalogue-dir ./catalogues --sets RAV,CLS --prices prices.json --out ./out` — run one solo-loop simulation
 - `go run ./cmd/crackapack sweep --catalogue-dir ./catalogues --sets RAV,CLS --prices prices.json --out ./sweep-out` — sweep the coin-per-USD rate over a grid and report calibration results
 - `go run ./cmd/crackapack compare [--days-csv delta.csv] <a.json> <b.json>` — compare two simulation results
