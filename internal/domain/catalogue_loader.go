@@ -95,8 +95,12 @@ func readAndCheckMetadata(fsys fs.FS, name string) (mtgSetData, error) {
 	if jsonErr := json.Unmarshal(data, &raw); jsonErr != nil {
 		var te *json.UnmarshalTypeError
 		if errors.As(jsonErr, &te) {
-			// te.Field is the full dotted path (e.g. "data.booster.draft.sheets.common.totalWeight").
-			return mtgSetData{}, &CatalogueError{File: name, Field: te.Field, Err: jsonErr}
+			// te.Field is not the same on every Go release, so locate the value from the offset.
+			field, ok := jsonPathAt(data, te.Offset)
+			if !ok {
+				field = te.Field
+			}
+			return mtgSetData{}, &CatalogueError{File: name, Field: field, Err: jsonErr}
 		}
 		// Syntax errors carry no field information.
 		return mtgSetData{}, &CatalogueError{File: name, Field: "(json)", Err: jsonErr}
