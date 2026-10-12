@@ -57,5 +57,8 @@ type BoosterGenerator interface {
 // Magic collecting.
 const PlaysetSize = 4
 
-// TicksPerDay is the number of simulation ticks in one game day: a tick is 10 minutes.
+// MinutesPerTick is the length of one simulation tick.
+const MinutesPerTick = 10
+
+// TicksPerDay is the number of simulation ticks in one game day: a tick is MinutesPerTick minutes.
 const TicksPerDay = 144

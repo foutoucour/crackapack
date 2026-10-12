@@ -255,3 +255,119 @@ func zeroSupply() map[domain.Account]domain.Coins {
 		domain.AccountCounterPurchase: 0,
 	}
 }
+
+// binderDays builds days where each set's binder fills on the given day (Owned reaches Total),
+// and the player's balance is 100 coins times the day number.
+func binderDays(runDays int, completeOn map[string]int) []sim.DayMetrics {
+	const total = 12
+	days := make([]sim.DayMetrics, runDays)
+	for i := range runDays {
+		day := i + 1
+		progress := make(map[string]sim.SetDayProgress, len(completeOn))
+		for code, doneDay := range completeOn {
+			owned := total - 2
+			if doneDay != 0 && day >= doneDay {
+				owned = total
+			}
+			progress[code] = sim.SetDayProgress{Owned: owned, Total: total}
+		}
+		days[i] = sim.DayMetrics{
+			Day:         day,
+			MoneySupply: map[domain.Account]domain.Coins{domain.AccountPlayer: domain.Coins(100 * day)},
+			SetProgress: progress,
+		}
+	}
+	return days
+}
+
+func TestSummary_daysToBinder(t *testing.T) {
+	t.Parallel()
+	const runDays = 6
+	tests := []struct {
+		name       string
+		completeOn map[string]int
+		want       map[string]float64
+	}{
+		{
+			name:       "each set reports its own day",
+			completeOn: map[string]int{"RAV": 4, "GPT": 2},
+			want:       map[string]float64{"days_to_100pct.rav": 4, "days_to_100pct.gpt": 2},
+		},
+		{
+			name:       "a set never completed is censored past the run horizon",
+			completeOn: map[string]int{"RAV": 4, "GPT": 0},
+			want:       map[string]float64{"days_to_100pct.rav": 4, "days_to_100pct.gpt": runDays + 1},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cats := []domain.SetCatalogue{{Code: "RAV"}, {Code: "GPT"}}
+
+			s := sim.ComputeSummaryForTest(binderDays(runDays, tc.completeOn), runDays, cats, nil,
+				domain.PriceSnapshot{}, 1, 100, 60, 120, 100)
+
+			for key, want := range tc.want {
+				if got, ok := s[key]; !ok || got != want {
+					t.Errorf("%s = %v (present: %v), want %v", key, got, ok, want)
+				}
+			}
+		})
+	}
+}
+
+func TestSummary_coinsAfterFullBinder(t *testing.T) {
+	t.Parallel()
+	const runDays = 6
+	tests := []struct {
+		name       string
+		completeOn map[string]int
+		want       float64
+	}{
+		{
+			name:       "counts from the day the last set completes",
+			completeOn: map[string]int{"RAV": 2, "GPT": 4},
+			want:       200, // balance 600 on day 6 minus 400 on day 4
+		},
+		{
+			name:       "zero when one set never completes",
+			completeOn: map[string]int{"RAV": 2, "GPT": 0},
+			want:       0,
+		},
+		{
+			name:       "zero when the binder completes on the last day",
+			completeOn: map[string]int{"RAV": runDays, "GPT": 3},
+			want:       0,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cats := []domain.SetCatalogue{{Code: "RAV"}, {Code: "GPT"}}
+
+			s := sim.ComputeSummaryForTest(binderDays(runDays, tc.completeOn), runDays, cats, nil,
+				domain.PriceSnapshot{}, 1, 100, 60, 120, 100)
+
+			if got := s["coins_after_full_binder"]; got != tc.want {
+				t.Errorf("coins_after_full_binder = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestMaxBoosterWaitMinutes(t *testing.T) {
+	t.Parallel()
+	params := domain.EnergyParams{RechargePerTick: 1, ReserveCap: 10, SavingsIntervalTicks: 3, SavingsCap: 200}
+	costs := map[string]int{"CSP": 3, "RAV": 5, "TSP": 12}
+
+	got, err := sim.MaxBoosterWaitMinutesForTest(params, costs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The cost-12 booster needs the 10-point reserve (10 ticks) plus 2 savings (2 x 3 ticks).
+	const want = 160
+	if got != want {
+		t.Errorf("max wait = %v minutes, want %v", got, want)
+	}
+}

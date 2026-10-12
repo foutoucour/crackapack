@@ -20,6 +20,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Summary metrics `days_to_100pct.<setcode>` (a set's whole binder), `coins_after_full_binder` and
+  `max_booster_wait_minutes`, to check the pace of a set, the coins left idle once the binder is
+  done, and the longest wait for one booster.
 - `crackapack simulate` — run one solo-loop simulation and write `result.json` and `days.csv`.
 - `crackapack sweep` — sweep the coin-per-USD rate over a configurable grid, evaluate calibration
   targets, and report passing rates in a text table.

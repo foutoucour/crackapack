@@ -210,6 +210,13 @@ The most uncertain item is the NPC simulation's behaviour at scale. Hosting no l
 
 - [ ] Ninth and Tenth Edition in V1?
 - [ ] Reference value of a card with no TCGplayer price.
+- [ ] Pacing target: a set's binder in about two weeks at 3 visits a day and about one week at 6.
+  The simulation gives 8 days for RAV and TSP at 3 visits and 6 days at 6. With about 150 sets, the
+  target is per set, since finishing every set takes years.
+- [ ] Energy cost tiers are relative to the median booster value of the sets loaded in a run. Which
+  median applies in the game: the whole catalogue, or what the player has unlocked?
+- [ ] Booster energy cost stops at 12 while booster values vary widely. Do very expensive sets create
+  too many coins through the Counter? The sweep has only run on 2005 to 2007 sets.
 - [ ] Default number of NPCs and archetype split.
 - [ ] Initial Counter stock: which cards?
 - [x] Format and location of the configuration file (YAML, passed via `--config`; see [ADR-0002](adr/0002-yaml-config-format.md)).

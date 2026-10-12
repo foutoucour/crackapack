@@ -65,6 +65,28 @@ type Energy struct {
 	savingsTick int // ticks elapsed toward the next savings recharge while reserve is full
 }
 
+// TicksToAfford returns how many ticks an empty Energy, with neither reserve nor savings, needs
+// before it can pay cost. It is the longest wait a player faces for one purchase of that cost.
+//
+// Cost is paid from the reserve first, so the reserve must reach min(cost, ReserveCap). A cost
+// above ReserveCap also needs savings, which only grow while the reserve is full, one point per
+// SavingsIntervalTicks. It returns an error when cost is not positive or exceeds
+// ReserveCap + SavingsCap, since such a cost can never be paid.
+func (p EnergyParams) TicksToAfford(cost int) (int, error) {
+	if cost <= 0 {
+		return 0, &InvalidSpendAmountError{Amount: cost}
+	}
+	if cost > p.ReserveCap+p.SavingsCap {
+		return 0, fmt.Errorf("energy: cost %d exceeds reserve cap %d plus savings cap %d", cost, p.ReserveCap, p.SavingsCap)
+	}
+	fromReserve := min(cost, p.ReserveCap)
+	ticks := (fromReserve + p.RechargePerTick - 1) / p.RechargePerTick
+	if cost > p.ReserveCap {
+		ticks += (cost - p.ReserveCap) * p.SavingsIntervalTicks
+	}
+	return ticks, nil
+}
+
 // NewEnergy returns an Energy with a full reserve and empty savings.
 // Returns an error naming the offending field when any parameter is invalid.
 func NewEnergy(p EnergyParams) (*Energy, error) {

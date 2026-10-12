@@ -82,6 +82,12 @@ type DayMetrics struct {
 //     (openable catalogues only)
 //   - days_to_100pct_cu.<setcode>: first 1-based day where CUOwned == CUTotal
 //     (openable catalogues only)
+//   - days_to_100pct.<setcode>: first 1-based day where Owned == Total, the whole binder
+//     of the set (openable catalogues only)
+//   - coins_after_full_binder: player balance gained from the first day every openable set
+//     is complete to the end of the run; 0 when that day is never reached
+//   - max_booster_wait_minutes: longest wait, from an empty reserve and empty savings, to
+//     afford one booster of any openable set; set by the energy settings, not by play
 type Summary map[string]float64
 
 // Result is the complete output of one simulation run.
@@ -151,11 +157,19 @@ func computeSummary(
 		code := strings.ToLower(cat.Code)
 		key50 := fmt.Sprintf("days_to_50pct_cu.%s", code)
 		key100 := fmt.Sprintf("days_to_100pct_cu.%s", code)
+		keyBinder := fmt.Sprintf("days_to_100pct.%s", code)
 		s[key50] = censored
 		s[key100] = censored
+		s[keyBinder] = censored
 		for _, d := range days {
 			prog, ok := d.SetProgress[cat.Code]
-			if !ok || prog.CUTotal == 0 {
+			if !ok {
+				continue
+			}
+			if s[keyBinder] == censored && prog.Total > 0 && prog.Owned == prog.Total {
+				s[keyBinder] = float64(d.Day)
+			}
+			if prog.CUTotal == 0 {
 				continue
 			}
 			if s[key50] == censored && prog.CUOwned*2 >= prog.CUTotal {
@@ -165,6 +179,14 @@ func computeSummary(
 				s[key100] = float64(d.Day)
 			}
 		}
+	}
+
+	// coins_after_full_binder: coins the player gains once nothing is left to collect.
+	if i, ok := fullBinderDay(days, cats); ok {
+		last := days[len(days)-1]
+		s["coins_after_full_binder"] = float64(last.MoneySupply[domain.AccountPlayer] - days[i].MoneySupply[domain.AccountPlayer])
+	} else {
+		s["coins_after_full_binder"] = 0
 	}
 
 	return s
@@ -300,4 +322,41 @@ func dailyRewardCommons(
 		return 0
 	}
 	return int(dailyReward / buyCoins)
+}
+
+// maxBoosterWaitMinutes returns the longest time an empty player waits to afford one booster of
+// any set in costs. A player who must wait days for a booster stops playing, so the sweep makes
+// this a number it can check.
+func maxBoosterWaitMinutes(p domain.EnergyParams, costs map[string]int) (float64, error) {
+	longest := 0
+	for code, cost := range costs {
+		ticks, err := p.TicksToAfford(cost)
+		if err != nil {
+			return 0, fmt.Errorf("booster wait for %q: %w", code, err)
+		}
+		longest = max(longest, ticks)
+	}
+	return float64(longest * domain.MinutesPerTick), nil
+}
+
+// fullBinderDay returns the index into days of the first day on which every set in cats has all
+// of its cards owned, and false when that never happens.
+func fullBinderDay(days []DayMetrics, cats []domain.SetCatalogue) (int, bool) {
+	if len(cats) == 0 {
+		return 0, false
+	}
+	for i, d := range days {
+		complete := true
+		for _, cat := range cats {
+			prog, ok := d.SetProgress[cat.Code]
+			if !ok || prog.Total == 0 || prog.Owned != prog.Total {
+				complete = false
+				break
+			}
+		}
+		if complete {
+			return i, true
+		}
+	}
+	return 0, false
 }

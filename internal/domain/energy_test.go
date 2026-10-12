@@ -384,3 +384,52 @@ func TestSpendInvalidAmountReturnsTypedError(t *testing.T) {
 		}
 	}
 }
+
+// TestTicksToAffordMatchesRecharge checks the closed-form wait against the real recharge rules:
+// spend everything, tick until the cost is payable, and compare the tick count.
+func TestTicksToAffordMatchesRecharge(t *testing.T) {
+	tests := []struct {
+		name   string
+		params EnergyParams
+		cost   int
+	}{
+		{name: "inside the reserve", params: defaultEnergyParams(), cost: 5},
+		{name: "exactly the reserve", params: defaultEnergyParams(), cost: 10},
+		{name: "one into savings", params: defaultEnergyParams(), cost: 11},
+		{name: "top tier needs savings", params: defaultEnergyParams(), cost: 12},
+		{name: "fast recharge rounds up", params: EnergyParams{RechargePerTick: 3, ReserveCap: 10, SavingsIntervalTicks: 3, SavingsCap: 200}, cost: 7},
+		{name: "fast recharge into savings", params: EnergyParams{RechargePerTick: 3, ReserveCap: 10, SavingsIntervalTicks: 2, SavingsCap: 200}, cost: 14},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			e := mustNewEnergy(t, tc.params)
+			if err := e.Spend(tc.params.ReserveCap); err != nil {
+				t.Fatal(err)
+			}
+			want := 0
+			for e.Spend(tc.cost) != nil {
+				if err := e.Tick(1); err != nil {
+					t.Fatal(err)
+				}
+				want++
+			}
+
+			got, err := tc.params.TicksToAfford(tc.cost)
+			if err != nil {
+				t.Fatalf("TicksToAfford(%d): unexpected error: %v", tc.cost, err)
+			}
+			if got != want {
+				t.Errorf("TicksToAfford(%d) = %d, want %d (ticks an empty Energy needs)", tc.cost, got, want)
+			}
+		})
+	}
+}
+
+func TestTicksToAffordRejectsUnpayableCosts(t *testing.T) {
+	p := defaultEnergyParams()
+	for _, cost := range []int{0, -1, p.ReserveCap + p.SavingsCap + 1} {
+		if _, err := p.TicksToAfford(cost); err == nil {
+			t.Errorf("TicksToAfford(%d) succeeded, want an error", cost)
+		}
+	}
+}
