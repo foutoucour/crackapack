@@ -36,6 +36,21 @@ type Engine struct {
 	dayTradesRefused  int
 }
 
+type options struct {
+	reference []domain.SetCatalogue
+}
+
+// Option tunes NewEngine.
+type Option func(*options)
+
+// WithReferenceCatalogues sets the catalogues whose median booster value is the reference of the
+// energy cost tiers. It must include the openable catalogues of the run, so that a set costs the
+// same whichever sets are opened alongside it. Without it, or when empty, the reference is the
+// openable catalogues themselves and a set run alone always lands in the x1 tier.
+func WithReferenceCatalogues(reference []domain.SetCatalogue) Option {
+	return func(o *options) { o.reference = reference }
+}
+
 // NewEngine builds and validates a simulation engine.
 //
 // catalogues are the openable sets: their cards are tracked in progress, metrics,
@@ -56,7 +71,12 @@ func NewEngine(
 	prices domain.PriceSnapshot,
 	policy PlayerPolicy,
 	rng *rand.Rand,
+	opts ...Option,
 ) (*Engine, error) {
+	var o options
+	for _, opt := range opts {
+		opt(&o)
+	}
 	if len(catalogues) == 0 {
 		return nil, fmt.Errorf("sim: at least one openable catalogue is required")
 	}
@@ -89,6 +109,12 @@ func NewEngine(
 		if totalNonBasic > 0 && priced == 0 {
 			return nil, fmt.Errorf("sim: price snapshot matches none of the %d catalogue cards: check that it is keyed by MTGJSON uuid", totalNonBasic)
 		}
+	}
+
+	// A reference set no price covers would be valued at fallback_price and collapse the median,
+	// moving every energy cost a tier without a sign.
+	if err := checkReferencePriced(o.reference, catalogues, prices); err != nil {
+		return nil, err
 	}
 
 	// Build energy.
@@ -132,16 +158,19 @@ func NewEngine(
 
 	// Compute booster energy costs for each openable catalogue.
 	// 1. average value per catalogue
-	avgValues := make([]domain.USDCents, 0, len(catalogues))
-	for _, cat := range catalogues {
-		avg, err := domain.BoosterAverageValue(cat, prices, cfg.FallbackPrice)
-		if err != nil {
-			return nil, fmt.Errorf("sim: booster average value for %q: %w", cat.Code, err)
-		}
-		avgValues = append(avgValues, avg)
+	avgValues, err := boosterAverageValues(catalogues, prices, cfg.FallbackPrice)
+	if err != nil {
+		return nil, err
 	}
-	// 2. median across catalogues
-	median, err := domain.MedianValue(avgValues)
+	// 2. median across the reference catalogues, by default the openable ones
+	referenceValues := avgValues
+	if len(o.reference) > 0 {
+		referenceValues, err = boosterAverageValues(o.reference, prices, cfg.FallbackPrice)
+		if err != nil {
+			return nil, err
+		}
+	}
+	median, err := domain.MedianValue(referenceValues)
 	if err != nil {
 		return nil, fmt.Errorf("sim: median booster value: %w", err)
 	}
@@ -334,4 +363,46 @@ func (e *Engine) snapshotDay(day int) (DayMetrics, error) {
 		CardsBought:     e.dayCardsBought,
 		TradesRefused:   e.dayTradesRefused,
 	}, nil
+}
+
+// checkReferencePriced returns an error naming the first reference catalogue, other than the
+// openable ones, whose non-basic cards are all absent from the price snapshot. Partial coverage
+// is not checked.
+func checkReferencePriced(reference, openable []domain.SetCatalogue, prices domain.PriceSnapshot) error {
+	isOpenable := make(map[string]bool, len(openable))
+	for _, cat := range openable {
+		isOpenable[cat.Code] = true
+	}
+	for _, cat := range reference {
+		if isOpenable[cat.Code] {
+			continue
+		}
+		var nonBasic, priced int
+		for id, card := range cat.Cards {
+			if card.IsBasicLand {
+				continue
+			}
+			nonBasic++
+			if _, ok := prices[id]; ok {
+				priced++
+			}
+		}
+		if nonBasic > 0 && priced == 0 {
+			return fmt.Errorf("sim: price snapshot has no price for any card of the reference set %q: fetch the prices of every set of the catalogue directory, for example with one tools/fetchdata call for all of them", cat.Code)
+		}
+	}
+	return nil
+}
+
+// boosterAverageValues returns the average booster value of each catalogue, in order.
+func boosterAverageValues(cats []domain.SetCatalogue, prices domain.PriceSnapshot, fallback domain.USDCents) ([]domain.USDCents, error) {
+	values := make([]domain.USDCents, 0, len(cats))
+	for _, cat := range cats {
+		avg, err := domain.BoosterAverageValue(cat, prices, fallback)
+		if err != nil {
+			return nil, fmt.Errorf("sim: booster average value for %q: %w", cat.Code, err)
+		}
+		values = append(values, avg)
+	}
+	return values, nil
 }

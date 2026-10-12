@@ -139,9 +139,11 @@ What the sweep leaves open (see [Open questions](#open-questions)):
 
 ## Expensive old sets and the 12-energy cap
 
-The cap is a coin faucet for the first-edition-era sets. It is not one for any set from Mirage
-(1996) to Tenth Edition (2007), the priciest of which pays out under 3 times the 2005-2007 sets
-per unit of energy. The five V1 sets tested are worth $5 to $13 per booster, far from the problem.
+Once the 12-energy tier binds, the coins a booster pays per unit of energy grow with its value:
+×1.1 at $19 (The Dark), ×2.7 at $48 (Stronghold), ×3.1 at $70 (Revised), ×8.2 at $162 (Legends)
+and ×65 at $1,080 (Alpha), each against the 2005-2007 sets.
+
+The five V1 sets tested are worth $5 to $13 per booster and get a tier of 5 or 8.
 
 ### Which sets can be simulated
 
@@ -164,8 +166,11 @@ Every figure is the mean of seeds 1 to 5, over 90 days, at 100 coins per dollar,
 snapshots downloaded with the `tools/fetchdata` downloader on 2026-10-11.
 
 - **Booster value:** the engine's expected value of one booster, in dollars.
-- **Tier:** the energy cost the set gets in a run with the five 2005-2007 sets (RAV, GPT, DIS, CSP,
-  TSP). In a run of those five alone, they get 5 or 8.
+- **Tier:** the energy cost the set gets in a directory holding the five 2005-2007 sets (RAV, GPT,
+  DIS, CSP, TSP) and that set. In a directory holding only the five, they get 5 or 8. The tiers
+  follow the median of the directory, see
+  [ADR-0008](adr/0008-energy-cost-reference-is-the-catalogue-directory.md), so a different
+  directory moves them.
 - **Coins per booster:** Counter sales of the `cash-out` player divided by boosters opened.
 - **Solo runs at the mixed tier:** each set ran alone with its energy cost fixed to that tier, so
   the numbers do not depend on how a policy shares energy between sets.
@@ -310,10 +315,12 @@ The most uncertain item is the NPC simulation's behaviour at scale. Hosting no l
 - [ ] Pacing target: a set's binder in about two weeks at 3 visits a day and about one week at 6.
   The simulation gives 8 days for RAV and TSP at 3 visits and 6 days at 6. With about 150 sets, the
   target is per set, since finishing every set takes years.
-- [ ] Energy cost tiers are relative to the median booster value of the sets loaded in a run. Which
-  median applies in the game: the whole catalogue, or what the player has unlocked?
+- [x] Energy cost tiers are relative to the median booster value of the whole catalogue, not of the
+  sets in a run or what the player has unlocked; see
+  [ADR-0008](adr/0008-energy-cost-reference-is-the-catalogue-directory.md).
 - [x] Booster energy cost stops at 12 while booster values vary widely. Do very expensive sets create
-  too many coins through the Counter? Yes for first-edition-era sets, no inside 1996 to 2007. See
+  too many coins through the Counter? Yes for the priciest sets: ×2.7 per energy at $48 a booster,
+  ×65 for Alpha, and negligible below about $20. See
   [Expensive old sets and the 12-energy cap](#expensive-old-sets-and-the-12-energy-cap).
 - [ ] Default number of NPCs and archetype split.
 - [ ] Initial Counter stock: which cards?

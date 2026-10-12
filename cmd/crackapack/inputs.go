@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math/rand/v2"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -12,6 +14,14 @@ import (
 	"github.com/foutoucour/crackapack/internal/domain"
 	"github.com/foutoucour/crackapack/internal/sim"
 )
+
+// setFilePattern matches the file name of a set in the catalogue directory: an upper-case MTGJSON
+// code and ".json". It leaves out the other files that may share the directory, such as
+// prices.json.
+var setFilePattern = regexp.MustCompile(`^[A-Z0-9_]+\.json$`)
+
+// draftSection is the field of a CatalogueError for a set file without a draft booster.
+const draftSection = "data.booster.draft"
 
 // simulateArgs holds all dependencies for runSimulate (and loadInputs), decoupled
 // from the OS so that tests can substitute in-memory implementations.
@@ -74,10 +84,17 @@ type sweepArgs struct {
 type inputs struct {
 	cfg           config.Config
 	catalogues    []domain.SetCatalogue
+	reference     []domain.SetCatalogue
 	supplementary []domain.SetCatalogue
 	prices        domain.PriceSnapshot
 	// policyFn returns a fresh PlayerPolicy on each call. Sweep calls it once per rate.
 	policyFn func() sim.PlayerPolicy
+}
+
+// newEngine builds an engine over the loaded inputs with a fresh player policy.
+func (in inputs) newEngine(cfg config.Config, rng *rand.Rand) (*sim.Engine, error) {
+	return sim.NewEngine(cfg, in.catalogues, in.supplementary, in.prices, in.policyFn(), rng,
+		sim.WithReferenceCatalogues(in.reference))
 }
 
 // loadInputs performs the shared loading steps for the simulate and sweep subcommands:
@@ -100,14 +117,15 @@ func loadInputs(a simulateArgs) (inputs, error) {
 		name := code + ".json"
 		cat, err := domain.LoadSetCatalogue(a.catFS, name)
 		if err != nil {
-			// CatalogueError already names the file; avoid duplicating the name.
-			var ce *domain.CatalogueError
-			if errors.As(err, &ce) {
-				return inputs{}, err
-			}
-			return inputs{}, fmt.Errorf("catalogue %s: %w", name, err)
+			return inputs{}, fileError("catalogue", name, err)
 		}
 		catalogues = append(catalogues, cat)
+	}
+
+	// 2b. Load the reference catalogues of the energy cost tiers.
+	reference, err := loadReferenceCatalogues(a.catFS, a.setCodes, catalogues)
+	if err != nil {
+		return inputs{}, err
 	}
 
 	// 3. Load supplementary card pools (no booster section required).
@@ -116,12 +134,7 @@ func loadInputs(a simulateArgs) (inputs, error) {
 		name := code + ".json"
 		pool, err := domain.LoadCardPool(a.catFS, name)
 		if err != nil {
-			// CatalogueError already names the file; avoid duplicating the name.
-			var ce *domain.CatalogueError
-			if errors.As(err, &ce) {
-				return inputs{}, err
-			}
-			return inputs{}, fmt.Errorf("supplementary %s: %w", name, err)
+			return inputs{}, fileError("supplementary", name, err)
 		}
 		supplementary = append(supplementary, pool)
 	}
@@ -147,10 +160,56 @@ func loadInputs(a simulateArgs) (inputs, error) {
 	return inputs{
 		cfg:           cfg,
 		catalogues:    catalogues,
+		reference:     reference,
 		supplementary: supplementary,
 		prices:        prices,
 		policyFn:      policyFn,
 	}, nil
+}
+
+// fileError names the file in a load error. A CatalogueError already does, so it is returned as is.
+func fileError(kind, name string, err error) error {
+	var ce *domain.CatalogueError
+	if errors.As(err, &ce) {
+		return err
+	}
+	return fmt.Errorf("%s %s: %w", kind, name, err)
+}
+
+// loadReferenceCatalogues returns every openable set of the catalogue directory: the requested
+// ones, already loaded, plus each other set file that has a draft booster. The energy cost of a
+// booster is relative to their median value, so it does not depend on the sets of the run.
+//
+// A file without a draft booster, such as the TSB card pool, is skipped. Any other defect in a
+// file that was not requested is an error: skipping it would shift the median unnoticed.
+func loadReferenceCatalogues(catFS fs.FS, setCodes []string, requested []domain.SetCatalogue) ([]domain.SetCatalogue, error) {
+	entries, err := fs.ReadDir(catFS, ".")
+	if err != nil {
+		return nil, fmt.Errorf("catalogue directory: %w", err)
+	}
+
+	isRequested := make(map[string]bool, len(setCodes))
+	for _, code := range setCodes {
+		isRequested[code+".json"] = true
+	}
+
+	reference := append([]domain.SetCatalogue(nil), requested...)
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !setFilePattern.MatchString(name) || isRequested[name] {
+			continue
+		}
+		cat, err := domain.LoadSetCatalogue(catFS, name)
+		var ce *domain.CatalogueError
+		if errors.As(err, &ce) && ce.Field == draftSection {
+			continue
+		}
+		if err != nil {
+			return nil, fileError("catalogue", name, err)
+		}
+		reference = append(reference, cat)
+	}
+	return reference, nil
 }
 
 // splitCodes splits a comma-separated string of set codes, trims whitespace,

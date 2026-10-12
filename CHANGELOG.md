@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- A booster's energy cost is relative to the median booster value of every openable set in the
+  catalogue directory, not of the sets in `--sets`. A set costs the same energy alone or with
+  others, and `max_booster_wait_minutes` no longer changes with `--sets`. A set file in the
+  directory that is malformed now stops a run even when it is not requested, see
+  [ADR-0008](docs/adr/0008-energy-cost-reference-is-the-catalogue-directory.md).
 - The default coin rate is settled at 100 coins per dollar after a sweep on real data, see
   [ADR-0006](docs/adr/0006-coin-rate-is-100-per-dollar.md).
 - An openable set keeps only the cards a booster sheet contains. Cards no booster holds, such as
