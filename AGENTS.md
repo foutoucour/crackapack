@@ -28,13 +28,13 @@ accepted ADR needs a new ADR first, one that supersedes the old one.
 
 ## Commands
 
-The Go module does not exist yet. Once it is scaffolded, these are the commands, and this section
-must be updated to match the real ones:
-
 - `go test -race ./...` — run all tests
 - `golangci-lint run` — lint
-- `go run ./cmd/crackapack` — run the app locally
-- `go run ./cmd/crackapack demo` — run the app on the demo dataset
+- `go run ./cmd/crackapack` — print the usage and the list of subcommands
+- `go run ./cmd/crackapack simulate --catalogue-dir ./catalogues --sets RAV,CLS --prices prices.json --out ./out` — run one solo-loop simulation
+- `go run ./cmd/crackapack sweep --catalogue-dir ./catalogues --sets RAV,CLS --prices prices.json --out ./sweep-out` — sweep the coin-per-USD rate over a grid and report calibration results
+- `go run ./cmd/crackapack compare [--days-csv delta.csv] <a.json> <b.json>` — compare two simulation results
+- `go run ./cmd/crackapack demo` — run a sweep on the built-in synthetic demo dataset
 
 ## Language
 

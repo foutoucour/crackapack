@@ -1,0 +1,38 @@
+package sim
+
+import "github.com/foutoucour/crackapack/internal/domain"
+
+// Session is the action API available to a PlayerPolicy during one session.
+// The engine's concrete port type implements this interface.
+//
+// View() returns a fresh WorldView computed at the moment of the call, so the
+// policy sees updated state after each action. The other methods act on the
+// simulation state and return results or errors.
+//
+// Only ErrSubCoin (from BuyFromPlayer or SellToPlayer) is treated as a normal
+// refusal; all other domain errors abort the simulation run.
+type Session interface {
+	// View returns the current simulation state. Cheap to call; recomputed each time.
+	View() WorldView
+
+	// OpenBooster spends energy and adds one booster from setCode to the collection.
+	// Returns an error if the set is unknown or energy is insufficient.
+	OpenBooster(setCode string) error
+
+	// SellDuplicates sells all copies above keep to the Counter. keep must be in [1,4].
+	// Sub-coin trades are counted as refused and the card is restored to the collection.
+	// Returns the number of individual cards sold and the number refused.
+	SellDuplicates(keep int) (sold, refused int)
+
+	// BuyCard purchases one copy of key from the Counter and adds it to the collection.
+	// Returns an error if the card is out of stock, unknown, or the player cannot afford it.
+	BuyCard(key domain.CardKey) error
+}
+
+// PlayerPolicy decides what happens during one session. The engine calls RunSession
+// once per session tick, passing the live Session handle.
+//
+// Implementations must not retain the Session reference beyond the call.
+type PlayerPolicy interface {
+	RunSession(s Session)
+}

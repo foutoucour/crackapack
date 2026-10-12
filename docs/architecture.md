@@ -41,6 +41,23 @@ Adapters implement those interfaces and depend on the domain, never the reverse.
 `cmd/crackapack` is the only place where real adapters are built and wired together. `demo/` holds
 the deterministic demo dataset. `tools/` holds Go programs run by CI.
 
+### Packages in the simulation MVP
+
+`internal/config` loads and validates the YAML configuration, translating it into a typed
+`Config` that `cmd/crackapack` passes to the engine. It reads from an `io.Reader` and never opens
+files itself.
+
+`internal/sim` is the composition layer: it wires `internal/domain` objects with `internal/config`
+values and records per-day metrics. The domain never imports sim.
+
+`demo/` generates two synthetic catalogues (DEM and DSP/DST) from a fixed seed and exposes them
+via `demo.Build()`. The domain never imports demo; the dependency runs one way, from demo into
+the domain.
+
+All simulation state is held in plain in-memory domain objects for the MVP. No store interface
+exists yet: it will be introduced with the SQLite adapter, together with the shared contract suite
+that both implementations must pass.
+
 ## Local storage
 
 The binary is separate from the player's data.

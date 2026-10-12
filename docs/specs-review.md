@@ -69,7 +69,10 @@ catalogue.
 4. NPCs and trades.
 
 **What we measure (for ourselves):** does the economy hold? The player's money supply, the
-Counter's stock levels, the trade volume per day.
+Counter's stock levels, the trade volume per day. The simulation MVP already runs the boosters,
+energy, collection, ledger, Counter and daily reward headlessly and sweeps them across coin
+rates; sync, milestones, quests, NPCs and trades are not built. See
+[Simulation guide](simulation.md).
 
 ## Contradictions to fix
 
@@ -98,12 +101,41 @@ away or makes the collection too easy.
 | Counter stock dries up on rares | Share of casuals, NPC opening pace, initial Counter stock |
 | Inflation: the player gets rich fast | Capped rewards; cosmetic coin sinks |
 | Collection too easy: everything can be bought at the Counter | Purchase price at 120% or more, limited stock |
-| Arbitrage | Both Counter prices come from one reference, so a round trip loses half. NPC trades never have a negative margin |
+| Arbitrage | Both Counter prices come from one reference, so a round trip loses half at the default rates and never gains. NPC trades never have a negative margin |
 | Commons worth nothing | Playsets, milestones, playset hunters among the NPCs |
 
 - **Coin ↔ USD rate:** to be set, the whole economy depends on it.
 - **Tuning:** the values that shape the economy are tuned through simulation, see
   [Simulating the economy](#simulating-the-economy).
+
+## What the sweep answers about the coin rate
+
+The sweep runs one simulation per rate in the grid and evaluates each run against
+maintainer-set calibration targets (see [Simulation guide](simulation.md#reading-the-sweep-table)).
+
+- **Method:** every rate gets the same seed, config, catalogues and price snapshot.
+  The only variable is `coin_rate`.
+- **Targets are pacing targets**, not game-balance assertions. They express what
+  the maintainers consider acceptable: for example, "the daily reward should buy at
+  least two commons from the Counter" or "no card's sell value should be sub-coin."
+- **Results depend on player policy and prices.** The same targets may produce a
+  different passing range when the price snapshot is updated or a new policy is added.
+
+- **What the rate changes.** Card prices, sale proceeds and purchase costs all scale with the
+  rate, so the rate only moves two things: the weight of coin amounts fixed in the configuration
+  (welcome bonus, daily reward) against card prices, and the rounding of cheap cards, which can
+  fall under one coin at a low rate. On the demo dataset the binder milestone days are the same at
+  every rate. Pacing is shaped by the other levers: the Counter percentages, the initial stock and
+  the energy settings.
+
+What the sweep leaves open (see [Open questions](#open-questions)):
+
+- The actual coin ↔ USD rate to ship: the targets use a synthetic price snapshot;
+  real prices will change which rates pass.
+- Stock assumptions: the initial Counter stock and NPC opening pace are not yet
+  calibrated; they affect how quickly the Counter runs out of rare copies.
+- The collector's reserve rule: `collectorReserveDays = 1` is an assumption; a
+  higher value slows buying and may change which rates pass.
 
 ## Simulating the economy
 
@@ -177,10 +209,10 @@ The most uncertain item is the NPC simulation's behaviour at scale. Hosting no l
 ## Open questions
 
 - [ ] Ninth and Tenth Edition in V1?
-- [ ] Fixed coin ↔ USD rate.
+- [ ] Fixed coin ↔ USD rate (the sweep narrows the range; real prices needed to confirm).
 - [ ] Reference value of a card with no TCGplayer price.
 - [ ] Default number of NPCs and archetype split.
 - [ ] Initial Counter stock: which cards?
-- [ ] Format and location of the configuration file.
+- [x] Format and location of the configuration file (YAML, passed via `--config`; see [ADR-0002](adr/0002-yaml-config-format.md)).
 - [ ] Jokers and duplicate protection.
 - [ ] When do live prices replace the snapshot, if ever?
