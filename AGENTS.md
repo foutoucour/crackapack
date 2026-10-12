@@ -30,11 +30,17 @@ accepted ADR needs a new ADR first, one that supersedes the old one.
 
 - `go test -race ./...` — run all tests
 - `golangci-lint run` — lint
+- `go mod tidy -diff` — check that `go.mod` and `go.sum` are tidy
 - `go run ./cmd/crackapack` — print the usage and the list of subcommands
 - `go run ./cmd/crackapack simulate --catalogue-dir ./catalogues --sets RAV,CLS --prices prices.json --out ./out` — run one solo-loop simulation
 - `go run ./cmd/crackapack sweep --catalogue-dir ./catalogues --sets RAV,CLS --prices prices.json --out ./sweep-out` — sweep the coin-per-USD rate over a grid and report calibration results
 - `go run ./cmd/crackapack compare [--days-csv delta.csv] <a.json> <b.json>` — compare two simulation results
 - `go run ./cmd/crackapack demo` — run a sweep on the built-in synthetic demo dataset
+
+Every pull request runs lint, tests, the tidy check and `govulncheck` through
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml); the `vuln` job there shows how to run
+`govulncheck` locally. On this private repository on a free plan, GitHub cannot enforce these as
+required checks, so a red check is advisory: do not merge on red.
 
 ## Language
 
