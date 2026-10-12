@@ -198,6 +198,8 @@ func parseSetCards(d mtgSetData, name string) (map[CardID]Card, error) {
 
 // LoadSetCatalogue reads one MTGJSON-shaped set file from fsys and returns the
 // parsed SetCatalogue. name is used in error messages and must be a valid fs.FS path.
+// Cards that no booster sheet contains are left out of Cards: they cannot be opened, so the
+// economy and the collection totals only count cards a player can get.
 // Sheet.Cards slices are sorted by ID ascending so that weighted draws over an
 // injected seeded *rand.Rand are reproducible across runs.
 func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
@@ -252,6 +254,8 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 		}
 	}
 
+	cards = keepCardsInSheets(cards, sheets)
+
 	opts := make([]BoosterOption, len(draftDef.Boosters))
 	for i, bo := range draftDef.Boosters {
 		if bo.Weight <= 0 {
@@ -303,6 +307,24 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 		Sheets:         sheets,
 		BoosterOptions: opts,
 	}, nil
+}
+
+// keepCardsInSheets returns the cards that appear in at least one booster sheet. MTGJSON set
+// files also list cards no booster holds, such as collector-numbered promos.
+func keepCardsInSheets(cards map[CardID]Card, sheets map[string]Sheet) map[CardID]Card {
+	inSheet := make(map[CardID]struct{})
+	for _, sheet := range sheets {
+		for _, sc := range sheet.Cards {
+			inSheet[sc.ID] = struct{}{}
+		}
+	}
+	kept := make(map[CardID]Card, len(cards))
+	for id, card := range cards {
+		if _, ok := inSheet[id]; ok {
+			kept[id] = card
+		}
+	}
+	return kept
 }
 
 // LoadCardPool reads a MTGJSON-shaped set file from fsys and returns a SetCatalogue

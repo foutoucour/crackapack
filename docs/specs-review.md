@@ -104,7 +104,7 @@ away or makes the collection too easy.
 | Arbitrage | Both Counter prices come from one reference, so a round trip loses half at the default rates and never gains. NPC trades never have a negative margin |
 | Commons worth nothing | Playsets, milestones, playset hunters among the NPCs |
 
-- **Coin ↔ USD rate:** to be set, the whole economy depends on it.
+- **Coin ↔ USD rate:** 100 coins per dollar, see [ADR-0006](adr/0006-coin-rate-is-100-per-dollar.md).
 - **Tuning:** the values that shape the economy are tuned through simulation, see
   [Simulating the economy](#simulating-the-economy).
 
@@ -130,8 +130,8 @@ maintainer-set calibration targets (see [Simulation guide](simulation.md#reading
 
 What the sweep leaves open (see [Open questions](#open-questions)):
 
-- The actual coin ↔ USD rate to ship: the targets use a synthetic price snapshot;
-  real prices will change which rates pass.
+- Product targets: the passing window behind [ADR-0006](adr/0006-coin-rate-is-100-per-dollar.md)
+  uses the demo's targets, not targets the maintainers have chosen.
 - Stock assumptions: the initial Counter stock and NPC opening pace are not yet
   calibrated; they affect how quickly the Counter runs out of rare copies.
 - The collector's reserve rule: `collectorReserveDays = 1` is an assumption; a
@@ -209,7 +209,6 @@ The most uncertain item is the NPC simulation's behaviour at scale. Hosting no l
 ## Open questions
 
 - [ ] Ninth and Tenth Edition in V1?
-- [ ] Fixed coin ↔ USD rate (the sweep narrows the range; real prices needed to confirm).
 - [ ] Reference value of a card with no TCGplayer price.
 - [ ] Default number of NPCs and archetype split.
 - [ ] Initial Counter stock: which cards?
