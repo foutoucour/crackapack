@@ -20,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `go run ./tools/fetchdata --sets RAV,TSP` downloads MTGJSON set files and a USD price snapshot
+  for those sets, ready for `simulate` and `sweep`.
 - `crackapack simulate` — run one solo-loop simulation and write `result.json` and `days.csv`.
 - `crackapack sweep` — sweep the coin-per-USD rate over a configurable grid, evaluate calibration
   targets, and report passing rates in a text table.

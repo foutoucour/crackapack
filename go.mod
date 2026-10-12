@@ -2,6 +2,8 @@ module github.com/foutoucour/crackapack
 
 go 1.26
 
+toolchain go1.26.9
+
 require (
 	github.com/spf13/cobra v1.10.2
 	go.yaml.in/yaml/v3 v3.0.5

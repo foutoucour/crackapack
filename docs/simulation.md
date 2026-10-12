@@ -88,6 +88,25 @@ leaves the milestones alone is explained in
 
 ## Input files
 
+### Fetching real data
+
+`tools/fetchdata` downloads the catalogue and price files from [MTGJSON](https://mtgjson.com)
+on demand. Nothing is downloaded unless you run it.
+
+```
+go run ./tools/fetchdata --sets RAV,TSP,TSB
+```
+
+It writes `catalogues/<CODE>.json` for each set (override with `--catalogue-dir`) and a
+`prices.json` snapshot (override with `--prices`). Pass them to the commands below with
+`--catalogue-dir ./catalogues --prices prices.json`. Set codes are the MTGJSON ones; list a
+supplementary pool such as `TSB` there too. Both default outputs are git-ignored.
+
+The snapshot holds one price per card of the requested sets: the latest TCGplayer retail price in
+US cents, non-foil first and foil for cards that exist only as foils. A card with no TCGplayer
+price is left out, so the simulation prices it at `fallback_price` and counts it in
+`unpriced_cards`. Re-run the tool to refresh the prices; it overwrites both outputs.
+
 ### Config YAML
 
 All config keys and their defaults are listed in
