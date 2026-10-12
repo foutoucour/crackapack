@@ -191,20 +191,63 @@ func TestCmdCompare_wrongArgCount(t *testing.T) {
 	}
 }
 
-// TestCmdCompare_flagAfterPositional verifies that placing a flag after the
-// positional file paths returns a clear error.
-func TestCmdCompare_flagAfterPositional(t *testing.T) {
+// TestCmdCompare_trailingFlagHonoured verifies that --days-csv may appear after
+// the positional file paths. cobra/pflag parses interspersed flags by default,
+// so the old "flags must come before" restriction is gone.
+func TestCmdCompare_trailingFlagHonoured(t *testing.T) {
 	t.Parallel()
 
-	var stderr strings.Builder
-	// Go's flag package stops at the first non-flag arg; "--days-csv x" appears
-	// after the two file paths and would be silently ignored without the check.
-	err := cmdCompare([]string{"a.json", "b.json", "--days-csv", "x"}, io.Discard, &stderr)
-	if err == nil {
-		t.Fatal("expected error, got nil")
+	dir := t.TempDir()
+
+	cat := domaintest.NewRavnicaCatalogue()
+	prices := domaintest.NewPrices(cat, 1)
+	mapFS, err := domaintest.NewMapFS([]domain.SetCatalogue{cat}, nil, prices)
+	if err != nil {
+		t.Fatalf("NewMapFS: %v", err)
 	}
-	if !strings.Contains(err.Error(), "flags must come before") {
-		t.Errorf("error %q does not mention 'flags must come before'", err.Error())
+	for name, f := range mapFS {
+		if err := os.WriteFile(filepath.Join(dir, name), f.Data, 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+
+	pricesPath := filepath.Join(dir, "prices.json")
+	runSim := func(outDir, coinRate string) {
+		t.Helper()
+		cfgPath := filepath.Join(dir, "cfg_"+coinRate+".yaml")
+		if err := os.WriteFile(cfgPath, []byte("run_days: 5\nseed: 42\ncoin_rate: "+coinRate+"\n"), 0o644); err != nil {
+			t.Fatalf("write config: %v", err)
+		}
+		if err := cmdSimulate([]string{
+			"--config", cfgPath,
+			"--catalogue-dir", dir,
+			"--sets", "RAV",
+			"--prices", pricesPath,
+			"--out", outDir,
+		}, io.Discard, io.Discard); err != nil {
+			t.Fatalf("cmdSimulate: %v", err)
+		}
+	}
+
+	outA := filepath.Join(dir, "outA")
+	outB := filepath.Join(dir, "outB")
+	runSim(outA, "100")
+	runSim(outB, "200")
+
+	pathA := filepath.Join(outA, "result.json")
+	pathB := filepath.Join(outB, "result.json")
+	deltaPath := filepath.Join(dir, "delta.csv")
+
+	// Flag AFTER positionals — this is the behaviour under test.
+	var stdout, stderr strings.Builder
+	if err := cmdCompare([]string{pathA, pathB, "--days-csv", deltaPath}, &stdout, &stderr); err != nil {
+		t.Fatalf("cmdCompare with trailing flag: %v\nstderr: %s", err, stderr.String())
+	}
+	if _, err := os.Stat(deltaPath); err != nil {
+		t.Errorf("delta.csv not written: %v", err)
+	}
+	if !strings.Contains(stdout.String(), "final_balance") {
+		t.Errorf("stdout missing 'final_balance';\ngot:\n%s", stdout.String())
 	}
 }
 

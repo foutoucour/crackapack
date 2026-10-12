@@ -1,8 +1,6 @@
 package main
 
 import (
-	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"math/rand/v2"
@@ -10,49 +8,19 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/foutoucour/crackapack/internal/sim"
 )
 
-const simulateUsage = `usage: crackapack simulate [flags]
-
-Run one solo-loop simulation and write results to the output directory.
-
-Flags:
-  --config <file>
-        YAML config file (optional; omit to use all defaults)
-  --catalogue-dir <dir>
-        directory containing <CODE>.json MTGJSON set files (required)
-  --sets <CODE,...>
-        comma-separated set codes to open, e.g. RAV,CLS (required)
-        each code names a <CODE>.json file in --catalogue-dir
-  --supplementary <CODE,...>
-        comma-separated card-pool-only codes, e.g. TSB (optional)
-        each code names a <CODE>.json file in --catalogue-dir
-        the file need not have a booster section
-  --prices <file>
-        JSON price snapshot file (required)
-        format: {"<uuid>": <cents>, ...}
-  --player <name>
-        player policy name (default: collector)
-  --out <dir>
-        output directory for result.json and days.csv (required)
-
-Example:
-  crackapack simulate \
-    --catalogue-dir ./catalogues \
-    --sets RAV,CLS \
-    --prices ./prices.json \
-    --out ./out
-`
-
-// cmdSimulate handles the simulate subcommand. It parses flags, wires real OS
-// dependencies, creates the output directory, and delegates to runSimulate.
-// All errors are returned with a "crackapack simulate: " prefix.
+// cmdSimulate is a shim kept for backward-compatible test invocation.
 func cmdSimulate(args []string, stdout, stderr io.Writer) error {
-	fset := flag.NewFlagSet("simulate", flag.ContinueOnError)
-	fset.SetOutput(stderr)
-	fset.Usage = func() { fmt.Fprint(stderr, simulateUsage) }
+	return run(append([]string{"simulate"}, args...), stdout, stderr)
+}
 
+// newSimulateCmd returns the cobra command for the simulate subcommand.
+// stdout receives simulation output; stderr receives errors, usage, and help.
+func newSimulateCmd(stdout, stderr io.Writer) *cobra.Command {
 	var (
 		configPath string
 		catDir     string
@@ -63,82 +31,94 @@ func cmdSimulate(args []string, stdout, stderr io.Writer) error {
 		outDir     string
 	)
 
-	fset.StringVar(&configPath, "config", "", "YAML config file (optional; omit for defaults)")
-	fset.StringVar(&catDir, "catalogue-dir", "", "catalogue directory containing <CODE>.json files (required)")
-	fset.StringVar(&setsRaw, "sets", "", "comma-separated openable set codes, e.g. RAV,CLS (required)")
-	fset.StringVar(&suppRaw, "supplementary", "", "comma-separated card-pool-only codes, e.g. TSB (optional)")
-	fset.StringVar(&pricesPath, "prices", "", "JSON price snapshot file (required)")
-	fset.StringVar(&player, "player", "collector", `player policy name (default "collector")`)
-	fset.StringVar(&outDir, "out", "", "output directory for result.json and days.csv (required)")
+	cmd := &cobra.Command{
+		Use:   "simulate",
+		Short: "run one solo-loop simulation and write results to the output directory",
+		Long: `Run one solo-loop simulation and write result.json and days.csv to --out.
 
-	if err := fset.Parse(args); err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return nil // -h or --help: usage already printed, exit 0
-		}
-		return fmt.Errorf("crackapack simulate: %w", err)
-	}
+Omit --config to use all defaults. Only the keys you set are overridden;
+every other key keeps its default value.`,
+		Example: `  crackapack simulate \
+    --catalogue-dir ./catalogues \
+    --sets RAV,CLS \
+    --prices ./prices.json \
+    --out ./out`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var missing []string
+			if catDir == "" {
+				missing = append(missing, "--catalogue-dir")
+			}
+			if setsRaw == "" {
+				missing = append(missing, "--sets")
+			}
+			if pricesPath == "" {
+				missing = append(missing, "--prices")
+			}
+			if outDir == "" {
+				missing = append(missing, "--out")
+			}
+			if len(missing) > 0 {
+				if err := cmd.Usage(); err != nil {
+					return err
+				}
+				return fmt.Errorf("crackapack simulate: required flags not set: %s",
+					strings.Join(missing, ", "))
+			}
 
-	// Validate required flags.
-	var missing []string
-	if catDir == "" {
-		missing = append(missing, "--catalogue-dir")
-	}
-	if setsRaw == "" {
-		missing = append(missing, "--sets")
-	}
-	if pricesPath == "" {
-		missing = append(missing, "--prices")
-	}
-	if outDir == "" {
-		missing = append(missing, "--out")
-	}
-	if len(missing) > 0 {
-		fset.Usage()
-		return fmt.Errorf("crackapack simulate: required flags not set: %s", strings.Join(missing, ", "))
-	}
+			var configReader io.Reader
+			if configPath != "" {
+				f, err := os.Open(configPath)
+				if err != nil {
+					return fmt.Errorf("crackapack simulate: config %q: %w", configPath, err)
+				}
+				defer func() { _ = f.Close() }()
+				configReader = f
+			}
 
-	// Open the config file if provided. Defer close here; runSimulate reads it
-	// synchronously before this function returns.
-	var configReader io.Reader
-	if configPath != "" {
-		f, err := os.Open(configPath)
-		if err != nil {
-			return fmt.Errorf("crackapack simulate: config %q: %w", configPath, err)
-		}
-		defer func() { _ = f.Close() }() // reading only; close error is not actionable
-		configReader = f
-	}
+			catFS := os.DirFS(catDir)
+			pricesFS := os.DirFS(filepath.Dir(pricesPath))
+			pricesName := filepath.Base(pricesPath)
 
-	// Build FS abstractions from the OS paths.
-	catFS := os.DirFS(catDir)
-	pricesFS := os.DirFS(filepath.Dir(pricesPath))
-	pricesName := filepath.Base(pricesPath)
+			if err := os.MkdirAll(outDir, 0o755); err != nil {
+				return fmt.Errorf("crackapack simulate: --out %q: %w", outDir, err)
+			}
+			newOutput := func(name string) (io.WriteCloser, error) {
+				return os.Create(filepath.Join(outDir, name))
+			}
 
-	// Create the output directory before building the output creator.
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
-		return fmt.Errorf("crackapack simulate: --out %q: %w", outDir, err)
-	}
-	newOutput := func(name string) (io.WriteCloser, error) {
-		return os.Create(filepath.Join(outDir, name))
-	}
+			a := simulateArgs{
+				configReader: configReader,
+				catFS:        catFS,
+				setCodes:     splitCodes(setsRaw),
+				suppCodes:    splitCodes(suppRaw),
+				pricesFS:     pricesFS,
+				pricesName:   pricesName,
+				player:       player,
+				policies:     buildPolicies(),
+				newOutput:    newOutput,
+				stdout:       stdout,
+			}
 
-	a := simulateArgs{
-		configReader: configReader,
-		catFS:        catFS,
-		setCodes:     splitCodes(setsRaw),
-		suppCodes:    splitCodes(suppRaw),
-		pricesFS:     pricesFS,
-		pricesName:   pricesName,
-		player:       player,
-		policies:     buildPolicies(),
-		newOutput:    newOutput,
-		stdout:       stdout,
+			if err := runSimulate(a); err != nil {
+				return fmt.Errorf("crackapack simulate: %w", err)
+			}
+			return nil
+		},
 	}
+	// cobra help and usage go to stderr to match existing test assertions.
+	cmd.SetOut(stderr)
+	cmd.SetErr(stderr)
 
-	if err := runSimulate(a); err != nil {
-		return fmt.Errorf("crackapack simulate: %w", err)
-	}
-	return nil
+	f := cmd.Flags()
+	f.StringVar(&configPath, "config", "", "YAML config file (optional; omit for defaults)")
+	f.StringVar(&catDir, "catalogue-dir", "", "catalogue directory containing <CODE>.json files (required)")
+	f.StringVar(&setsRaw, "sets", "", "comma-separated openable set codes, e.g. RAV,CLS (required)")
+	f.StringVar(&suppRaw, "supplementary", "", "comma-separated card-pool-only codes, e.g. TSB (optional)")
+	f.StringVar(&pricesPath, "prices", "", "JSON price snapshot file (required)")
+	f.StringVar(&player, "player", "collector", "player policy name")
+	f.StringVar(&outDir, "out", "", "output directory for result.json and days.csv (required)")
+
+	return cmd
 }
 
 // runSimulate is the testable core of the simulate subcommand. It loads all

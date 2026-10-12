@@ -1,35 +1,16 @@
 package main
 
 import (
-	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
+
+	"github.com/spf13/cobra"
 
 	"github.com/foutoucour/crackapack/internal/sim"
 )
-
-const compareUsage = `usage: crackapack compare [--days-csv <file>] <a.json> <b.json>
-
-Compare two simulation result files and report the difference of each metric.
-Flags must appear before the result file paths.
-
-Flags:
-  --days-csv <file>
-        write per-day delta CSV to this file (optional)
-
-Arguments:
-  <a.json>  path to the baseline result file
-  <b.json>  path to the second result file
-
-Example:
-  crackapack compare baseline/result.json changed/result.json
-  crackapack compare --days-csv delta.csv baseline/result.json changed/result.json
-`
 
 // compareArgs holds all dependencies for runCompare, decoupled from the OS so
 // that tests can substitute in-memory implementations.
@@ -52,71 +33,73 @@ type compareArgs struct {
 	stdout io.Writer
 }
 
-// cmdCompare handles the compare subcommand. It parses flags, wires real OS
-// dependencies, and delegates to runCompare.
-// All errors are returned with a "crackapack compare: " prefix.
+// cmdCompare is a shim kept for backward-compatible test invocation.
 func cmdCompare(args []string, stdout, stderr io.Writer) error {
-	fset := flag.NewFlagSet("compare", flag.ContinueOnError)
-	fset.SetOutput(stderr)
-	fset.Usage = func() { fmt.Fprint(stderr, compareUsage) }
+	return run(append([]string{"compare"}, args...), stdout, stderr)
+}
 
+// newCompareCmd returns the cobra command for the compare subcommand.
+// stdout receives the diff table; stderr receives errors, usage, and help.
+// cobra/pflag parses interspersed flags, so --days-csv may appear before or
+// after the positional file paths.
+func newCompareCmd(stdout, stderr io.Writer) *cobra.Command {
 	var daysCsvPath string
-	fset.StringVar(&daysCsvPath, "days-csv", "", "write per-day delta CSV to this file (optional)")
 
-	if err := fset.Parse(args); err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return nil // -h / --help: usage already printed, exit 0
-		}
-		return fmt.Errorf("crackapack compare: %w", err)
+	cmd := &cobra.Command{
+		Use:   "compare [--days-csv <file>] <a.json> <b.json>",
+		Short: "compare two simulation results and report metric deltas",
+		Long: `Compare two simulation result files (produced by simulate or sweep) and
+report which summary metrics changed. Optionally write the per-day delta as CSV.
+
+Flags may appear before or after the positional file paths.`,
+		Example: `  crackapack compare baseline/result.json changed/result.json
+  crackapack compare --days-csv delta.csv baseline/result.json changed/result.json
+  crackapack compare baseline/result.json changed/result.json --days-csv delta.csv`,
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 2 {
+				return fmt.Errorf("crackapack compare: expected 2 result files, got %d", len(args))
+			}
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			pathA, pathB := args[0], args[1]
+
+			var newOutput func(string) (io.WriteCloser, error)
+			var daysCsvName string
+			if daysCsvPath != "" {
+				daysCsvName = filepath.Base(daysCsvPath)
+				csvDir := filepath.Dir(daysCsvPath)
+				if err := os.MkdirAll(csvDir, 0o755); err != nil {
+					return fmt.Errorf("crackapack compare: %q: %w", daysCsvPath, err)
+				}
+				newOutput = func(name string) (io.WriteCloser, error) {
+					return os.Create(filepath.Join(csvDir, name))
+				}
+			}
+
+			a := compareArgs{
+				fsA:         os.DirFS(filepath.Dir(pathA)),
+				nameA:       filepath.Base(pathA),
+				fsB:         os.DirFS(filepath.Dir(pathB)),
+				nameB:       filepath.Base(pathB),
+				newOutput:   newOutput,
+				daysCsvName: daysCsvName,
+				stdout:      stdout,
+			}
+
+			if err := runCompare(a); err != nil {
+				return fmt.Errorf("crackapack compare: %w", err)
+			}
+			return nil
+		},
 	}
+	// cobra help and usage go to stderr to match existing test assertions.
+	cmd.SetOut(stderr)
+	cmd.SetErr(stderr)
 
-	rest := fset.Args()
+	cmd.Flags().StringVar(&daysCsvPath, "days-csv", "", "write per-day delta CSV to this file (optional)")
 
-	// Go's flag package stops at the first positional argument. Detect any
-	// flag-like token after the positional files and return a clear error.
-	for _, a := range rest {
-		if strings.HasPrefix(a, "-") {
-			return fmt.Errorf(
-				"crackapack compare: flags must come before the result files; got %q after positional arguments",
-				a,
-			)
-		}
-	}
-
-	if len(rest) != 2 {
-		fset.Usage()
-		return fmt.Errorf("crackapack compare: expected 2 result files, got %d", len(rest))
-	}
-
-	pathA, pathB := rest[0], rest[1]
-
-	var newOutput func(string) (io.WriteCloser, error)
-	var daysCsvName string
-	if daysCsvPath != "" {
-		daysCsvName = filepath.Base(daysCsvPath)
-		csvDir := filepath.Dir(daysCsvPath)
-		if err := os.MkdirAll(csvDir, 0o755); err != nil {
-			return fmt.Errorf("crackapack compare: %q: %w", daysCsvPath, err)
-		}
-		newOutput = func(name string) (io.WriteCloser, error) {
-			return os.Create(filepath.Join(csvDir, name))
-		}
-	}
-
-	a := compareArgs{
-		fsA:         os.DirFS(filepath.Dir(pathA)),
-		nameA:       filepath.Base(pathA),
-		fsB:         os.DirFS(filepath.Dir(pathB)),
-		nameB:       filepath.Base(pathB),
-		newOutput:   newOutput,
-		daysCsvName: daysCsvName,
-		stdout:      stdout,
-	}
-
-	if err := runCompare(a); err != nil {
-		return fmt.Errorf("crackapack compare: %w", err)
-	}
-	return nil
+	return cmd
 }
 
 // runCompare is the testable core of the compare subcommand. It reads both
