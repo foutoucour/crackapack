@@ -9,5 +9,6 @@ func buildPolicies() map[string]func() sim.PlayerPolicy {
 		"cash-out":  func() sim.PlayerPolicy { return sim.NewCashOutPolicy() },
 		"idle":      func() sim.PlayerPolicy { return sim.NewIdlePolicy() },
 		"trader":    func() sim.PlayerPolicy { return sim.NewTraderPolicy() },
+		"exploiter": func() sim.PlayerPolicy { return sim.NewExploiterPolicy() },
 	}
 }

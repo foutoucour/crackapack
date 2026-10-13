@@ -2,13 +2,18 @@ package main
 
 import "testing"
 
-func TestBuildPolicies_includesTheTrader(t *testing.T) {
+func TestBuildPolicies_includesTheTradingPolicies(t *testing.T) {
 	t.Parallel()
-	build, ok := buildPolicies()["trader"]
-	if !ok {
-		t.Fatal("policy \"trader\" is not registered")
-	}
-	if build() == nil {
-		t.Error("policy \"trader\" builds nil")
+	policies := buildPolicies()
+
+	for _, name := range []string{"trader", "exploiter"} {
+		build, ok := policies[name]
+		if !ok {
+			t.Errorf("policy %q is not registered", name)
+			continue
+		}
+		if build() == nil {
+			t.Errorf("policy %q builds nil", name)
+		}
 	}
 }
