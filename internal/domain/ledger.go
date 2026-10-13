@@ -27,6 +27,12 @@ const (
 	// player buys a card from it: the purchase posts from AccountPlayer to AccountCounterPurchase.
 	// It is unguarded, and its balance is the total spent at the Counter.
 	AccountCounterPurchase Account = "counter_purchase"
+
+	// AccountTradeTopUp is the sink account for the coins the player adds to a trade with an NPC:
+	// the top-up posts from AccountPlayer to AccountTradeTopUp. NPCs hold no coins and have no
+	// account, so the coins leave the economy. It is unguarded, and its balance is the total of
+	// top-ups paid.
+	AccountTradeTopUp Account = "trade_topup"
 )
 
 var (

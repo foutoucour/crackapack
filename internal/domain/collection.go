@@ -120,6 +120,12 @@ func (c *Collection) Copies(id CardID) int {
 	return c.qty[CardKey{ID: id, Finish: FinishNonFoil}] + c.qty[CardKey{ID: id, Finish: FinishFoil}]
 }
 
+// Quantity returns the number of copies of key held, in that finish only. Copies sums both
+// finishes of a printing.
+func (c *Collection) Quantity(key CardKey) int {
+	return c.qty[key]
+}
+
 // BinderProgress reports binder progress for the cards in cat.
 // Basic lands (IsBasicLand == true) are excluded from all counts.
 // Cards in the collection but absent from cat are ignored.
