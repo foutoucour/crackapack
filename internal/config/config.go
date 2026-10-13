@@ -134,6 +134,22 @@ type ArchetypeConfig struct {
 
 	// FocusSet makes each NPC of the archetype open only one set, drawn at generation.
 	FocusSet bool `yaml:"focus_set"`
+
+	// Behaviour names the registered trade behaviour of the archetype, see
+	// domain.BehaviourNames. It may be empty while trades are off, and is required for an
+	// archetype with a share when they are on.
+	Behaviour string `yaml:"behaviour"`
+
+	// WishSize is how many cards an NPC of the archetype wishes for at once.
+	WishSize int `yaml:"wish_size"`
+
+	// MarginPct is the margin an NPC demands on top of the reference value it gives. Never
+	// negative: an NPC never gives more value than it gets.
+	MarginPct domain.Percent `yaml:"margin_pct"`
+
+	// OfferChancePct is the chance, per tick, that an NPC with a match proposes a trade. In
+	// [0, 100].
+	OfferChancePct int `yaml:"offer_chance_pct"`
 }
 
 // NPCConfig holds the NPC crowd parameters.
@@ -141,9 +157,40 @@ type NPCConfig struct {
 	// Population is the number of NPCs. The default 0 runs the simulation without NPCs.
 	Population int `yaml:"population"`
 
+	// SurplusHoldDays is how many days an NPC keeps the copies above its keep threshold on a
+	// shelf, where they can be traded, before selling them to the Counter. It applies only when
+	// trades are enabled, and trades need at least 1, see ADR-0011. Default 2.
+	SurplusHoldDays int `yaml:"surplus_hold_days"`
+
 	// Archetypes maps an archetype name to its behaviour. A partial YAML map merges with the
 	// defaults per name. ASSUMPTION defaults (pending calibration): see defaults.
 	Archetypes map[string]ArchetypeConfig `yaml:"archetypes"`
+}
+
+// TradesConfig holds the parameters of the trades between the player and the NPCs, see
+// docs/core-features.md. Trades are off by default: a run without them is unchanged.
+type TradesConfig struct {
+	// Enabled turns trades on. It needs an NPC crowd and a surplus hold of at least one day.
+	Enabled bool `yaml:"enabled"`
+
+	// OfferExpiryDays is how many days an offer stays open, the day it is made included
+	// (default 3).
+	OfferExpiryDays int `yaml:"offer_expiry_days"`
+
+	// MaxCardsPerSide bounds the cards each side of an offer gives (default 10).
+	MaxCardsPerSide int `yaml:"max_cards_per_side"`
+
+	// DuplicateKeep is how many copies of a printing the player keeps out of NPC proposals; the
+	// copies above it are its duplicates. In [1, 4] (default 1).
+	DuplicateKeep int `yaml:"duplicate_keep"`
+
+	// HistorySize is how many answered offers the Exchange remembers. 0 keeps none, which is
+	// enough for the metrics.
+	HistorySize int `yaml:"history_size"`
+
+	// MaxOpenOffersPerDay bounds the offers NPCs make the player each day (default 20).
+	// ASSUMPTION: guessed, pending calibration.
+	MaxOpenOffersPerDay int `yaml:"max_open_offers_per_day"`
 }
 
 // Config holds the tunable parameters for one simulation run.
@@ -186,6 +233,9 @@ type Config struct {
 
 	// NPCs holds the NPC crowd parameters.
 	NPCs NPCConfig `yaml:"npcs"`
+
+	// Trades holds the trade parameters.
+	Trades TradesConfig `yaml:"trades"`
 
 	// SessionsPerDay is the number of play sessions the simulated player runs each day.
 	// ASSUMPTION: default 3; pending calibration.
@@ -235,17 +285,20 @@ func defaults() Config {
 			domain.RaritySpecial:  2,
 		},
 		FallbackPrice: 1, // ASSUMPTION
-		// ASSUMPTION: archetype shares, rhythms and keep thresholds are starting guesses pending
-		// calibration. A casual is the main source of supply, a whale opens far more than the rest.
+		// ASSUMPTION: archetype shares, rhythms, keep thresholds and the trade settings are starting
+		// guesses pending calibration. A casual is the main source of supply, a whale opens far
+		// more than the rest. The casual and speculator margins come from docs/core-features.md.
 		NPCs: NPCConfig{
+			SurplusHoldDays: 2,
 			Archetypes: map[string]ArchetypeConfig{
-				"casual":             {Share: 50, MinBoostersPerDay: 4, MaxBoostersPerDay: 8, KeepCopies: 1},
-				"playset_hunter":     {Share: 15, MinBoostersPerDay: 3, MaxBoostersPerDay: 6, KeepCopies: 4},
-				"targeted_collector": {Share: 20, MinBoostersPerDay: 2, MaxBoostersPerDay: 5, KeepCopies: 1, FocusSet: true},
-				"speculator":         {Share: 10, MinBoostersPerDay: 2, MaxBoostersPerDay: 4, KeepCopies: 2},
-				"whale":              {Share: 5, MinBoostersPerDay: 30, MaxBoostersPerDay: 50, KeepCopies: 1},
+				"casual":             {Share: 50, MinBoostersPerDay: 4, MaxBoostersPerDay: 8, KeepCopies: 1, Behaviour: "casual", WishSize: 5, MarginPct: 0, OfferChancePct: 2},
+				"playset_hunter":     {Share: 15, MinBoostersPerDay: 3, MaxBoostersPerDay: 6, KeepCopies: 4, Behaviour: "playset_hunter", WishSize: 5, MarginPct: 5, OfferChancePct: 2},
+				"targeted_collector": {Share: 20, MinBoostersPerDay: 2, MaxBoostersPerDay: 5, KeepCopies: 1, FocusSet: true, Behaviour: "targeted_collector", WishSize: 5, MarginPct: 5, OfferChancePct: 2},
+				"speculator":         {Share: 10, MinBoostersPerDay: 2, MaxBoostersPerDay: 4, KeepCopies: 2, Behaviour: "speculator", WishSize: 5, MarginPct: 15, OfferChancePct: 1},
+				"whale":              {Share: 5, MinBoostersPerDay: 30, MaxBoostersPerDay: 50, KeepCopies: 1, Behaviour: "whale", WishSize: 3, MarginPct: 10, OfferChancePct: 1},
 			},
 		},
+		Trades:         TradesConfig{OfferExpiryDays: 3, MaxCardsPerSide: 10, DuplicateKeep: 1, MaxOpenOffersPerDay: 20},
 		SessionsPerDay: 3, // ASSUMPTION
 		RunDays:        90,
 		SweepRates:     []domain.CoinRate{10, 25, 50, 100, 250, 500},
@@ -341,6 +394,9 @@ func validate(cfg Config) error {
 		return err
 	}
 	if err := validateNPCs(cfg.NPCs); err != nil {
+		return err
+	}
+	if err := validateTrades(cfg); err != nil {
 		return err
 	}
 	for i, t := range cfg.Targets {
