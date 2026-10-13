@@ -26,6 +26,7 @@ type Engine struct {
 	opener        *domain.Opener
 	policy        PlayerPolicy
 	boosterCosts  map[string]int // setCode -> energy cost; openable sets only
+	maxWait       float64        // max_booster_wait_minutes of the run
 	ran           bool           // guards against calling Run more than once
 
 	// per-day session counters; reset at the start of each day
@@ -91,12 +92,13 @@ func NewEngine(
 	}
 
 	// Build energy.
-	energy, err := domain.NewEnergy(domain.EnergyParams{
+	energyParams := domain.EnergyParams{
 		RechargePerTick:      cfg.Energy.RechargePerTick,
 		ReserveCap:           cfg.Energy.ReserveCap,
 		SavingsIntervalTicks: cfg.Energy.SavingsIntervalTicks,
 		SavingsCap:           cfg.Energy.SavingsCap,
-	})
+	}
+	energy, err := domain.NewEnergy(energyParams)
 	if err != nil {
 		return nil, fmt.Errorf("sim: energy: %w", err)
 	}
@@ -156,6 +158,10 @@ func NewEngine(
 		}
 		boosterCosts[cat.Code] = cost
 	}
+	maxWait, err := maxBoosterWaitMinutes(energyParams, boosterCosts)
+	if err != nil {
+		return nil, fmt.Errorf("sim: %w", err)
+	}
 
 	// Post welcome bonus before the simulation begins.
 	if cfg.WelcomeBonus > 0 {
@@ -181,6 +187,7 @@ func NewEngine(
 		opener:        opener,
 		policy:        policy,
 		boosterCosts:  boosterCosts,
+		maxWait:       maxWait,
 	}, nil
 }
 
@@ -266,6 +273,7 @@ func (e *Engine) Run() (Result, error) {
 		e.cfg.DailyReward,
 		e.collection,
 	)
+	summary["max_booster_wait_minutes"] = e.maxWait
 
 	return Result{Days: days, Summary: summary}, nil
 }

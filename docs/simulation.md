@@ -176,6 +176,14 @@ above the run horizon. Config validation keeps it from passing by accident: an `
 | `unsold_duplicate_copies` | Copies above a playset (4) still held at the end of the run, whatever the policy's own keep count; non-zero when sub-coin cards cannot be sold |
 | `days_to_50pct_cu.<setcode>` | First day (1-based) where the commons and uncommons owned reach 50% of the set's commons and uncommons |
 | `days_to_100pct_cu.<setcode>` | First day (1-based) where every common and uncommon of the set is owned |
+| `days_to_100pct.<setcode>` | First day (1-based) where every card of the set is owned: its whole binder |
+| `coins_after_full_binder` | Coins the player gains from the first day every openable set is complete to the end of the run; `0` when that day is never reached. It measures the coins that have nothing left to buy |
+| `max_booster_wait_minutes` | Longest wait, from empty reserve and empty savings, to afford one booster of any openable set. It follows from the energy settings and does not depend on play |
+
+Judge the pace of one set by running it alone, with `--sets RAV` for example. With several sets the
+player shares energy between them, so every set takes longer. A set run alone always lands in the
+×1 energy tier, because booster costs are relative to the median booster value of the openable sets
+in the run.
 
 ## Player policies
 

@@ -21,3 +21,8 @@ func ComputeSummaryForTest(
 ) Summary {
 	return computeSummary(days, runDays, cats, supplementary, prices, fallback, coinRate, sellPct, buyPct, dailyReward, nil)
 }
+
+// MaxBoosterWaitMinutesForTest exposes maxBoosterWaitMinutes for white-box tests in sim_test.
+func MaxBoosterWaitMinutesForTest(p domain.EnergyParams, costs map[string]int) (float64, error) {
+	return maxBoosterWaitMinutes(p, costs)
+}

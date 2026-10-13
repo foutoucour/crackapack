@@ -268,6 +268,25 @@ func TestRun_unsoldDuplicateCopiesInSummary(t *testing.T) {
 	}
 }
 
+// With one cost tier of 12, every booster needs the whole reserve plus 2 savings points, so the
+// run reports the same wait whatever the card prices are.
+func TestRun_maxBoosterWaitInSummary(t *testing.T) {
+	t.Parallel()
+	cfg := smallConfig()
+	cfg.Energy.CostTable = []config.EnergyCost{{Threshold: 400, Cost: 12}}
+	e := buildEngine(t, cfg, sim.NewCollectorPolicy())
+
+	result, err := e.Run()
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	const want = 160 // 10 reserve ticks + 2 savings points x 3 ticks, at 10 minutes a tick
+	if got := result.Summary["max_booster_wait_minutes"]; got != want {
+		t.Errorf("max_booster_wait_minutes = %v, want %v", got, want)
+	}
+}
+
 func TestRun_secondCallReturnsError(t *testing.T) {
 	t.Parallel()
 	cfg := smallConfig()
