@@ -22,6 +22,17 @@ type ArchetypeSpec struct {
 	KeepCopies int
 	// FocusSet makes each NPC of the archetype open only one set, drawn at generation.
 	FocusSet bool
+	// Behaviour names the registered TradeBehaviour of the archetype, see BehaviourNames. Empty
+	// means the archetype does not trade.
+	Behaviour string
+	// WishSize is how many cards an NPC wishes for at once.
+	WishSize int
+	// MarginPct is the margin an NPC demands on top of the reference value it gives. It must be
+	// >= 0, so an NPC never gives more value than it gets.
+	MarginPct Percent
+	// OfferChancePct is the chance, per tick, that an NPC with a match proposes a trade to the
+	// player. It must be in [0, 100].
+	OfferChancePct int
 }
 
 // PopulationParams describes the NPC crowd to generate.
@@ -30,6 +41,9 @@ type PopulationParams struct {
 	Size int
 	// Archetypes maps an archetype name to its spec.
 	Archetypes map[string]ArchetypeSpec
+	// Valuer values cards for the archetypes that have a behaviour. It may be the zero Valuer
+	// when none does.
+	Valuer Valuer
 }
 
 // NPC is one simulated collector. It opens boosters with the player's engine, keeps what its
@@ -41,8 +55,18 @@ type NPC struct {
 	KeepCopies     int
 	// FocusSet is the code of the only set the NPC opens, or empty when it opens any set.
 	FocusSet string
+	// Behaviour is how the NPC trades, or nil when its archetype does not trade.
+	Behaviour TradeBehaviour
+	// WishSize is how many cards the NPC wishes for at once.
+	WishSize int
+	// OfferChancePct is the chance, per tick, that the NPC proposes a trade when it has a match.
+	OfferChancePct int
 
 	collection *Collection
+	// wishes is the wish list, and shelf holds the surplus copies the NPC can trade away, per
+	// card, with the tick each copy arrived on, oldest first. See npc_shelf.go.
+	wishes []Wish
+	shelf  map[CardKey][]int
 	// credit accumulates BoostersPerDay each tick; a booster is due every TicksPerDay of credit.
 	credit int
 }
@@ -73,6 +97,19 @@ func GeneratePopulation(p PopulationParams, sets []SetCatalogue, rng *rand.Rand)
 		return nil, err
 	}
 
+	behaviours := make(map[string]TradeBehaviour, len(names))
+	for _, name := range names {
+		spec := p.Archetypes[name]
+		if spec.Behaviour == "" {
+			continue
+		}
+		behaviour, err := NewBehaviour(spec.Behaviour, BehaviourParams{MarginPct: spec.MarginPct, Valuer: p.Valuer})
+		if err != nil {
+			return nil, fmt.Errorf("population: archetype %q: %w", name, err)
+		}
+		behaviours[name] = behaviour
+	}
+
 	counts := archetypeCounts(p.Size, totalShare, names, p.Archetypes)
 	npcs := make([]*NPC, 0, p.Size)
 	for _, name := range names {
@@ -83,7 +120,11 @@ func GeneratePopulation(p PopulationParams, sets []SetCatalogue, rng *rand.Rand)
 				Archetype:      name,
 				BoostersPerDay: spec.MinBoostersPerDay + rng.IntN(spec.MaxBoostersPerDay-spec.MinBoostersPerDay+1),
 				KeepCopies:     spec.KeepCopies,
+				Behaviour:      behaviours[name],
+				WishSize:       spec.WishSize,
+				OfferChancePct: spec.OfferChancePct,
 				collection:     NewCollection(),
+				shelf:          make(map[CardKey][]int),
 			}
 			if spec.FocusSet {
 				npc.FocusSet = sets[rng.IntN(len(sets))].Code
@@ -108,6 +149,14 @@ func validateArchetypes(names []string, archetypes map[string]ArchetypeSpec) (in
 			return 0, fmt.Errorf("population: archetype %q: max boosters per day (%d) must be >= min (%d)", name, spec.MaxBoostersPerDay, spec.MinBoostersPerDay)
 		case spec.KeepCopies < 1 || spec.KeepCopies > PlaysetSize:
 			return 0, fmt.Errorf("population: archetype %q: keep copies must be in [1, %d], got %d", name, PlaysetSize, spec.KeepCopies)
+		case spec.Behaviour != "" && !KnownBehaviour(spec.Behaviour):
+			return 0, fmt.Errorf("population: archetype %q: unknown behaviour %q, known behaviours: %v", name, spec.Behaviour, BehaviourNames())
+		case spec.WishSize < 0:
+			return 0, fmt.Errorf("population: archetype %q: wish size must be >= 0, got %d", name, spec.WishSize)
+		case spec.MarginPct < 0:
+			return 0, fmt.Errorf("population: archetype %q: margin must be >= 0, got %d", name, spec.MarginPct)
+		case spec.OfferChancePct < 0 || spec.OfferChancePct > 100:
+			return 0, fmt.Errorf("population: archetype %q: offer chance must be in [0, 100], got %d", name, spec.OfferChancePct)
 		}
 		totalShare += spec.Share
 	}
