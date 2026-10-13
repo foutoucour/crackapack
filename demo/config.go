@@ -27,6 +27,9 @@ const demoConfigYAML = `
 run_days: 90
 seed: 42
 sweep_rates: [50, 100, 200, 400]
+npcs:
+  population: 60
+
 targets:
   - metric: sub_coin_cards
     comparison: at_most

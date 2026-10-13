@@ -25,6 +25,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- An NPC crowd in the simulation. `npcs.population` sets how many NPCs open boosters each tick and
+  sell their surplus to the Counter, according to five archetypes held in `npcs.archetypes`, see
+  [ADR-0009](docs/adr/0009-npc-archetypes-are-data.md). The default population is 0, so existing
+  runs are unchanged. A run with a crowd adds the `npc_*` summary metrics and per-day NPC columns.
+  `crackapack demo` now runs 60 NPCs.
+- The `idle` player policy (`--player idle`), to measure what the crowd supplies on its own.
 - `go run ./tools/fetchdata --sets RAV,TSP` downloads MTGJSON set files and a USD price snapshot
   for those sets, ready for `simulate` and `sweep`.
 - Summary metrics `days_to_100pct.<setcode>` (a set's whole binder), `coins_after_full_binder` and

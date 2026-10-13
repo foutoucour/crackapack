@@ -193,6 +193,22 @@ func (c *Counter) SellToPlayer(key CardKey) error {
 	return nil
 }
 
+// AcceptSurplus adds n copies of key to stock without touching the ledger: NPCs hold no coins
+// and have no account, so what they sell to the Counter costs nothing and pays nothing.
+//
+// Returns ErrUnknownCard if the card ID is not in any catalogue or if the finish is not listed
+// for that card, and InvalidQuantityError when n is not positive. Stock is unchanged on error.
+func (c *Counter) AcceptSurplus(key CardKey, n int) error {
+	if n <= 0 {
+		return &InvalidQuantityError{N: n}
+	}
+	if _, err := c.lookupCard(key); err != nil {
+		return err
+	}
+	c.stock[key] += n
+	return nil
+}
+
 // Stock returns the current number of copies of key held by the Counter.
 func (c *Counter) Stock(key CardKey) int {
 	return c.stock[key]

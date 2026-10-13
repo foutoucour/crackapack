@@ -71,7 +71,8 @@ catalogue.
 **What we measure (for ourselves):** does the economy hold? The player's money supply, the
 Counter's stock levels, the trade volume per day. The simulation MVP already runs the boosters,
 energy, collection, ledger, Counter and daily reward headlessly and sweeps them across coin
-rates; sync, milestones, quests, NPCs and trades are not built. See
+rates. An NPC crowd also runs there, supply only: it opens boosters and sells its surplus to the
+Counter. Sync, milestones, quests, trades, NPC wish lists and offline catch-up are not built. See
 [Simulation guide](simulation.md).
 
 ## Contradictions to fix

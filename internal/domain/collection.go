@@ -115,6 +115,11 @@ func (c *Collection) Remove(key CardKey, n int) error {
 	return nil
 }
 
+// Copies returns the number of copies of the printing id held across both finishes.
+func (c *Collection) Copies(id CardID) int {
+	return c.qty[CardKey{ID: id, Finish: FinishNonFoil}] + c.qty[CardKey{ID: id, Finish: FinishFoil}]
+}
+
 // BinderProgress reports binder progress for the cards in cat.
 // Basic lands (IsBasicLand == true) are excluded from all counts.
 // Cards in the collection but absent from cat are ignored.

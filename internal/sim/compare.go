@@ -64,6 +64,7 @@ type Comparison struct {
 // It returns an error when:
 //   - the results have different day counts
 //   - the results have different set codes (derived from day 0's SetProgress)
+//   - only one of the results has an NPC crowd (derived from day 0's NPC metrics)
 //   - a per-day Day number differs at any index (index and both numbers are named)
 func Compare(a, b Result) (Comparison, error) {
 	// 1. Day count.
@@ -80,6 +81,11 @@ func Compare(a, b Result) (Comparison, error) {
 			return Comparison{}, fmt.Errorf("results have different set codes: %v vs %v",
 				aCodes, bCodes)
 		}
+	}
+
+	// 2b. Both runs have an NPC crowd or neither: their columns would not line up otherwise.
+	if hasNPCMetrics(a.Days) != hasNPCMetrics(b.Days) {
+		return Comparison{}, fmt.Errorf("results differ in NPC crowd: only one of them has NPC metrics")
 	}
 
 	// 3. Per-day Day number alignment.
@@ -99,9 +105,10 @@ func Compare(a, b Result) (Comparison, error) {
 	var dayCmps []DayComparison
 	if len(a.Days) > 0 {
 		setCodes := progressSetCodes(a.Days[0].SetProgress)
+		withNPC := hasNPCMetrics(a.Days)
 		dayCmps = make([]DayComparison, len(a.Days))
 		for i := range a.Days {
-			dayCmps[i] = computeDayComparison(a.Days[i], b.Days[i], setCodes)
+			dayCmps[i] = computeDayComparison(a.Days[i], b.Days[i], setCodes, withNPC)
 		}
 	}
 
@@ -261,10 +268,11 @@ func computeSummaryDiff(a, b Summary) map[string]MetricDiff {
 }
 
 // computeDayComparison produces the per-column deltas for one pair of days.
-// setCodes must be sorted ascending (same contract as dayColumns).
-func computeDayComparison(a, b DayMetrics, setCodes []string) DayComparison {
-	aCols := dayColumns(a, setCodes)
-	bCols := dayColumns(b, setCodes)
+// setCodes must be sorted ascending and withNPC must match both days (same contract as
+// dayColumns).
+func computeDayComparison(a, b DayMetrics, setCodes []string, withNPC bool) DayComparison {
+	aCols := dayColumns(a, setCodes, withNPC)
+	bCols := dayColumns(b, setCodes, withNPC)
 
 	deltas := make([]ColDelta, len(aCols))
 	for i, ac := range aCols {

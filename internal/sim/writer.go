@@ -44,12 +44,13 @@ type column struct {
 
 // dayColumns returns all per-day metrics in the stable CSV column order.
 // The returned slice does not include the "day" column (always first, emitted separately).
-// setCodes must be sorted ascending.
+// setCodes must be sorted ascending. withNPC appends the three NPC columns after the set
+// columns; runs without a crowd pass false so their output is unchanged.
 //
 // Accessing nil maps in DayMetrics (MoneySupply, StockByRarity, SetProgress)
 // returns zero values; callers may safely pass a zero-valued DayMetrics to
 // derive column names without needing real data.
-func dayColumns(d DayMetrics, setCodes []string) []column {
+func dayColumns(d DayMetrics, setCodes []string, withNPC bool) []column {
 	accounts := csvAccounts()
 	rarities := csvRarities()
 
@@ -80,7 +81,24 @@ func dayColumns(d DayMetrics, setCodes []string) []column {
 			column{name: lc + "_playsets", value: int64(sp.Playsets)},
 		)
 	}
+	if withNPC {
+		var npc NPCDayMetrics
+		if d.NPC != nil {
+			npc = *d.NPC
+		}
+		cols = append(cols,
+			column{name: "npc_boosters_opened", value: int64(npc.BoostersOpened)},
+			column{name: "npc_cards_sold", value: int64(npc.CardsSold)},
+			column{name: "npc_cards_held", value: int64(npc.CardsHeld)},
+		)
+	}
 	return cols
+}
+
+// hasNPCMetrics reports whether the run behind days had an NPC crowd. Every day of a run
+// agrees, so the first one decides.
+func hasNPCMetrics(days []DayMetrics) bool {
+	return len(days) > 0 && days[0].NPC != nil
 }
 
 // WriteJSON encodes r as JSON and writes it to w.
@@ -106,14 +124,17 @@ func WriteJSON(w io.Writer, r Result) error {
 //  5. boosters_opened, cards_sold, cards_bought, trades_refused
 //  6. per-set columns sorted by set code:
 //     <code>_owned, <code>_total, <code>_cu_owned, <code>_cu_total, <code>_playsets
+//  7. npc_boosters_opened, npc_cards_sold, npc_cards_held, only when the run had an NPC crowd
 //
-// Set codes are determined from the first DayMetrics entry if present.
+// Set codes and the presence of the crowd are determined from the first DayMetrics entry if
+// present.
 func WriteCSV(w io.Writer, r Result) error {
 	cw := csv.NewWriter(w)
 	setCodes := extractSetCodes(r.Days)
+	withNPC := hasNPCMetrics(r.Days)
 
 	// Build header from stable column names via dayColumns.
-	headerCols := dayColumns(DayMetrics{}, setCodes)
+	headerCols := dayColumns(DayMetrics{}, setCodes, withNPC)
 	header := make([]string, 0, 1+len(headerCols))
 	header = append(header, "day")
 	for _, c := range headerCols {
@@ -124,7 +145,7 @@ func WriteCSV(w io.Writer, r Result) error {
 	}
 
 	for _, d := range r.Days {
-		cols := dayColumns(d, setCodes)
+		cols := dayColumns(d, setCodes, withNPC)
 		row := make([]string, 0, 1+len(cols))
 		row = append(row, strconv.Itoa(d.Day))
 		for _, c := range cols {

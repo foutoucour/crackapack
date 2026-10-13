@@ -117,6 +117,7 @@ All config keys and their defaults are listed in
 | Economy | `coin_rate`, `counter_sell_pct`, `counter_buy_pct`, `welcome_bonus`, `daily_reward` | Coin flow and Counter pricing |
 | Energy | `energy.*` | Opening pace; see [Energy](core-features.md#energy) |
 | Counter | `initial_stock`, `fallback_price` | Starting inventory and price floor |
+| NPCs | `npcs.population`, `npcs.archetypes.*` | The NPC crowd; see [NPC crowd](#npc-crowd) |
 | Simulation | `sessions_per_day`, `run_days`, `seed` | Run parameters |
 | Sweep | `sweep_rates`, `targets` | Grid and calibration conditions |
 
@@ -199,6 +200,9 @@ above the run horizon. Config validation keeps it from passing by accident: an `
 | `days_to_100pct.<setcode>` | First day (1-based) where every card of the set is owned: its whole binder |
 | `coins_after_full_binder` | Coins the player gains from the first day every openable set is complete to the end of the run; `0` when that day is never reached. It measures the coins that have nothing left to buy |
 | `max_booster_wait_minutes` | Longest wait, from empty reserve and empty savings, to afford one booster of any openable set. It follows from the energy settings and does not depend on play |
+| `npc_boosters_opened` | Boosters the NPCs opened over the run. Present only when `npcs.population` is above zero |
+| `npc_cards_sold` | Cards the NPCs sent to the Counter over the run. Present only with a crowd |
+| `npc_cards_held` | Cards all NPC collections hold after the last day. Present only with a crowd |
 
 Judge the pace of one set by running it alone, with `--sets RAV` for example. With several sets the
 player shares energy between them, so every set takes longer. A set costs the same energy alone or
@@ -211,6 +215,47 @@ so `max_booster_wait_minutes` only changes when a set with a higher cost joins t
 |------|-----------|
 | `collector` | Opens boosters for the set with the lowest C/U progress; sells duplicates above playset; buys missing non-foil cards cheapest-first up to a coin floor |
 | `cash-out` | Opens boosters, sells everything above one copy and never buys, so the run measures how many coins the Counter creates |
+| `idle` | Does nothing, so only the NPCs act and the run measures the supply they send to the Counter |
+
+## NPC crowd
+
+`npcs.population` sets the number of NPCs. It defaults to 0, and a run without NPCs is the same as
+before the crowd existed: no NPC field appears in `result.json`, no NPC column in `days.csv` and no
+`npc_*` metric in the summary. Which archetypes exist and what they stand for is described in
+[NPCs and simulation](core-features.md#npcs-and-simulation).
+
+Each tick, before the player's session, every NPC in ID order opens the boosters its rhythm has
+come due for. A day's openings match its rhythm exactly, and an NPC never uses energy. Right after
+each opening, the NPC sells the copy it just drew when it takes the NPC above its keep threshold.
+The Counter takes it into stock without a ledger entry, because NPCs hold no coins.
+
+An archetype is a named entry under `npcs.archetypes`, see
+[ADR-0009](adr/0009-npc-archetypes-are-data.md). Its keys are in
+[`internal/config/config.go`](../internal/config/config.go). The five default archetypes merge with
+the ones in your file by name. An archetype you write replaces the default of the same name as a
+whole, so every key of it must be set.
+
+The crowd draws from its own random stream, derived from `seed`. The same seed still reproduces the
+whole run. Adding NPCs to a config does not change what the player opens, so two runs that differ
+only by the crowd stay comparable. The Counter's stock does change, and so can what a policy buys.
+
+To measure supply alone, run the crowd without a player:
+
+```
+go run ./cmd/crackapack simulate \
+  --catalogue-dir ./catalogues \
+  --sets RAV,TSP \
+  --supplementary TSB \
+  --prices prices.json \
+  --config npcs.yaml \
+  --player idle \
+  --out ./out
+```
+
+`compare` refuses a run with a crowd against a run without one, because their columns differ.
+
+The archetype values in the defaults are starting guesses. Trades, offline catch-up and persistence
+are not built, see [Specs review](specs-review.md#v1-scope-and-build-order).
 
 ## Run diagram
 

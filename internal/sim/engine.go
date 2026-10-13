@@ -23,6 +23,7 @@ type Engine struct {
 	energy        *domain.Energy
 	collection    *domain.Collection
 	counter       *domain.Counter
+	crowd         *domain.Crowd // nil in a run without NPCs
 	opener        *domain.Opener
 	policy        PlayerPolicy
 	boosterCosts  map[string]int // setCode -> energy cost; openable sets only
@@ -34,6 +35,10 @@ type Engine struct {
 	dayCardsSold      int
 	dayCardsBought    int
 	dayTradesRefused  int
+	dayNPCBoosters    int
+	dayNPCSold        int
+
+	npcCardsHeld int // cards in all NPC collections; carried across days
 }
 
 type options struct {
@@ -148,6 +153,11 @@ func NewEngine(
 		return nil, fmt.Errorf("sim: counter: %w", err)
 	}
 
+	crowd, err := newCrowd(cfg, catalogues, counter)
+	if err != nil {
+		return nil, err
+	}
+
 	// Build opener with the classic layout.
 	opener := domain.NewOpener(
 		map[domain.BoosterLayout]domain.BoosterGenerator{
@@ -213,6 +223,7 @@ func NewEngine(
 		energy:        energy,
 		collection:    domain.NewCollection(),
 		counter:       counter,
+		crowd:         crowd,
 		opener:        opener,
 		policy:        policy,
 		boosterCosts:  boosterCosts,
@@ -224,7 +235,8 @@ func NewEngine(
 //
 // Each day posts the daily reward, then runs 144 ticks. Sessions are spread
 // evenly: session i fires at tick floor(i * TicksPerDay / SessionsPerDay).
-// Energy ticks every tick; the player acts only in session ticks.
+// Energy ticks every tick and the NPC crowd acts every tick, before the player; the player
+// acts only in session ticks.
 //
 // Any domain error other than ErrSubCoin aborts Run and is returned with context.
 //
@@ -266,11 +278,16 @@ func (e *Engine) Run() (Result, error) {
 		e.dayCardsSold = 0
 		e.dayCardsBought = 0
 		e.dayTradesRefused = 0
+		e.dayNPCBoosters = 0
+		e.dayNPCSold = 0
 
 		// Tick loop.
 		for tick := range TicksPerDay {
 			if err := e.energy.Tick(1); err != nil {
 				return Result{}, fmt.Errorf("sim: day %d tick %d: energy tick: %w", day, tick, err)
+			}
+			if err := e.tickCrowd(); err != nil {
+				return Result{}, fmt.Errorf("sim: day %d tick %d: %w", day, tick, err)
 			}
 			if _, isSession := sessionSet[tick]; isSession {
 				port := &port{e: e, day: day}
@@ -303,8 +320,35 @@ func (e *Engine) Run() (Result, error) {
 		e.collection,
 	)
 	summary["max_booster_wait_minutes"] = e.maxWait
+	if e.crowd != nil {
+		addNPCSummary(summary, days)
+	}
 
 	return Result{Days: days, Summary: summary}, nil
+}
+
+// tickCrowd advances the NPC crowd by one tick and books what it did into the day counters.
+// It does nothing in a run without NPCs.
+func (e *Engine) tickCrowd() error {
+	if e.crowd == nil {
+		return nil
+	}
+	tick, err := e.crowd.Tick()
+	if err != nil {
+		return err
+	}
+	e.dayNPCBoosters += tick.BoostersOpened
+	e.dayNPCSold += tick.CardsSold
+	e.npcCardsHeld += tick.CardsDrawn - tick.CardsSold
+	return nil
+}
+
+// npcMetrics returns the crowd's metrics for the day just ended, or nil without a crowd.
+func (e *Engine) npcMetrics() *NPCDayMetrics {
+	if e.crowd == nil {
+		return nil
+	}
+	return &NPCDayMetrics{BoostersOpened: e.dayNPCBoosters, CardsSold: e.dayNPCSold, CardsHeld: e.npcCardsHeld}
 }
 
 // snapshotDay captures the end-of-day metrics.
@@ -353,6 +397,7 @@ func (e *Engine) snapshotDay(day int) (DayMetrics, error) {
 
 	return DayMetrics{
 		Day:             day,
+		NPC:             e.npcMetrics(),
 		MoneySupply:     supply,
 		StockByRarity:   stock,
 		CollectionUSD:   collUSD,
