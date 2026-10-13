@@ -55,6 +55,7 @@ images are downloaded on demand and cached.
 - [Retention](docs/retention.md) — quests, milestones, badges, mini-games, events
 - [MTG vs Pokémon](docs/mtg-vs-pokemon.md) — what changes when adapting Holopocket to Magic
 - [Specs review](docs/specs-review.md) — V1 scope, build order, risks, open questions
+- [TODO](docs/todo.md) — what is left to build, the economy simulation in detail
 - [Architecture decisions](docs/adr/)
 
 ## Contributing
