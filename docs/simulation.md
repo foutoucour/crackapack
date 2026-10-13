@@ -135,6 +135,10 @@ A directory of MTGJSON v5 set files, one per set code (`RAV.json`, `TSP.json`,
 Supplementary pools (`--supplementary`) do not require it. An openable set keeps only the cards
 that a booster sheet contains, see [ADR-0007](adr/0007-catalogues-count-only-obtainable-cards.md).
 
+MTGJSON files for sets before Mirage (1996) have no `booster.draft`, so the loader rejects them.
+[Which sets can be simulated](specs-review.md#which-sets-can-be-simulated) lists them and the
+workaround.
+
 The directory also sets the reference of the energy cost tiers. A booster's cost is its average
 value relative to the median over every openable set in the directory, not only the sets in `--sets`,
 see [ADR-0008](adr/0008-energy-cost-reference-is-the-catalogue-directory.md).
