@@ -15,7 +15,7 @@ func crowdSets() []domain.SetCatalogue {
 
 // newTestCrowd builds a crowd of size NPCs of a single archetype that opens boosters from sets,
 // together with the Counter that receives their surplus. The Counter starts with no stock.
-func newTestCrowd(t *testing.T, size int, spec domain.ArchetypeSpec, sets []domain.SetCatalogue, seed uint64) (*domain.Crowd, []*domain.NPC, *domain.Counter) {
+func newTestCrowd(t *testing.T, size int, spec domain.ArchetypeSpec, sets []domain.SetCatalogue, seed uint64, opts ...domain.CrowdOption) (*domain.Crowd, []*domain.NPC, *domain.Counter) {
 	t.Helper()
 	rng := rand.New(rand.NewPCG(seed, seed))
 	npcs, err := domain.GeneratePopulation(domain.PopulationParams{Size: size, Archetypes: map[string]domain.ArchetypeSpec{"npc": spec}}, sets, rng)
@@ -27,7 +27,7 @@ func newTestCrowd(t *testing.T, size int, spec domain.ArchetypeSpec, sets []doma
 		t.Fatalf("NewCounter: %v", err)
 	}
 	opener := domain.NewOpener(map[domain.BoosterLayout]domain.BoosterGenerator{domain.BoosterLayoutClassic: domain.NewClassicGenerator()}, rng)
-	crowd, err := domain.NewCrowd(npcs, sets, opener, counter, rng)
+	crowd, err := domain.NewCrowd(npcs, sets, opener, counter, rng, opts...)
 	if err != nil {
 		t.Fatalf("NewCrowd: %v", err)
 	}
