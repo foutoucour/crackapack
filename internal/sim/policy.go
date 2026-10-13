@@ -9,9 +9,14 @@ import "github.com/foutoucour/crackapack/internal/domain"
 // policy sees updated state after each action. The other methods act on the
 // simulation state and return results or errors.
 //
+// A run without trades still offers the Trading methods, which refuse or return nothing, so a
+// policy needs no check.
+//
 // Only ErrSubCoin (from BuyFromPlayer or SellToPlayer) is treated as a normal
 // refusal; all other domain errors abort the simulation run.
 type Session interface {
+	Trading
+
 	// View returns the current simulation state. Cheap to call; recomputed each time.
 	View() WorldView
 

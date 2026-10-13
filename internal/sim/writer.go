@@ -45,12 +45,13 @@ type column struct {
 // dayColumns returns all per-day metrics in the stable CSV column order.
 // The returned slice does not include the "day" column (always first, emitted separately).
 // setCodes must be sorted ascending. withNPC appends the three NPC columns after the set
-// columns; runs without a crowd pass false so their output is unchanged.
+// columns; runs without a crowd pass false so their output is unchanged. withTrades appends the
+// trade account balance and the eight trade columns after the NPC columns.
 //
 // Accessing nil maps in DayMetrics (MoneySupply, StockByRarity, SetProgress)
 // returns zero values; callers may safely pass a zero-valued DayMetrics to
 // derive column names without needing real data.
-func dayColumns(d DayMetrics, setCodes []string, withNPC bool) []column {
+func dayColumns(d DayMetrics, setCodes []string, withNPC, withTrades bool) []column {
 	accounts := csvAccounts()
 	rarities := csvRarities()
 
@@ -92,6 +93,23 @@ func dayColumns(d DayMetrics, setCodes []string, withNPC bool) []column {
 			column{name: "npc_cards_held", value: int64(npc.CardsHeld)},
 		)
 	}
+	if withTrades {
+		var trade TradeDayMetrics
+		if d.Trade != nil {
+			trade = *d.Trade
+		}
+		cols = append(cols,
+			column{name: string(domain.AccountTradeTopUp), value: int64(d.MoneySupply[domain.AccountTradeTopUp])},
+			column{name: "trade_player_proposals", value: int64(trade.PlayerProposals)},
+			column{name: "trade_npc_offers", value: int64(trade.NPCOffers)},
+			column{name: "trade_accepted", value: int64(trade.Accepted)},
+			column{name: "trade_countered", value: int64(trade.Countered)},
+			column{name: "trade_refused", value: int64(trade.Refused)},
+			column{name: "trade_expired", value: int64(trade.Expired)},
+			column{name: "trade_volume_coins", value: int64(trade.VolumeCoins)},
+			column{name: "trade_topup_coins", value: int64(trade.TopUpCoins)},
+		)
+	}
 	return cols
 }
 
@@ -99,6 +117,12 @@ func dayColumns(d DayMetrics, setCodes []string, withNPC bool) []column {
 // agrees, so the first one decides.
 func hasNPCMetrics(days []DayMetrics) bool {
 	return len(days) > 0 && days[0].NPC != nil
+}
+
+// hasTradeMetrics reports whether the run behind days had trades. Every day of a run agrees, so
+// the first one decides.
+func hasTradeMetrics(days []DayMetrics) bool {
+	return len(days) > 0 && days[0].Trade != nil
 }
 
 // WriteJSON encodes r as JSON and writes it to w.
@@ -125,6 +149,7 @@ func WriteJSON(w io.Writer, r Result) error {
 //  6. per-set columns sorted by set code:
 //     <code>_owned, <code>_total, <code>_cu_owned, <code>_cu_total, <code>_playsets
 //  7. npc_boosters_opened, npc_cards_sold, npc_cards_held, only when the run had an NPC crowd
+//  8. trade_topup, then the eight trade_* columns, only when the run had trades
 //
 // Set codes and the presence of the crowd are determined from the first DayMetrics entry if
 // present.
@@ -132,9 +157,10 @@ func WriteCSV(w io.Writer, r Result) error {
 	cw := csv.NewWriter(w)
 	setCodes := extractSetCodes(r.Days)
 	withNPC := hasNPCMetrics(r.Days)
+	withTrades := hasTradeMetrics(r.Days)
 
 	// Build header from stable column names via dayColumns.
-	headerCols := dayColumns(DayMetrics{}, setCodes, withNPC)
+	headerCols := dayColumns(DayMetrics{}, setCodes, withNPC, withTrades)
 	header := make([]string, 0, 1+len(headerCols))
 	header = append(header, "day")
 	for _, c := range headerCols {
@@ -145,7 +171,7 @@ func WriteCSV(w io.Writer, r Result) error {
 	}
 
 	for _, d := range r.Days {
-		cols := dayColumns(d, setCodes, withNPC)
+		cols := dayColumns(d, setCodes, withNPC, withTrades)
 		row := make([]string, 0, 1+len(cols))
 		row = append(row, strconv.Itoa(d.Day))
 		for _, c := range cols {

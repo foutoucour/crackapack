@@ -48,7 +48,7 @@ var (
 // The zero value is not useful; use NewCounter.
 type Counter struct {
 	params    CounterParams
-	prices    PriceSnapshot
+	valuer    Valuer
 	journal   *Journal
 	stock     map[CardKey]int
 	cardIndex map[CardID]Card
@@ -119,7 +119,7 @@ func NewCounter(cats []SetCatalogue, prices PriceSnapshot, journal *Journal, par
 
 	return &Counter{
 		params:    params,
-		prices:    prices,
+		valuer:    NewValuer(prices, params.FallbackPrice),
 		journal:   journal,
 		stock:     stock,
 		cardIndex: cardIndex,
@@ -236,10 +236,7 @@ func (c *Counter) StockByRarity() map[Rarity]int {
 // the same CardID and therefore the same price; this is a documented
 // simplification pending a per-finish price source.
 func (c *Counter) referencePrice(id CardID) USDCents {
-	if p, ok := c.prices[id]; ok {
-		return p
-	}
-	return c.params.FallbackPrice
+	return c.valuer.Price(id)
 }
 
 // tradeCoins converts a reference price to coins at the given percentage.

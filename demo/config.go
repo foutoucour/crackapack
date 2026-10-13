@@ -29,6 +29,9 @@ seed: 42
 sweep_rates: [50, 100, 200, 400]
 npcs:
   population: 60
+  surplus_hold_days: 2
+trades:
+  enabled: true
 
 targets:
   - metric: sub_coin_cards
