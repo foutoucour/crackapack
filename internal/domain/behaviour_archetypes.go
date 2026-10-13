@@ -13,10 +13,13 @@ func (b casualBehaviour) PickWishes(ctx WishContext, n int, rng *rand.Rand) []Wi
 	return wishesOf(pickRandom(lacking(ctx), n, rng), 1)
 }
 
-// playsetHunterBehaviour wishes for commons and uncommons it holds fewer than a playset of.
+// playsetHunterBehaviour wishes for commons and uncommons it holds fewer than a playset of. An NPC
+// sells every copy above its keep threshold, so it never wishes for more copies than it keeps: a
+// hunter that keeps fewer than four goes for that many.
 type playsetHunterBehaviour struct{ base }
 
 func (b playsetHunterBehaviour) PickWishes(ctx WishContext, n int, rng *rand.Rand) []Wish {
+	want := min(PlaysetSize, ctx.NPC.KeepCopies)
 	var pool []Card
 	for _, card := range ctx.Scope {
 		if card.Rarity != RarityCommon && card.Rarity != RarityUncommon {
@@ -25,12 +28,12 @@ func (b playsetHunterBehaviour) PickWishes(ctx WishContext, n int, rng *rand.Ran
 		if _, wished := ctx.Wished[card.ID]; wished {
 			continue
 		}
-		if ctx.NPC.collection.Copies(card.ID) >= PlaysetSize {
+		if ctx.NPC.collection.Copies(card.ID) >= want {
 			continue
 		}
 		pool = append(pool, card)
 	}
-	return wishesOf(pickRandom(pool, n, rng), PlaysetSize)
+	return wishesOf(pickRandom(pool, n, rng), want)
 }
 
 // targetedCollectorBehaviour completes its set from the rarest cards down.

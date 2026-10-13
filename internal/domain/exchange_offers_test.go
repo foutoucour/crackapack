@@ -117,6 +117,7 @@ func TestProposeFromNPCsMakesOneOpenOfferPerNPC(t *testing.T) {
 func TestProposeFromNPCsStopsAtTheDailyCap(t *testing.T) {
 	t.Parallel()
 	fx := offerFixture(t, 3, 0, domain.ExchangeParams{MaxOffersPerDay: 2})
+	fx.give(t, fx.keys[0], 2) // four copies, so three duplicates: one for each NPC
 
 	if err := fx.exchange.ProposeFromNPCs(); err != nil {
 		t.Fatalf("ProposeFromNPCs: %v", err)
@@ -342,5 +343,82 @@ func TestHoldersOfFollowsTheShelves(t *testing.T) {
 	}
 	if fx.exchange.NPCCount() != 3 {
 		t.Errorf("NPCCount = %d, want 3", fx.exchange.NPCCount())
+	}
+}
+
+func TestProposeFromNPCsNeverOffersTheSameDuplicateTwice(t *testing.T) {
+	t.Parallel()
+	fx := offerFixture(t, 2, 0, domain.ExchangeParams{})
+
+	if err := fx.exchange.ProposeFromNPCs(); err != nil {
+		t.Fatalf("ProposeFromNPCs: %v", err)
+	}
+
+	offers := fx.exchange.Offers()
+	if len(offers) != 1 {
+		t.Fatalf("got %d offers for one duplicate, want 1: two NPCs must not both ask for the same copy", len(offers))
+	}
+	if d, err := fx.exchange.Accept(offers[0].ID); err != nil || d.Outcome != domain.OutcomeAccepted {
+		t.Fatalf("Accept = %+v, %v, want accepted", d, err)
+	}
+	if got := fx.player.Quantity(fx.keys[0]); got != 1 {
+		t.Errorf("player holds %d copies of the card, want its last copy kept", got)
+	}
+}
+
+func TestProposeFromNPCsOffersEachDuplicateOnce(t *testing.T) {
+	t.Parallel()
+	fx := offerFixture(t, 2, 0, domain.ExchangeParams{})
+	fx.give(t, fx.keys[0], 1) // three copies, so two duplicates
+
+	if err := fx.exchange.ProposeFromNPCs(); err != nil {
+		t.Fatalf("ProposeFromNPCs: %v", err)
+	}
+
+	offers := fx.exchange.Offers()
+	if len(offers) != 2 {
+		t.Fatalf("got %d offers for two duplicates, want 2", len(offers))
+	}
+	for _, o := range offers {
+		if d, err := fx.exchange.Accept(o.ID); err != nil || d.Outcome != domain.OutcomeAccepted {
+			t.Fatalf("Accept(%d) = %+v, %v, want accepted", o.ID, d, err)
+		}
+	}
+	if got := fx.player.Quantity(fx.keys[0]); got != 1 {
+		t.Errorf("player holds %d copies after both trades, want its last copy kept", got)
+	}
+}
+
+func TestProposeFromNPCsSharesTheDailyCapAcrossTheCrowd(t *testing.T) {
+	t.Parallel()
+	const npcCount, days, dailyCap = 40, 300, 5
+	fx := offerFixture(t, npcCount, 0, domain.ExchangeParams{ExpiryDays: 1, MaxOffersPerDay: dailyCap})
+	fx.give(t, fx.keys[0], 2*dailyCap) // enough duplicates for every offer of a day
+
+	offersTo := make([]int, npcCount)
+	for day := 1; day <= days; day++ {
+		fx.exchange.StartDay(day)
+		if err := fx.exchange.ProposeFromNPCs(); err != nil {
+			t.Fatalf("ProposeFromNPCs: %v", err)
+		}
+		for _, o := range fx.exchange.Offers() {
+			offersTo[o.NPC]++
+		}
+	}
+
+	var low, high int
+	for id, n := range offersTo {
+		if id < npcCount/2 {
+			low += n
+		} else {
+			high += n
+		}
+	}
+	total := low + high
+	if total == 0 {
+		t.Fatal("no offers at all")
+	}
+	if low*100 < total*35 || high*100 < total*35 {
+		t.Errorf("offers went %d to the first 20 NPCs and %d to the last 20: the cap must not favour low IDs", low, high)
 	}
 }

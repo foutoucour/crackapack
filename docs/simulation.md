@@ -271,7 +271,8 @@ block in `result.json`, and no `trade_*` metric in the summary. Trades need a cr
 An NPC holds the copies above its keep threshold on a shelf for `npcs.surplus_hold_days` days
 before selling them to the Counter, see [ADR-0011](adr/0011-npcs-hold-surplus-on-a-shelf.md). Only
 the shelf can be traded. Each NPC has a wish list, and when a card on it is a duplicate of the
-player's, the NPC may propose a swap. The player can also propose one to any NPC. An NPC accepts
+player's, the NPC may propose a swap. A duplicate is offered for once, and the NPCs that may propose
+today are drawn in random order, so the daily cap favours no archetype. The player can also propose one to any NPC. An NPC accepts
 when it receives at least the reference value it gives plus its margin, never negative. When an
 offer falls short, the NPC counters once with the smallest coin top-up that fits, see
 [ADR-0012](adr/0012-an-npc-counters-once.md). The coins the player adds go to the
@@ -283,7 +284,7 @@ An archetype names a trade behaviour, see
 | Behaviour | Wishes for |
 |-----------|------------|
 | `casual` | Any card it lacks, at random |
-| `playset_hunter` | Commons and uncommons, up to a playset |
+| `playset_hunter` | Commons and uncommons, up to a playset, or up to its `keep_copies` when that is lower |
 | `targeted_collector` | The cards it lacks, rarest first |
 | `speculator` | The most valuable cards it lacks, and asks for the most valuable duplicates first |
 | `whale` | Rares and specials, at random |
@@ -318,8 +319,10 @@ Two policies trade, see `--player`:
 
 - `trader` plays like the collector and also accepts NPC offers that bring a card it lacks, and
   swaps its duplicates for missing cards NPCs hold, paying a counter's top-up above the coin floor.
-- `exploiter` chains trades across every NPC looking for a gain. It finds none, and a test checks
-  that no trade, in any run, raises the player's coins plus the reference value of its cards.
+- `exploiter` chains trades across every NPC looking for a gain. It finds none: a test runs both
+  policies for 30 days, at a margin of 0% and 10%, and checks that no proposal or acceptance raises
+  the player's coins plus the reference value of its cards. A property test does the same for
+  random offers straight against the Exchange.
 
 A run with trades adds these metrics, summed over the run in the summary and per day in
 `days.csv`: `trade_player_proposals`, `trade_npc_offers`, `trade_accepted`, `trade_countered`,

@@ -129,12 +129,22 @@ func (c *Crowd) applyTrade(npc *NPC, gives, gets []TradeLine) error {
 	return nil
 }
 
-// refreshWishes drops the wishes the NPC has fulfilled and, when the list is below the NPC's
-// wish size, asks its behaviour for more.
+// refreshWishes replaces the wishes the NPC has fulfilled. It asks the behaviour for more only
+// when a wish was dropped: the NPC only gains cards, so a list that came up short when it was last
+// filled, because nothing was left to wish for, stays short, and rescanning the scope after every
+// booster would cost more than everything else trades add to a run.
 func (c *Crowd) refreshWishes(npc *NPC) {
 	if npc.Behaviour == nil || npc.WishSize <= 0 {
 		return
 	}
+	if c.dropFulfilledWishes(npc) == 0 {
+		return
+	}
+	c.fillWishes(npc)
+}
+
+// dropFulfilledWishes removes the wishes the NPC now holds enough copies of and returns how many.
+func (c *Crowd) dropFulfilledWishes(npc *NPC) int {
 	kept := npc.wishes[:0]
 	for _, w := range npc.wishes {
 		if npc.collection.Copies(w.ID) >= w.Want {
@@ -143,16 +153,22 @@ func (c *Crowd) refreshWishes(npc *NPC) {
 		}
 		kept = append(kept, w)
 	}
+	dropped := len(npc.wishes) - len(kept)
 	npc.wishes = kept
-	if len(kept) >= npc.WishSize {
+	return dropped
+}
+
+// fillWishes asks the NPC's behaviour for wishes until the list reaches the NPC's wish size.
+func (c *Crowd) fillWishes(npc *NPC) {
+	if npc.Behaviour == nil || npc.WishSize <= 0 || len(npc.wishes) >= npc.WishSize {
 		return
 	}
-	wished := make(map[CardID]struct{}, len(kept))
-	for _, w := range kept {
+	wished := make(map[CardID]struct{}, len(npc.wishes))
+	for _, w := range npc.wishes {
 		wished[w.ID] = struct{}{}
 	}
 	ctx := WishContext{NPC: npc, Scope: c.scopeOf(npc), Wished: wished}
-	for _, w := range npc.Behaviour.PickWishes(ctx, npc.WishSize-len(kept), c.rng) {
+	for _, w := range npc.Behaviour.PickWishes(ctx, npc.WishSize-len(npc.wishes), c.rng) {
 		npc.wishes = append(npc.wishes, w)
 		indexAdd(c.wishers, w.ID, npc.ID)
 	}

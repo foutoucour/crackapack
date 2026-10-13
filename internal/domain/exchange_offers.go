@@ -23,9 +23,13 @@ func (x *Exchange) StartDay(day int) {
 }
 
 // ProposeFromNPCs lets NPCs whose wish list matches a duplicate of the player propose a trade.
-// Candidates are the NPCs that wish for a printing the player holds above DuplicateKeep copies,
-// visited in ID order. An NPC with an open offer waits, and the rest propose with their
-// OfferChancePct. Call it once per tick, after the crowd's tick.
+// Candidates are the NPCs that wish for a printing the player holds above DuplicateKeep copies. An
+// NPC with an open offer waits, and the rest propose with their OfferChancePct.
+//
+// A duplicate is offered for once: copies already asked for by an open NPC offer, or by an offer
+// made earlier in the same call, are not duplicates any more. Candidates are visited in a random
+// order drawn from the crowd's stream, so the daily cap does not favour the low NPC IDs, which are
+// the first archetypes by name. Call it once per tick, after the crowd's tick.
 func (x *Exchange) ProposeFromNPCs() error {
 	if x.dayOffers >= x.params.MaxOffersPerDay {
 		return nil
@@ -33,6 +37,11 @@ func (x *Exchange) ProposeFromNPCs() error {
 	duplicates, err := x.player.DuplicatesAbove(x.params.DuplicateKeep)
 	if err != nil {
 		return fmt.Errorf("exchange: player duplicates: %w", err)
+	}
+	for _, o := range x.open {
+		if o.Origin == OriginNPC {
+			duplicates = reserve(duplicates, o.PlayerGives)
+		}
 	}
 	if len(duplicates) == 0 {
 		return nil
@@ -43,7 +52,9 @@ func (x *Exchange) ProposeFromNPCs() error {
 			candidates[id] = struct{}{}
 		}
 	}
-	for _, id := range slices.Sorted(maps.Keys(candidates)) {
+	ids := slices.Sorted(maps.Keys(candidates))
+	x.crowd.rng.Shuffle(len(ids), func(i, j int) { ids[i], ids[j] = ids[j], ids[i] })
+	for _, id := range ids {
 		if x.dayOffers >= x.params.MaxOffersPerDay {
 			return nil
 		}
@@ -54,30 +65,46 @@ func (x *Exchange) ProposeFromNPCs() error {
 		if x.crowd.rng.IntN(100) >= npc.OfferChancePct {
 			continue
 		}
-		x.offerFrom(npc, duplicates)
+		if offer, ok := x.offerFrom(npc, duplicates); ok {
+			duplicates = reserve(duplicates, offer.PlayerGives)
+		}
 	}
 	return nil
 }
 
+// reserve takes the lines out of the duplicates and drops the duplicates left with no copy.
+func reserve(duplicates []Surplus, lines []TradeLine) []Surplus {
+	for _, l := range lines {
+		for i := range duplicates {
+			if duplicates[i].Key == l.Key {
+				duplicates[i].Quantity -= l.Qty
+			}
+		}
+	}
+	return slices.DeleteFunc(duplicates, func(s Surplus) bool { return s.Quantity <= 0 })
+}
+
 // offerFrom asks npc's behaviour for an offer to the player and stores it when there is one.
-func (x *Exchange) offerFrom(npc *NPC, duplicates []Surplus) {
+func (x *Exchange) offerFrom(npc *NPC, duplicates []Surplus) (Offer, bool) {
 	shelf := npc.Shelf()
 	if len(shelf) == 0 {
-		return
+		return Offer{}, false
 	}
 	want, give, ok := npc.Behaviour.Propose(ProposalContext{
 		NPC: npc, Wanted: wantedLines(npc, duplicates), Shelf: shelf,
 		PlayerCopies: x.player.Copies, MaxCards: x.params.MaxCardsPerSide,
 	})
 	if !ok {
-		return
+		return Offer{}, false
 	}
-	x.store(Offer{
+	offer := Offer{
 		ID: x.newID(), NPC: npc.ID, Origin: OriginNPC, PlayerGives: want, NPCGives: give,
 		CreatedDay: x.day, LastDay: x.day + x.params.ExpiryDays - 1,
-	})
+	}
+	x.store(offer)
 	x.dayOffers++
 	x.stats.NPCOffers++
+	return offer, true
 }
 
 // wantedLines returns what npc asks of the player: for each wish, the player's duplicates of that

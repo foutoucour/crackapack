@@ -103,7 +103,7 @@ func NewCrowd(npcs []*NPC, sets []SetCatalogue, opener *Opener, counter *Counter
 		c.scopeAll = append(c.scopeAll, scope...)
 	}
 	for _, npc := range npcs {
-		c.refreshWishes(npc)
+		c.fillWishes(npc)
 	}
 	return c, nil
 }

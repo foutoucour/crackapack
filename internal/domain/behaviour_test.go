@@ -30,8 +30,13 @@ func behaviourScope(cat domain.SetCatalogue) []domain.Card {
 
 func behaviourNPC(t *testing.T, cat domain.SetCatalogue) *domain.NPC {
 	t.Helper()
+	return behaviourNPCKeeping(t, cat, 1)
+}
+
+func behaviourNPCKeeping(t *testing.T, cat domain.SetCatalogue, keep int) *domain.NPC {
+	t.Helper()
 	npcs, err := domain.GeneratePopulation(
-		domain.PopulationParams{Size: 1, Archetypes: map[string]domain.ArchetypeSpec{"npc": {Share: 1, KeepCopies: 1}}},
+		domain.PopulationParams{Size: 1, Archetypes: map[string]domain.ArchetypeSpec{"npc": {Share: 1, KeepCopies: keep}}},
 		[]domain.SetCatalogue{cat}, rand.New(rand.NewPCG(1, 1)))
 	if err != nil {
 		t.Fatalf("GeneratePopulation: %v", err)
@@ -135,7 +140,7 @@ func TestBehavioursPickTheSameWishesFromTheSameSeed(t *testing.T) {
 func TestPlaysetHunterWishesCommonsAndUncommonsByFour(t *testing.T) {
 	t.Parallel()
 	cat := domaintest.NewRavnicaCatalogue()
-	npc := behaviourNPC(t, cat)
+	npc := behaviourNPCKeeping(t, cat, domain.PlaysetSize)
 	b, err := domain.NewBehaviour("playset_hunter", domain.BehaviourParams{})
 	if err != nil {
 		t.Fatalf("NewBehaviour: %v", err)
@@ -319,5 +324,32 @@ func TestSpeculatorAsksForTheMostValuableDuplicateFirst(t *testing.T) {
 				t.Errorf("want = %v (ok %v), want the single line %v", want, ok, wantFirst)
 			}
 		})
+	}
+}
+
+func TestPlaysetHunterNeverWishesForMoreCopiesThanItKeeps(t *testing.T) {
+	t.Parallel()
+	cat := domaintest.NewRavnicaCatalogue()
+	const keep = 2
+	npc := behaviourNPCKeeping(t, cat, keep)
+	scope := behaviourScope(cat)
+	full := scope[0] // a common the NPC already holds up to its keep threshold
+	if err := npc.Collection().Add(domain.CardKey{ID: full.ID, Finish: domain.FinishNonFoil}, keep); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	b, err := domain.NewBehaviour("playset_hunter", domain.BehaviourParams{})
+	if err != nil {
+		t.Fatalf("NewBehaviour: %v", err)
+	}
+
+	wishes := b.PickWishes(domain.WishContext{NPC: npc, Scope: scope}, 15, rand.New(rand.NewPCG(2, 2)))
+
+	for _, w := range wishes {
+		if w.ID == full.ID {
+			t.Errorf("wished %q, which the NPC holds up to its keep threshold of %d", w.ID, keep)
+		}
+		if w.Want != keep {
+			t.Errorf("wish %q wants %d copies, want %d: the NPC sells every copy above its keep threshold, so a larger want is never met", w.ID, w.Want, keep)
+		}
 	}
 }
