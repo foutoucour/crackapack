@@ -10,6 +10,7 @@ import (
 // fakeSession is a hand-written test double for sim.Session.
 // It records actions and returns preconfigured responses.
 type fakeSession struct {
+	sim.Trading
 	views       []sim.WorldView // views returned in sequence; last one repeated
 	viewCalls   int
 	openCalls   []string // setCode per OpenBooster call
