@@ -116,6 +116,36 @@ type EnergyConfig struct {
 	CostTable []EnergyCost `yaml:"cost_table"`
 }
 
+// ArchetypeConfig is the supply behaviour of one NPC archetype, see docs/core-features.md.
+// An archetype given in YAML replaces the default of the same name as a whole: every field
+// must be set.
+type ArchetypeConfig struct {
+	// Share is the archetype's weight in the population; only the ratio between shares matters.
+	Share int `yaml:"share"`
+
+	// MinBoostersPerDay and MaxBoostersPerDay bound the activity rhythm, inclusive. Each NPC
+	// draws its own rhythm in that range once.
+	MinBoostersPerDay int `yaml:"min_boosters_per_day"`
+	MaxBoostersPerDay int `yaml:"max_boosters_per_day"`
+
+	// KeepCopies is how many copies of a printing the NPC keeps before selling the rest to the
+	// Counter. Must be in [1, 4].
+	KeepCopies int `yaml:"keep_copies"`
+
+	// FocusSet makes each NPC of the archetype open only one set, drawn at generation.
+	FocusSet bool `yaml:"focus_set"`
+}
+
+// NPCConfig holds the NPC crowd parameters.
+type NPCConfig struct {
+	// Population is the number of NPCs. The default 0 runs the simulation without NPCs.
+	Population int `yaml:"population"`
+
+	// Archetypes maps an archetype name to its behaviour. A partial YAML map merges with the
+	// defaults per name. ASSUMPTION defaults (pending calibration): see defaults.
+	Archetypes map[string]ArchetypeConfig `yaml:"archetypes"`
+}
+
 // Config holds the tunable parameters for one simulation run.
 // Fields omitted from the YAML file fall back to the documented defaults.
 // Fields marked ASSUMPTION have no authoritative value yet and are to be
@@ -153,6 +183,9 @@ type Config struct {
 	// FallbackPrice is the price in USDCents for cards absent from the price snapshot.
 	// ASSUMPTION: default 1 cent; pending calibration.
 	FallbackPrice domain.USDCents `yaml:"fallback_price"`
+
+	// NPCs holds the NPC crowd parameters.
+	NPCs NPCConfig `yaml:"npcs"`
 
 	// SessionsPerDay is the number of play sessions the simulated player runs each day.
 	// ASSUMPTION: default 3; pending calibration.
@@ -201,7 +234,18 @@ func defaults() Config {
 			domain.RarityRare:     2,
 			domain.RaritySpecial:  2,
 		},
-		FallbackPrice:  1, // ASSUMPTION
+		FallbackPrice: 1, // ASSUMPTION
+		// ASSUMPTION: archetype shares, rhythms and keep thresholds are starting guesses pending
+		// calibration. A casual is the main source of supply, a whale opens far more than the rest.
+		NPCs: NPCConfig{
+			Archetypes: map[string]ArchetypeConfig{
+				"casual":             {Share: 50, MinBoostersPerDay: 4, MaxBoostersPerDay: 8, KeepCopies: 1},
+				"playset_hunter":     {Share: 15, MinBoostersPerDay: 3, MaxBoostersPerDay: 6, KeepCopies: 4},
+				"targeted_collector": {Share: 20, MinBoostersPerDay: 2, MaxBoostersPerDay: 5, KeepCopies: 1, FocusSet: true},
+				"speculator":         {Share: 10, MinBoostersPerDay: 2, MaxBoostersPerDay: 4, KeepCopies: 2},
+				"whale":              {Share: 5, MinBoostersPerDay: 30, MaxBoostersPerDay: 50, KeepCopies: 1},
+			},
+		},
 		SessionsPerDay: 3, // ASSUMPTION
 		RunDays:        90,
 		SweepRates:     []domain.CoinRate{10, 25, 50, 100, 250, 500},
@@ -294,6 +338,9 @@ func validate(cfg Config) error {
 		}
 	}
 	if err := validateEnergy(cfg.Energy); err != nil {
+		return err
+	}
+	if err := validateNPCs(cfg.NPCs); err != nil {
 		return err
 	}
 	for i, t := range cfg.Targets {

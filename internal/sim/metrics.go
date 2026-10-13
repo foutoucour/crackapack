@@ -17,10 +17,22 @@ type SetDayProgress struct {
 	Playsets int // cards with at least 4 copies across all finishes
 }
 
+// NPCDayMetrics is what the NPC crowd did on one day.
+type NPCDayMetrics struct {
+	BoostersOpened int
+	// CardsSold is the number of cards the NPCs sent to the Counter as surplus during the day.
+	CardsSold int
+	// CardsHeld is the number of cards all NPC collections hold at the end of the day.
+	CardsHeld int
+}
+
 // DayMetrics records everything observable about one simulated day.
 // Day is 1-based: the first simulated day is Day 1.
 type DayMetrics struct {
 	Day int
+
+	// NPC is nil when the run has no NPC crowd, which keeps the output of such runs unchanged.
+	NPC *NPCDayMetrics `json:",omitempty"`
 
 	// MoneySupply holds the balance of every ledger account at end of day.
 	// encoding/json sorts Account (string) keys alphabetically.
@@ -88,7 +100,26 @@ type DayMetrics struct {
 //     is complete to the end of the run; 0 when that day is never reached
 //   - max_booster_wait_minutes: longest wait, from an empty reserve and empty savings, to
 //     afford one booster of any openable set; set by the energy settings, not by play
+//
+// A run with an NPC crowd adds three more, absent from every other run:
+//   - npc_boosters_opened: boosters the NPCs opened over the run
+//   - npc_cards_sold: cards the NPCs sent to the Counter over the run
+//   - npc_cards_held: cards all NPC collections hold after the last day
 type Summary map[string]float64
+
+// addNPCSummary adds the crowd totals to s. Every entry of days must carry NPC metrics.
+func addNPCSummary(s Summary, days []DayMetrics) {
+	var opened, sold int
+	for _, d := range days {
+		opened += d.NPC.BoostersOpened
+		sold += d.NPC.CardsSold
+	}
+	s["npc_boosters_opened"] = float64(opened)
+	s["npc_cards_sold"] = float64(sold)
+	if len(days) > 0 {
+		s["npc_cards_held"] = float64(days[len(days)-1].NPC.CardsHeld)
+	}
+}
 
 // Result is the complete output of one simulation run.
 type Result struct {

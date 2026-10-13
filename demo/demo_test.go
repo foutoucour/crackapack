@@ -218,6 +218,44 @@ func TestBuild_sweepRealism(t *testing.T) {
 	}
 }
 
+// TestBuild_crowd verifies the demo ships NPCs of every archetype and that they act: a crowd
+// that never opens a booster, or an archetype with no member, would leave the NPC path unexercised.
+func TestBuild_crowd(t *testing.T) {
+	t.Parallel()
+	ds := demo.Build()
+	cfg, err := config.Load(strings.NewReader(ds.ConfigYAML))
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+
+	var totalShare int
+	for _, a := range cfg.NPCs.Archetypes {
+		totalShare += a.Share
+	}
+	for name, a := range cfg.NPCs.Archetypes {
+		if members := cfg.NPCs.Population * a.Share / totalShare; members < 1 {
+			t.Errorf("archetype %q has %d members in the demo crowd of %d, want at least 1", name, members, cfg.NPCs.Population)
+		}
+	}
+
+	cfg.RunDays = 3
+	cats, supps, prices := loadDemoInputs(t, ds)
+	rng := rand.New(rand.NewPCG(cfg.Seed, cfg.Seed))
+	engine, err := sim.NewEngine(cfg, cats, supps, prices, sim.NewIdlePolicy(), rng)
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+	result, err := engine.Run()
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	for _, metric := range []string{"npc_boosters_opened", "npc_cards_sold", "npc_cards_held"} {
+		if result.Summary[metric] <= 0 {
+			t.Errorf("%s = %v, want > 0", metric, result.Summary[metric])
+		}
+	}
+}
+
 // TestBuild_determinism verifies two runs on a 5-day abbreviated config produce
 // byte-identical Summary output. The determinism check uses a short run to keep
 // test time low; the full 90-day sweep is exercised by TestBuild_sweepRealism.

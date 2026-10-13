@@ -8,8 +8,8 @@ solo, local game. It is a personal project, published for anyone who wants to ru
 
 ## Status
 
-Pre-alpha. The simulation MVP exists; the following are not built yet: the UI,
-the NPC simulation, catalogue sync, and data persistence.
+Pre-alpha. The simulation MVP exists, with NPCs that open boosters and supply the Counter. The
+following are not built yet: the UI, trades with NPCs, catalogue sync, and data persistence.
 
 ## Try the simulation
 

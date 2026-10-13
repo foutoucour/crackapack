@@ -229,7 +229,8 @@ speculator. The others are set through simulation, see
 - **Real collections**, stored as quantities (NPC, printing, foil, quantity). NPCs sell surplus
   cards to the Counter, which bounds the database.
 - **What an NPC does in a tick:** opens boosters, sells surplus to the Counter and proposes trades.
-  It never pays or receives coins.
+  It never pays or receives coins. Trade proposals are not built: the simulation runs the supply
+  half, see [NPC crowd](simulation.md#npc-crowd).
 - **Time step:** one tick every 10 minutes of game time.
 - **Offline catch-up:** at launch, the elapsed time is simulated at once, capped at 48 h, in batches
   with grouped writes. While the app is open, the simulation runs on its tick in the same process.

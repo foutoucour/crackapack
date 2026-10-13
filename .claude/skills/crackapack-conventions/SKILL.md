@@ -59,9 +59,10 @@ func NewOpener(generators map[BoosterLayout]BoosterGenerator, rng *rand.Rand) *O
 ```
 
 The simulated player follows the same shape: `sim.PlayerPolicy` has one implementation per play
-style (`collector`, `cash-out`), registered by name in `cmd/crackapack/policies.go`. NPCs will too:
-`type NPCPolicy interface { Decide(view MarketView, rng *rand.Rand) []Order }`, one policy per
-personality (collector, speculator, completionist).
+style (`collector`, `cash-out`, `idle`), registered by name in `cmd/crackapack/policies.go`. NPC
+archetypes are not strategies yet: an archetype is config data interpreted by one NPC step, see
+[ADR-0009](../../../docs/adr/0009-npc-archetypes-are-data.md). A strategy interface comes with the
+trade behaviour that data cannot express.
 
 ## Demo Data Ships With the Feature
 
@@ -71,8 +72,8 @@ exercises it.
 - Demo data lives in `demo/` and is loaded by `crackapack demo` (or a `--demo` flag). It is never
   compiled into domain packages.
 - It is deterministic: fixed seed, fixed clock, same demo on every run.
-- It covers the new path. A new booster layout ships a demo set using it; a new NPC policy ships
-  NPCs using it.
+- It covers the new path. A new booster layout ships a demo set using it; a new NPC archetype
+  ships NPCs of that archetype.
 - A test loads the whole demo dataset through the real stores, so demo data cannot rot.
 - It is small and hand-curated. No bulk Scryfall or MTGJSON dumps.
 
