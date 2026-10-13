@@ -23,7 +23,8 @@ type Engine struct {
 	energy        *domain.Energy
 	collection    *domain.Collection
 	counter       *domain.Counter
-	crowd         *domain.Crowd // nil in a run without NPCs
+	crowd         *domain.Crowd    // nil in a run without NPCs
+	exchange      *domain.Exchange // nil unless trades are enabled
 	opener        *domain.Opener
 	policy        PlayerPolicy
 	boosterCosts  map[string]int // setCode -> energy cost; openable sets only
@@ -37,8 +38,6 @@ type Engine struct {
 	dayTradesRefused  int
 	dayNPCBoosters    int
 	dayNPCSold        int
-
-	npcCardsHeld int // cards in all NPC collections; carried across days
 }
 
 type options struct {
@@ -153,7 +152,13 @@ func NewEngine(
 		return nil, fmt.Errorf("sim: counter: %w", err)
 	}
 
-	crowd, err := newCrowd(cfg, catalogues, counter)
+	valuer := domain.NewValuer(prices, cfg.FallbackPrice)
+	crowd, err := newCrowd(cfg, catalogues, counter, valuer)
+	if err != nil {
+		return nil, err
+	}
+	collection := domain.NewCollection()
+	exchange, err := newExchange(cfg, crowd, collection, journal, valuer)
 	if err != nil {
 		return nil, err
 	}
@@ -221,9 +226,10 @@ func NewEngine(
 		prices:        prices,
 		journal:       journal,
 		energy:        energy,
-		collection:    domain.NewCollection(),
+		collection:    collection,
 		counter:       counter,
 		crowd:         crowd,
+		exchange:      exchange,
 		opener:        opener,
 		policy:        policy,
 		boosterCosts:  boosterCosts,
@@ -281,12 +287,19 @@ func (e *Engine) Run() (Result, error) {
 		e.dayNPCBoosters = 0
 		e.dayNPCSold = 0
 
+		if e.exchange != nil {
+			e.exchange.StartDay(day)
+		}
+
 		// Tick loop.
 		for tick := range TicksPerDay {
 			if err := e.energy.Tick(1); err != nil {
 				return Result{}, fmt.Errorf("sim: day %d tick %d: energy tick: %w", day, tick, err)
 			}
 			if err := e.tickCrowd(); err != nil {
+				return Result{}, fmt.Errorf("sim: day %d tick %d: %w", day, tick, err)
+			}
+			if err := e.tickTrades(); err != nil {
 				return Result{}, fmt.Errorf("sim: day %d tick %d: %w", day, tick, err)
 			}
 			if _, isSession := sessionSet[tick]; isSession {
@@ -323,6 +336,9 @@ func (e *Engine) Run() (Result, error) {
 	if e.crowd != nil {
 		addNPCSummary(summary, days)
 	}
+	if e.exchange != nil {
+		addTradeSummary(summary, days)
+	}
 
 	return Result{Days: days, Summary: summary}, nil
 }
@@ -339,7 +355,6 @@ func (e *Engine) tickCrowd() error {
 	}
 	e.dayNPCBoosters += tick.BoostersOpened
 	e.dayNPCSold += tick.CardsSold
-	e.npcCardsHeld += tick.CardsDrawn - tick.CardsSold
 	return nil
 }
 
@@ -348,7 +363,7 @@ func (e *Engine) npcMetrics() *NPCDayMetrics {
 	if e.crowd == nil {
 		return nil
 	}
-	return &NPCDayMetrics{BoostersOpened: e.dayNPCBoosters, CardsSold: e.dayNPCSold, CardsHeld: e.npcCardsHeld}
+	return &NPCDayMetrics{BoostersOpened: e.dayNPCBoosters, CardsSold: e.dayNPCSold, CardsHeld: e.crowd.CardsHeld()}
 }
 
 // snapshotDay captures the end-of-day metrics.
@@ -360,6 +375,9 @@ func (e *Engine) snapshotDay(day int) (DayMetrics, error) {
 		domain.AccountDailyReward,
 		domain.AccountCounterSale,
 		domain.AccountCounterPurchase,
+	}
+	if e.exchange != nil {
+		accounts = append(accounts, domain.AccountTradeTopUp)
 	}
 	supply := make(map[domain.Account]domain.Coins, len(accounts))
 	for _, a := range accounts {
@@ -398,6 +416,7 @@ func (e *Engine) snapshotDay(day int) (DayMetrics, error) {
 	return DayMetrics{
 		Day:             day,
 		NPC:             e.npcMetrics(),
+		Trade:           e.tradeMetrics(),
 		MoneySupply:     supply,
 		StockByRarity:   stock,
 		CollectionUSD:   collUSD,

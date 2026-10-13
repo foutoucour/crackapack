@@ -26,6 +26,24 @@ type NPCDayMetrics struct {
 	CardsHeld int
 }
 
+// TradeDayMetrics is what happened to the trades with NPCs on one day.
+type TradeDayMetrics struct {
+	// PlayerProposals counts the offers the player made, counters to NPC offers included.
+	PlayerProposals int
+	// NPCOffers counts the offers NPCs made to the player.
+	NPCOffers int
+	Accepted  int
+	// Countered counts the counter-offers NPCs made.
+	Countered int
+	Refused   int
+	// Expired counts the offers that lapsed unanswered.
+	Expired int
+	// VolumeCoins is the reference value of the cards moved by accepted trades, in coins.
+	VolumeCoins domain.Coins
+	// TopUpCoins is the coins the player paid on top of cards.
+	TopUpCoins domain.Coins
+}
+
 // DayMetrics records everything observable about one simulated day.
 // Day is 1-based: the first simulated day is Day 1.
 type DayMetrics struct {
@@ -33,6 +51,9 @@ type DayMetrics struct {
 
 	// NPC is nil when the run has no NPC crowd, which keeps the output of such runs unchanged.
 	NPC *NPCDayMetrics `json:",omitempty"`
+
+	// Trade is nil when trades are not enabled, which keeps the output of such runs unchanged.
+	Trade *TradeDayMetrics `json:",omitempty"`
 
 	// MoneySupply holds the balance of every ledger account at end of day.
 	// encoding/json sorts Account (string) keys alphabetically.
@@ -105,6 +126,12 @@ type DayMetrics struct {
 //   - npc_boosters_opened: boosters the NPCs opened over the run
 //   - npc_cards_sold: cards the NPCs sent to the Counter over the run
 //   - npc_cards_held: cards all NPC collections hold after the last day
+//
+// A run with trades adds eight more, absent from every other run, each summed over the run:
+//   - trade_player_proposals, trade_npc_offers: offers the player and the NPCs made
+//   - trade_accepted, trade_countered, trade_refused, trade_expired: how offers ended
+//   - trade_volume_coins: reference value of the cards moved, in coins
+//   - trade_topup_coins: coins the player paid on top of cards
 type Summary map[string]float64
 
 // addNPCSummary adds the crowd totals to s. Every entry of days must carry NPC metrics.
