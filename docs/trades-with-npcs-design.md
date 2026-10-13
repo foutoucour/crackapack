@@ -31,7 +31,8 @@ choice below is checked against two requirements:
 ## Scope
 
 In: the whole todo item, except the milestone interaction. A trade that removes the last copy of a
-card can cost a milestone, but milestones do not exist yet, so `Exchange` only exposes a hook.
+card can cost a milestone, but milestones do not exist yet. No hook is built for it: it would be
+dead code until the milestones item lands, and that item owns the change to `Exchange`.
 
 Out: NPC state in the real app, auctions, the player's own wish list.
 
@@ -75,10 +76,8 @@ docs), counting quantities.
   top-up (the only step that can still fail), then move the cards.
 - **Expiry.** `StartDay(day)` lapses offers past their last valid day.
 - **History and lookups.** Outcome counters always run. The per-offer log is bounded and opt-in
-  (`trades.history_size`, default 0 keeps none), and `HoldersOf(CardID)` returns the NPCs that
-  hold that card on their shelf.
-- **Milestone hook.** An optional `OnCardsLeaving` callback, called before commit, a no-op until
-  milestones exist.
+  (`trades.history_size`, default 0 keeps none), and `HoldersOf(CardKey)` returns the NPCs that
+  hold that printing and finish on their shelf.
 
 ## NPC side
 
@@ -96,9 +95,10 @@ docs), counting quantities.
 
 ## Session, policies and metrics
 
-- A `Trading` interface, implemented by the engine's port and embedded in `Session`:
-  `Offers`, `ProposeTrade`, `AcceptOffer`, `CounterOffer`, `AcceptCounter`. `WorldView` adds
-  `HoldersOf`, open offers and trade history.
+- A `Trading` interface, implemented by the engine's port and embedded in `Session`: `Offers`,
+  `NPCCount`, `NPCShelf`, `HoldersOf`, `ProposeTrade`, `AcceptOffer` and `CounterOffer`. A counter
+  from the NPC is an open offer, so the player accepts it with `AcceptOffer`. `WorldView` is not
+  extended.
 - Refusals, insufficient balance and expired offers are normal outcomes. Other errors abort the
   run, as for the Counter.
 - Policies, selected with `--player`:
@@ -116,7 +116,8 @@ docs), counting quantities.
   `trades.history_size` (default 0).
 - `trades.max_open_offers_per_day`: a cap on the offers the crowd makes the player each day
   (default 20). It keeps the offer volume a parameter and the inbox bounded.
-- `npcs.surplus_hold_days` (default 2).
+- `npcs.surplus_hold_days` (default 2). It applies only when trades are enabled, and trades need at
+  least 1: an NPC with no shelf has nothing to give.
 - Per archetype: `behaviour` (a registered name), `wish_size`, `margin_pct` and `offer_chance_pct`,
   the chance per tick that an NPC with a match proposes it. The casual starts at 0% margin and the
   speculator at 15%, per [Core features](core-features.md#npcs-and-simulation).
