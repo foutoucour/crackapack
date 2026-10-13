@@ -16,6 +16,18 @@ The rules that already hold, from [Trades with NPCs](core-features.md#trades-wit
 - A transfer is atomic.
 - No chain of trades gains value.
 
+## Design priority: deep, configurable simulations
+
+The point of the feature is to run long simulations across many scenarios and parameter sets. Every
+choice below is checked against two requirements:
+
+- **Configurable.** Every number that shapes trade behaviour is a flat config key with a default,
+  validated by `config.Load`. A key addressed by its path (`trades.offer_expiry_days`,
+  `npcs.archetypes.speculator.margin_pct`) can be overridden by the tuning system without new
+  code. No tunable is a constant in the domain. A scenario is a config file plus a player policy.
+- **Cheap per run.** A run with 500 NPCs over 90 days must stay fast enough for thousands of runs,
+  and its memory must not grow with the run length. See [Cost of a run](#cost-of-a-run).
+
 ## Scope
 
 In: the whole todo item, except the milestone interaction. A trade that removes the last copy of a
@@ -49,20 +61,22 @@ A new unguarded sink, `AccountTradeTopUp`, receives the player's top-ups. NPCs h
 ## Exchange
 
 An offer holds an ID, an NPC, the cards each side gives, a coin top-up, the creation day and the
-last valid day. Each side gives at most 10 cards, counting quantities (`MaxTradeCards`).
+last valid day. Each side gives at most `trades.max_cards_per_side` cards (default 10, as in the
+docs), counting quantities.
 
 - **Player proposal.** `Propose` returns accepted (the trade executes), countered (same cards, the
   smallest top-up that satisfies the rule, rounded up to a whole coin) or refused (empty offer, or
   a card the NPC lacks).
 - **NPC proposal.** The NPC asks for cards from its wish list that the player holds as duplicates
-  (copies above the first) and gives cards from its shelf. The player accepts, ignores it until it
+  (copies above `trades.duplicate_keep`, default 1) and gives cards from its shelf. The player accepts, ignores it until it
   expires, or counters once with different cards. The NPC then accepts or refuses, and does not
   counter again.
 - **Atomic transfer.** Validate both sides' holdings and the player's balance, post the coin
   top-up (the only step that can still fail), then move the cards.
 - **Expiry.** `StartDay(day)` lapses offers past their last valid day.
-- **History and lookups.** An append-only log of every offer and its outcome, and
-  `HoldersOf(CardID)`, the NPCs that hold that card on their shelf.
+- **History and lookups.** Outcome counters always run. The per-offer log is bounded and opt-in
+  (`trades.history_size`, default 0 keeps none), and `HoldersOf(CardID)` returns the NPCs that
+  hold that card on their shelf.
 - **Milestone hook.** An optional `OnCardsLeaving` callback, called before commit, a no-op until
   milestones exist.
 
@@ -97,11 +111,34 @@ last valid day. Each side gives at most 10 cards, counting quantities (`MaxTrade
 
 ## Configuration
 
-- `trades.enabled` (default `false`) and `trades.offer_expiry_days` (default 3).
+- `trades.enabled` (default `false`), `trades.offer_expiry_days` (default 3),
+  `trades.max_cards_per_side` (default 10), `trades.duplicate_keep` (default 1) and
+  `trades.history_size` (default 0).
+- `trades.max_open_offers_per_day`: a cap on the offers the crowd makes the player each day
+  (default 20). It keeps the offer volume a parameter and the inbox bounded.
 - `npcs.surplus_hold_days` (default 2).
-- Per archetype: `behaviour` (a registered name), `wish_size`, `margin_pct`. The casual starts at
-  0% and the speculator at 15%, per [Core features](core-features.md#npcs-and-simulation).
-- Load rejects a negative margin, an unknown behaviour and a negative wish size.
+- Per archetype: `behaviour` (a registered name), `wish_size`, `margin_pct` and `offer_chance_pct`,
+  the chance per tick that an NPC with a match proposes it. The casual starts at 0% margin and the
+  speculator at 15%, per [Core features](core-features.md#npcs-and-simulation).
+- Load rejects a negative margin, an unknown behaviour, a negative wish size, and a percentage
+  outside [0, 100] where one is expected. Errors name the offending key, as `config.Load` does.
+- Behaviours read only these numbers. A behaviour that needs a new knob adds a key, not a constant.
+
+## Cost of a run
+
+- **Matching by index.** The crowd keeps `CardID → NPCs wishing it` and `CardID → NPCs holding it
+  on the shelf`. Proposals iterate the player's few duplicates and look up these indexes, instead
+  of scanning every NPC every tick.
+- **Shelf aging.** The shelf is an arrival-ordered queue, so releasing aged surplus to the Counter
+  is amortised constant time per card.
+- **Bounded memory.** Offers are dropped on expiry or answer, the history is a ring of
+  `trades.history_size` entries, and counters are plain integers. A longer run costs time, not
+  memory.
+- **No shared state.** `Exchange`, `Crowd` and the journal belong to one run, and each run draws
+  from streams derived from its seed. Runs are independent, so a sweep or a search can evaluate
+  them in parallel and reproduce any of them from its config and seed.
+- **Benchmark.** A Go benchmark runs 500 NPCs for 90 days with trades on and off. The plan records
+  the baseline, and CI does not gate on it.
 
 ## ADRs
 
@@ -128,13 +165,22 @@ TDD, no mocks of internal code.
 
 ## Delivery
 
-Five phases, each green on its own: Valuer and ledger account; Exchange core; shelf, wishes,
-behaviours and ADRs; Session, port and policies; metrics, config, CLI, demo data and docs. The demo
-config enables trades with a small crowd, so `crackapack demo` shows trade metrics.
+Five phases, each green on its own. Config and metrics come before policies, so scenarios can be
+swept as soon as the engine trades:
+
+1. Valuer and ledger account.
+2. Exchange core.
+3. Shelf, wishes, behaviours, indexes and the ADRs.
+4. Config keys, validation, metrics and the benchmark.
+5. Session, port, the `trader` and `exploiter` policies, CLI wiring, demo data and docs.
+
+The demo config enables trades with a small crowd, so `crackapack demo` shows trade metrics.
 
 ## Assumptions to confirm
 
-- A player duplicate is a copy above the first. A playset-based definition would wait for milestones.
-- The 10-card cap applies to the NPC side too. The docs state it for the player side only.
+- A player duplicate defaults to a copy above the first (`trades.duplicate_keep`).
+- The card cap applies to the NPC side too. The docs state it for the player side only.
+- `trades.max_open_offers_per_day` (20) and `offer_chance_pct` are new knobs with guessed defaults,
+  to calibrate with runs.
 - `Session` embeds `Trading`. The only other implementation is `fakeSession` in
   `internal/sim/collector_test.go`, which gets the new methods.
