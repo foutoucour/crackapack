@@ -59,10 +59,11 @@ func NewOpener(generators map[BoosterLayout]BoosterGenerator, rng *rand.Rand) *O
 ```
 
 The simulated player follows the same shape: `sim.PlayerPolicy` has one implementation per play
-style (`collector`, `cash-out`, `idle`), registered by name in `cmd/crackapack/policies.go`. NPC
-archetypes are not strategies yet: an archetype is config data interpreted by one NPC step, see
-[ADR-0009](../../../docs/adr/0009-npc-archetypes-are-data.md). A strategy interface comes with the
-trade behaviour that data cannot express.
+style (`collector`, `cash-out`, `idle`, `trader`, `exploiter`), registered by name in
+`cmd/crackapack/policies.go`. NPC archetypes split in two: supply is config data interpreted by one
+NPC step, see [ADR-0009](../../../docs/adr/0009-npc-archetypes-are-data.md), and trade behaviour is
+a registered `TradeBehaviour` per archetype, see
+[ADR-0010](../../../docs/adr/0010-npc-trade-behaviour-is-a-strategy.md).
 
 ## Demo Data Ships With the Feature
 

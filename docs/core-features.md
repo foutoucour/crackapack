@@ -197,10 +197,13 @@ Trades let the player complete a binder by negotiating with NPCs.
 3. The NPC accepts if it receives at least the reference value of what it gives, plus a margin that
    depends on its archetype. The margin is never negative, so an NPC never gives more value than it
    gets. Values are the Counter's reference values.
-4. A counter-offer is possible on both sides.
+4. A counter-offer is possible on both sides, once: see [ADR-0012](adr/0012-an-npc-counters-once.md).
+   An NPC gives only the surplus it holds on its shelf, see
+   [ADR-0011](adr/0011-npcs-hold-surplus-on-a-shelf.md).
 5. The transfer is atomic: everything goes through or nothing does.
 
-- **Expiry** of an unanswered offer: duration to be set.
+- **Expiry** of an unanswered offer: 3 days by default, `trades.offer_expiry_days`, the day it is made
+  included.
 - **Trade help:** "which NPCs have this card as a duplicate", NPCs whose duplicates match my wish
   list.
 - **History** of trades received, sent and concluded.
@@ -229,8 +232,8 @@ speculator. The others are set through simulation, see
 - **Real collections**, stored as quantities (NPC, printing, foil, quantity). NPCs sell surplus
   cards to the Counter, which bounds the database.
 - **What an NPC does in a tick:** opens boosters, sells surplus to the Counter and proposes trades.
-  It never pays or receives coins. Trade proposals are not built: the simulation runs the supply
-  half, see [NPC crowd](simulation.md#npc-crowd).
+  It never pays or receives coins. The simulation runs supply and trades, see
+  [NPC crowd](simulation.md#npc-crowd) and [Trades](simulation.md#trades).
 - **Time step:** one tick every 10 minutes of game time.
 - **Offline catch-up:** at launch, the elapsed time is simulated at once, capped at 48 h, in batches
   with grouped writes. While the app is open, the simulation runs on its tick in the same process.
@@ -274,7 +277,7 @@ case it comes back after V1. Bringing it back means giving NPCs coins and budget
 - [ ] Fixed coin ↔ USD rate.
 - [ ] Reference value of a card that has no TCGplayer price.
 - [ ] Default number of NPCs.
-- [ ] Expiry duration of a trade offer.
+- [x] Expiry duration of a trade offer: 3 days, see [Trades](simulation.md#trades).
 - [ ] Code licence.
 
 Sources: [Holopocket](https://holopocket.fr), [Fan Content

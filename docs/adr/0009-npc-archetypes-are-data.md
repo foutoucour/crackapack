@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted — 2026-10-13
+Superseded by [ADR-0010](0010-npc-trade-behaviour-is-a-strategy.md) — 2026-10-13. Accepted
+2026-10-13.
 
 ## Context
 

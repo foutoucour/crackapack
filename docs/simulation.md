@@ -216,6 +216,8 @@ so `max_booster_wait_minutes` only changes when a set with a higher cost joins t
 | `collector` | Opens boosters for the set with the lowest C/U progress; sells duplicates above playset; buys missing non-foil cards cheapest-first up to a coin floor |
 | `cash-out` | Opens boosters, sells everything above one copy and never buys, so the run measures how many coins the Counter creates |
 | `idle` | Does nothing, so only the NPCs act and the run measures the supply they send to the Counter |
+| `trader` | Plays like the `collector` and also trades with NPCs, see [Trades](#trades) |
+| `exploiter` | Plays like the `collector` and chains trades across every NPC looking for a gain, see [Trades](#trades) |
 
 ## NPC crowd
 
@@ -230,7 +232,8 @@ each opening, the NPC sells the copy it just drew when it takes the NPC above it
 The Counter takes it into stock without a ledger entry, because NPCs hold no coins.
 
 An archetype is a named entry under `npcs.archetypes`, see
-[ADR-0009](adr/0009-npc-archetypes-are-data.md). Its keys are in
+[ADR-0009](adr/0009-npc-archetypes-are-data.md) for supply and
+[ADR-0010](adr/0010-npc-trade-behaviour-is-a-strategy.md) for trades. Its keys are in
 [`internal/config/config.go`](../internal/config/config.go). The five default archetypes merge with
 the ones in your file by name. An archetype you write replaces the default of the same name as a
 whole, so every key of it must be set.
@@ -254,8 +257,77 @@ go run ./cmd/crackapack simulate \
 
 `compare` refuses a run with a crowd against a run without one, because their columns differ.
 
-The archetype values in the defaults are starting guesses. Trades, offline catch-up and persistence
-are not built, see [Specs review](specs-review.md#v1-scope-and-build-order).
+The archetype values in the defaults are starting guesses. Offline catch-up and persistence are not
+built, see [Specs review](specs-review.md#v1-scope-and-build-order).
+
+## Trades
+
+`trades.enabled` turns on trades between the player and the NPCs. It defaults to `false`, and a run
+without trades is the same as before they existed: no `trade_*` column in `days.csv`, no `Trade`
+block in `result.json`, and no `trade_*` metric in the summary. Trades need a crowd
+(`npcs.population` above 0) and `npcs.surplus_hold_days` of at least 1. The rules are in
+[Trades with NPCs](core-features.md#trades-with-npcs).
+
+An NPC holds the copies above its keep threshold on a shelf for `npcs.surplus_hold_days` days
+before selling them to the Counter, see [ADR-0011](adr/0011-npcs-hold-surplus-on-a-shelf.md). Only
+the shelf can be traded. Each NPC has a wish list, and when a card on it is a duplicate of the
+player's, the NPC may propose a swap. The player can also propose one to any NPC. An NPC accepts
+when it receives at least the reference value it gives plus its margin, never negative. When an
+offer falls short, the NPC counters once with the smallest coin top-up that fits, see
+[ADR-0012](adr/0012-an-npc-counters-once.md). The coins the player adds go to the
+`trade_topup` account, because NPCs hold no coins.
+
+An archetype names a trade behaviour, see
+[ADR-0010](adr/0010-npc-trade-behaviour-is-a-strategy.md):
+
+| Behaviour | Wishes for |
+|-----------|------------|
+| `casual` | Any card it lacks, at random |
+| `playset_hunter` | Commons and uncommons, up to a playset |
+| `targeted_collector` | The cards it lacks, rarest first |
+| `speculator` | The most valuable cards it lacks, and asks for the most valuable duplicates first |
+| `whale` | Rares and specials, at random |
+
+Every trade setting is a key of the configuration, so a scenario is a config file:
+
+```yaml
+npcs:
+  population: 300
+  surplus_hold_days: 2
+  archetypes:
+    speculator: {share: 10, min_boosters_per_day: 2, max_boosters_per_day: 4, keep_copies: 2,
+                 behaviour: speculator, wish_size: 5, margin_pct: 25, offer_chance_pct: 1}
+trades:
+  enabled: true
+  offer_expiry_days: 3
+  max_cards_per_side: 10
+  duplicate_keep: 1
+  history_size: 0
+  max_open_offers_per_day: 20
+```
+
+Run it with a player that trades:
+
+```
+go run ./cmd/crackapack simulate \
+  --catalogue-dir ./catalogues --sets RAV,TSP --supplementary TSB \
+  --prices prices.json --config trades.yaml --player trader --out ./out
+```
+
+Two policies trade, see `--player`:
+
+- `trader` plays like the collector and also accepts NPC offers that bring a card it lacks, and
+  swaps its duplicates for missing cards NPCs hold, paying a counter's top-up above the coin floor.
+- `exploiter` chains trades across every NPC looking for a gain. It finds none, and a test checks
+  that no trade, in any run, raises the player's coins plus the reference value of its cards.
+
+A run with trades adds these metrics, summed over the run in the summary and per day in
+`days.csv`: `trade_player_proposals`, `trade_npc_offers`, `trade_accepted`, `trade_countered`,
+`trade_refused`, `trade_expired`, `trade_volume_coins` and `trade_topup_coins`. `days.csv` also
+gets the `trade_topup` balance. `compare` refuses a run with trades against one without.
+
+To see the cost of a long run, `go test ./internal/sim -run '^$' -bench BenchmarkRun -benchmem`
+runs 90 days with 500 NPCs with and without trades.
 
 ## Run diagram
 

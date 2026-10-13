@@ -50,6 +50,8 @@ func collectorRank(r Rarity) int {
 		return 2
 	case RarityUncommon:
 		return 1
+	case RarityCommon:
+		return 0
 	default:
 		return 0
 	}

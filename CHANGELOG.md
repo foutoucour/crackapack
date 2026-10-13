@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- [ADR-0009](docs/adr/0009-npc-archetypes-are-data.md) is superseded by ADR-0010: an archetype now
+  names a trade behaviour, and its supply parameters stay data.
 - A booster's energy cost is relative to the median booster value of every openable set in the
   catalogue directory, not of the sets in `--sets`. A set costs the same energy alone or with
   others, and `max_booster_wait_minutes` no longer changes with `--sets`. A set file in the
@@ -25,6 +27,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Trades with NPCs in the simulation, behind `trades.enabled` (default off, so existing runs are
+  unchanged). NPCs hold their surplus on a shelf, wish for cards, propose swaps for the player's
+  duplicates and counter a short offer once. Every setting is a config key, and two player
+  policies trade: `trader` and `exploiter`. See [Trades](docs/simulation.md#trades),
+  [ADR-0010](docs/adr/0010-npc-trade-behaviour-is-a-strategy.md),
+  [ADR-0011](docs/adr/0011-npcs-hold-surplus-on-a-shelf.md) and
+  [ADR-0012](docs/adr/0012-an-npc-counters-once.md).
 - An NPC crowd in the simulation. `npcs.population` sets how many NPCs open boosters each tick and
   sell their surplus to the Counter, according to five archetypes held in `npcs.archetypes`, see
   [ADR-0009](docs/adr/0009-npc-archetypes-are-data.md). The default population is 0, so existing

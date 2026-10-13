@@ -107,6 +107,8 @@ func trySwap(s Session, v WorldView, npcID int, want domain.CardKey, give []doma
 		}
 		accepted, err := s.AcceptOffer(d.Offer.ID)
 		return err == nil && accepted.Outcome == domain.OutcomeAccepted
+	case domain.OutcomeRefused, domain.OutcomeExpired:
+		return false
 	}
 	return false
 }

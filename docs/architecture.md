@@ -50,6 +50,11 @@ files itself.
 `internal/sim` is the composition layer: it wires `internal/domain` objects with `internal/config`
 values and records per-day metrics. The domain never imports sim.
 
+The domain also holds the trades: `Exchange` prices and executes offers between the player and the
+crowd, `Valuer` gives the Counter and the Exchange the same reference value, and a `TradeBehaviour`
+per archetype picks wishes, the margin and proposals. `internal/sim` composes them behind
+`trades.enabled` and exposes them to player policies through `Session`.
+
 `demo/` generates two synthetic catalogues (DEM and DSP/DST) from a fixed seed and exposes them
 via `demo.Build()`. The domain never imports demo; the dependency runs one way, from demo into
 the domain.

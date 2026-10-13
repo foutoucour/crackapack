@@ -19,34 +19,36 @@ many parameters at once for a config that meets the goals.
 - [x] `simulate`, `sweep` over the coin rate, `compare` and `demo`, and the `fetchdata` downloader.
 - [x] The coin rate settled at 100, see [ADR-0006](adr/0006-coin-rate-is-100-per-dollar.md).
 - [x] The NPC crowd, supply only, see [NPC crowd](simulation.md#npc-crowd).
+- [x] Trades with NPCs in the simulation, see [Trades](simulation.md#trades).
 
 ## Economy simulation
 
 ### Mechanics not simulated yet (in V1)
 
-- [ ] **Trades with NPCs**, see [Trades with NPCs](core-features.md#trades-with-npcs). This is the
-  next slice, and the other items in this group are independent of it.
-  - [ ] NPC wish lists: how they are generated per archetype, their size, and how they are refilled
-    as an NPC completes cards.
-  - [ ] Archetype margins in the configuration. Starting values are 0% for a casual and 10 to 20%
-    for a speculator, the others come from simulation. Trade behaviour is where
-    [ADR-0009](adr/0009-npc-archetypes-are-data.md) expects a strategy seam to appear, so decide
-    whether margins fit data or need one, and record it in a new ADR if the data model changes.
-  - [ ] A reference value shared by the Counter and trades. Today that logic is private to the
-    Counter.
-  - [ ] NPC-proposed trades when a wish list matches the player's duplicates.
-  - [ ] Player-proposed trades: up to 10 cards plus coins, against cards from one NPC.
-  - [ ] The acceptance rule: the NPC receives at least the reference value it gives, plus a margin
+- [ ] **Trades with NPCs**, see [Trades with NPCs](core-features.md#trades-with-npcs) and
+  [Trades](simulation.md#trades). Built, except what depends on the milestones item below.
+  - [x] NPC wish lists: picked per archetype by its behaviour, sized by `wish_size`, and refilled as
+    an NPC completes cards.
+  - [x] Archetype margins in the configuration, with the casual at 0% and the speculator at 15%.
+    Trade behaviour is a strategy per archetype, see
+    [ADR-0010](adr/0010-npc-trade-behaviour-is-a-strategy.md). The margins of the other archetypes
+    are guesses to calibrate.
+  - [x] A reference value shared by the Counter and trades: `Valuer`.
+  - [x] NPC-proposed trades when a wish list matches the player's duplicates.
+  - [x] Player-proposed trades: up to 10 cards plus coins, against cards from one NPC.
+  - [x] The acceptance rule: the NPC receives at least the reference value it gives, plus a margin
     that is never negative.
-  - [ ] Counter-offers on both sides.
-  - [ ] Atomic transfer: everything goes through or nothing does.
-  - [ ] A ledger account for the coins a player adds to a trade, since NPCs hold no coins.
-  - [ ] Offer expiry. The duration is an open question.
-  - [ ] Trade history, and "which NPCs have this card as a duplicate".
+  - [x] Counter-offers on both sides, once, see [ADR-0012](adr/0012-an-npc-counters-once.md).
+  - [x] Atomic transfer: everything goes through or nothing does.
+  - [x] A ledger account for the coins a player adds to a trade, since NPCs hold no coins:
+    `trade_topup`.
+  - [x] Offer expiry: 3 days by default, `trades.offer_expiry_days`.
+  - [x] Trade history, and "which NPCs have this card as a duplicate". NPCs hold their surplus on a
+    shelf to have duplicates, see [ADR-0011](adr/0011-npcs-hold-surplus-on-a-shelf.md).
   - [ ] A trade that removes the last copy of a card can cost a milestone, which depends on the
-    milestone item below.
-  - [ ] Simulated player policies that trade, including one that hunts for exploits by chaining
-    trades across NPCs. An invariant test should show that no chain of trades gains value.
+    milestone item below. Not built: no hook exists for it yet.
+  - [x] Simulated player policies that trade, `trader`, and one that hunts for exploits by chaining
+    trades across NPCs, `exploiter`. A test shows that no trade gains value.
 - [ ] **Daily quests and chest**, see [Daily quests and chest](retention.md#daily-quests-and-chest).
   - [ ] Three quests a day drawn from a catalogue of quests, and a claim step.
   - [ ] The chest worth +2 energy. `Energy` has no way to add a bonus yet.
@@ -140,11 +142,9 @@ are the goals and their bands, the scope, and the remedies that change a rule.
     search runs out of reach.
   - [ ] **New goals** for quests, milestones and trades as those mechanics land. The system does
     not need them to start.
-- [ ] Metrics from [Simulating the economy](specs-review.md#simulating-the-economy) that do not
-  exist yet: trades proposed and accepted, and trade volume per day.
 - [ ] A metric for rare stock-outs, for example the days a card the player wants is out of stock.
 - [ ] Money supply by flow once quests, milestones and trades add flows.
-- [ ] More player policies: short sessions, and trading policies from the trades item above.
+- [ ] More player policies: short sessions. The trading policies exist.
 - [ ] Move the findings of the supply runs into the docs once the defaults are settled.
 
 ### NPC state in the real app

@@ -27,6 +27,7 @@ func newDemoCmd(stdout, stderr io.Writer) *cobra.Command {
 No files or network required; the dataset is generated from a fixed seed.
 
 The demo uses a fixed seed (42) so it is byte-identical on every run.
+The demo player is the trader, so the report shows trades with NPCs.
 Pass --out to write the same per-rate reports as sweep.
 Pass --rates to override the default grid ([50, 100, 200, 400]).`,
 		Example: `  crackapack demo
@@ -42,7 +43,7 @@ Pass --rates to override the default grid ([50, 100, 200, 400]).`,
 				suppCodes:    ds.SupplementaryCodes,
 				pricesFS:     ds.Files,
 				pricesName:   "prices.json",
-				player:       "collector",
+				player:       "trader",
 				policies:     buildPolicies(),
 				newOutput:    discardOutput,
 				stdout:       stdout,
