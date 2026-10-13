@@ -111,7 +111,7 @@ every other key keeps its default value.`,
 
 	f := cmd.Flags()
 	f.StringVar(&configPath, "config", "", "YAML config file (optional; omit for defaults)")
-	f.StringVar(&catDir, "catalogue-dir", "", "catalogue directory containing <CODE>.json files (required)")
+	f.StringVar(&catDir, "catalogue-dir", "", "catalogue directory of <CODE>.json files; every openable set in it is the energy cost reference (required)")
 	f.StringVar(&setsRaw, "sets", "", "comma-separated openable set codes, e.g. RAV,CLS (required)")
 	f.StringVar(&suppRaw, "supplementary", "", "comma-separated card-pool-only codes, e.g. TSB (optional)")
 	f.StringVar(&pricesPath, "prices", "", "JSON price snapshot file (required)")
@@ -134,7 +134,7 @@ func runSimulate(a simulateArgs) error {
 	rng := rand.New(rand.NewPCG(in.cfg.Seed, in.cfg.Seed))
 
 	// 7. Build and run the engine.
-	engine, err := sim.NewEngine(in.cfg, in.catalogues, in.supplementary, in.prices, in.policyFn(), rng)
+	engine, err := in.newEngine(in.cfg, rng)
 	if err != nil {
 		return fmt.Errorf("engine: %w", err)
 	}
