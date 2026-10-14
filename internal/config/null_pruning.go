@@ -8,8 +8,8 @@ import yaml "go.yaml.in/yaml/v3"
 // config tree (energy and its sub-keys, cost_table, sweep_rates, targets,
 // initial_stock and each rarity).
 //
-// Null items inside sequences are left in place: a null sequence item
-// produces a zero-value struct which validate rejects with a path-named error.
+// Null items inside sequences are not pruned: Load rejects them before pruning, with a path-named
+// error, see ADR-0017.
 func pruneNulls(n *yaml.Node) {
 	switch n.Kind {
 	case yaml.DocumentNode:

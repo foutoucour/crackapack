@@ -49,6 +49,21 @@ many parameters at once for a config that meets the goals.
     milestone item below. Not built: no hook exists for it yet.
   - [x] Simulated player policies that trade, `trader`, and one that hunts for exploits by chaining
     trades across NPCs, `exploiter`. A test shows that no trade gains value.
+- [ ] **Exploiter cost cliff.** The `exploiter` with trades takes minutes when sessions and NPCs are
+  both high, see [Trades](simulation.md#trades).
+  - [ ] Symptom, from the stress test: the exploiter with trades on, `sessions_per_day: 144` and 300
+    NPCs takes 74 seconds for 10 days on the 5-set pool. One relaxation brings it down: 3 sessions a
+    day gives 2 s, 30 NPCs 9 s, trades off 2 s. The collector, trader and idle policies take 1 to 5
+    seconds on the same config.
+  - [ ] Cause: a counter-offer the exploiter does not accept stays open until it expires, three days
+    by default, and nothing lets a policy decline it. The open offers pile up, and each call of
+    `Exchange.Offers` sorts all of them while `ProposeFromNPCs` scans all of them every tick.
+  - [ ] Fix, to choose one: a way to decline an open offer, on the Exchange and on the `Trading`
+    interface, so the exploiter drops the counters it will not take; or closing a policy's own open
+    counters when its session ends. Keeping the open offers in ID order, instead of sorting them on
+    every call, would help either way.
+  - [ ] Done when the config above runs in a few seconds, and a benchmark covers the exploiter with
+    trades at a high session rate so that the cliff cannot come back unseen.
 - [ ] **Daily quests and chest**, see [Daily quests and chest](retention.md#daily-quests-and-chest).
   - [ ] Three quests a day drawn from a catalogue of quests, and a claim step.
   - [ ] The chest worth +2 energy. `Energy` has no way to add a bonus yet.

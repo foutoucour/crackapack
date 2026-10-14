@@ -528,3 +528,23 @@ func TestCmdSimulate_endToEndWithSupplementary(t *testing.T) {
 
 // Compile-time check: sim.NewCollectorPolicy is used via buildPolicies.
 var _ sim.PlayerPolicy = sim.NewCollectorPolicy()
+
+func TestLoadInputs_aConfigErrorIsNotPrefixedTwice(t *testing.T) {
+	t.Parallel()
+	dir := catalogueDirFS(t)
+	var stdout strings.Builder
+	a, _ := buildTestArgs(t, nil, nil, &stdout)
+	a.catFS = dir
+	a.pricesFS = dir
+	a.setCodes = []string{"RAV"}
+	a.configReader = strings.NewReader("coin_rate: -1\n")
+
+	_, err := loadInputs(a)
+
+	if err == nil {
+		t.Fatal("want an error for a negative coin_rate, got nil")
+	}
+	if strings.Count(err.Error(), "config:") != 1 {
+		t.Errorf("error = %q, want the config: prefix exactly once", err)
+	}
+}

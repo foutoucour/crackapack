@@ -321,6 +321,15 @@ type Config struct {
 	SweepRates []domain.CoinRate `yaml:"sweep_rates"`
 }
 
+// isKnownRarity reports whether r is a rarity initial_stock may name.
+func isKnownRarity(r domain.Rarity) bool {
+	switch r {
+	case domain.RarityCommon, domain.RarityUncommon, domain.RarityRare, domain.RaritySpecial, domain.RarityMythic:
+		return true
+	}
+	return false
+}
+
 // defaults returns a Config pre-populated with the documented starting values.
 // [Load] overlays the YAML file on top, leaving absent fields at their defaults.
 func defaults() Config {
@@ -386,8 +395,8 @@ func defaults() Config {
 // A mapping key whose YAML value is null is treated as absent: the
 // pre-populated default applies. This covers every key including nested ones
 // (energy and its sub-keys, cost_table, sweep_rates, targets, initial_stock
-// and each rarity). A null item inside a sequence is left in place and the
-// resulting zero-value struct is rejected by validate with a path-named error.
+// and each rarity). A null item inside a sequence is rejected with a path-named
+// error, see ADR-0017.
 //
 // The caller is responsible for opening the file; Load accepts an [io.Reader]
 // so tests can use [strings.NewReader] without touching the filesystem.
@@ -395,6 +404,10 @@ func Load(r io.Reader) (Config, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return Config{}, fmt.Errorf("load config: read: %w", err)
+	}
+
+	if err := checkStrictInput(data); err != nil {
+		return Config{}, err
 	}
 
 	// Prune null-valued mapping entries so they are treated as absent.
@@ -425,6 +438,9 @@ func Load(r io.Reader) (Config, error) {
 // validate checks semantic constraints on cfg and returns an error naming the
 // offending key on failure.
 func validate(cfg Config) error {
+	if err := validateBounds(cfg); err != nil {
+		return err
+	}
 	if cfg.CoinRate <= 0 {
 		return fmt.Errorf("config: coin_rate must be > 0, got %d", cfg.CoinRate)
 	}
@@ -463,6 +479,9 @@ func validate(cfg Config) error {
 		return fmt.Errorf("config: run_days must be > 0, got %d", cfg.RunDays)
 	}
 	for r, v := range cfg.InitialStock {
+		if !isKnownRarity(r) {
+			return fmt.Errorf("config: initial_stock has an unknown rarity %q, want one of common, uncommon, rare, special, mythic", r)
+		}
 		if v < 0 {
 			return fmt.Errorf("config: initial_stock[%s] must be >= 0, got %d", r, v)
 		}

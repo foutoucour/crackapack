@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/rand/v2"
 )
 
@@ -94,12 +95,19 @@ func NewEnergyCounterSupply(counter *Counter, sets []SetCatalogue, opener *Opene
 	}
 	scale := 1
 	for _, cost := range costList {
-		scale = scale / gcd(scale, cost) * cost
+		step := scale / gcd(scale, cost)
+		if step > math.MaxInt/cost {
+			return nil, errOverflowingCosts
+		}
+		scale = step * cost
 	}
 	weights := make([]int, len(sets))
 	var sum int
 	for i, cost := range costList {
 		weights[i] = scale / cost
+		if weights[i] > math.MaxInt-sum {
+			return nil, errOverflowingCosts
+		}
 		sum += weights[i]
 	}
 	s := &CounterSupply{
@@ -111,6 +119,10 @@ func NewEnergyCounterSupply(counter *Counter, sets []SetCatalogue, opener *Opene
 	}
 	return s, nil
 }
+
+// errOverflowingCosts is returned when the set costs are so varied that the integer weights of
+// the 1/cost pick do not fit in an int.
+var errOverflowingCosts = errors.New("counter supply: the energy costs of the sets are too varied for an exact 1/cost pick: their least common multiple overflows")
 
 func gcd(a, b int) int {
 	for b != 0 {
