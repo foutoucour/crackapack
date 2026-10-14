@@ -147,6 +147,7 @@ func NewEngine(
 		CoinRate:      cfg.CoinRate,
 		FallbackPrice: cfg.FallbackPrice,
 		InitialStock:  cfg.InitialStock,
+		ShelfLife:     shelfLife(cfg.CounterShelfDays),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("sim: counter: %w", err)
@@ -296,6 +297,7 @@ func (e *Engine) Run() (Result, error) {
 			if err := e.energy.Tick(1); err != nil {
 				return Result{}, fmt.Errorf("sim: day %d tick %d: energy tick: %w", day, tick, err)
 			}
+			e.counter.Tick()
 			if err := e.tickCrowd(); err != nil {
 				return Result{}, fmt.Errorf("sim: day %d tick %d: %w", day, tick, err)
 			}
@@ -341,6 +343,15 @@ func (e *Engine) Run() (Result, error) {
 	}
 
 	return Result{Days: days, Summary: summary}, nil
+}
+
+// shelfLife maps the counter_shelf_days setting to the Counter's ShelfLife: a negative value keeps
+// cards forever.
+func shelfLife(days int) domain.ShelfLife {
+	if days < 0 {
+		return domain.ForeverOnShelf()
+	}
+	return domain.VanishAfterDays(days)
 }
 
 // tickCrowd advances the NPC crowd by one tick and books what it did into the day counters.

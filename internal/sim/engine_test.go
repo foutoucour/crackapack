@@ -15,15 +15,16 @@ import (
 // smallConfig returns a minimal valid config suitable for fast tests.
 func smallConfig() config.Config {
 	return config.Config{
-		CoinRate:       100,
-		CounterSellPct: 60,
-		CounterBuyPct:  120,
-		WelcomeBonus:   200,
-		DailyReward:    100,
-		FallbackPrice:  1,
-		SessionsPerDay: 3,
-		RunDays:        5,
-		Seed:           42,
+		CoinRate:         100,
+		CounterSellPct:   60,
+		CounterBuyPct:    120,
+		WelcomeBonus:     200,
+		DailyReward:      100,
+		FallbackPrice:    1,
+		CounterShelfDays: -1,
+		SessionsPerDay:   3,
+		RunDays:          5,
+		Seed:             42,
 		InitialStock: map[domain.Rarity]int{
 			domain.RarityCommon:   20,
 			domain.RarityUncommon: 8,
