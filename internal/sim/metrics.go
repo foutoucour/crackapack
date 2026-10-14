@@ -26,6 +26,14 @@ type NPCDayMetrics struct {
 	CardsHeld int
 }
 
+// CounterDayMetrics is what the Counter did on its own on one day.
+type CounterDayMetrics struct {
+	// BoostersOpened is the boosters the Counter opened to stock itself.
+	BoostersOpened int
+	// CardsOpened is the cards those boosters held, all put on the Counter's shelf.
+	CardsOpened int
+}
+
 // TradeDayMetrics is what happened to the trades with NPCs on one day.
 type TradeDayMetrics struct {
 	// PlayerProposals counts the offers the player made, counters to NPC offers included.
@@ -51,6 +59,10 @@ type DayMetrics struct {
 
 	// NPC is nil when the run has no NPC crowd, which keeps the output of such runs unchanged.
 	NPC *NPCDayMetrics `json:",omitempty"`
+
+	// Counter is nil when the Counter does not open boosters, which keeps the output of such runs
+	// unchanged.
+	Counter *CounterDayMetrics `json:",omitempty"`
 
 	// Trade is nil when trades are not enabled, which keeps the output of such runs unchanged.
 	Trade *TradeDayMetrics `json:",omitempty"`
@@ -127,12 +139,28 @@ type DayMetrics struct {
 //   - npc_cards_sold: cards the NPCs sent to the Counter over the run
 //   - npc_cards_held: cards all NPC collections hold after the last day
 //
+// A run where the Counter opens boosters adds two more, absent from every other run:
+//   - counter_boosters_opened: boosters the Counter opened over the run
+//   - counter_cards_opened: cards those boosters held, all put on the Counter's shelf
+//
 // A run with trades adds eight more, absent from every other run, each summed over the run:
 //   - trade_player_proposals, trade_npc_offers: offers the player and the NPCs made
 //   - trade_accepted, trade_countered, trade_refused, trade_expired: how offers ended
 //   - trade_volume_coins: reference value of the cards moved, in coins
 //   - trade_topup_coins: coins the player paid on top of cards
 type Summary map[string]float64
+
+// addCounterSummary adds the totals of the Counter's own openings to s. Every entry of days must
+// carry Counter metrics.
+func addCounterSummary(s Summary, days []DayMetrics) {
+	var boosters, cards int
+	for _, d := range days {
+		boosters += d.Counter.BoostersOpened
+		cards += d.Counter.CardsOpened
+	}
+	s["counter_boosters_opened"] = float64(boosters)
+	s["counter_cards_opened"] = float64(cards)
+}
 
 // addNPCSummary adds the crowd totals to s. Every entry of days must carry NPC metrics.
 func addNPCSummary(s Summary, days []DayMetrics) {

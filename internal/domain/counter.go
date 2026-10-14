@@ -227,7 +227,8 @@ func (c *Counter) SellToPlayer(key CardKey) error {
 	return nil
 }
 
-// AcceptSurplus shelves n copies of key without touching the ledger: NPCs hold no coins
+// AcceptSurplus shelves n copies of key without touching the ledger. It also stocks the cards a
+// CounterSupply opens for the Counter, which cost nothing and pay nothing either: NPCs hold no coins
 // and have no account, so what they sell to the Counter costs nothing and pays nothing.
 //
 // Returns ErrUnknownCard if the card ID is not in any catalogue or if the finish is not listed

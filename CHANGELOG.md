@@ -32,6 +32,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `counter_supply`, a feature flag that makes the Counter open boosters to stock itself. The mode
+  `fixed` opens a set number a day, with no energy. The default `none` opens nothing, so existing
+  runs are unchanged. A run that opens boosters adds the `counter_boosters_opened` and
+  `counter_cards_opened` metrics. See
+  [The Counter as a special player](docs/simulation.md#the-counter-as-a-special-player).
 - `counter_shelf_days`, a feature flag for how long a card sold to the Counter stays in its stock,
   whether it comes from the player or from NPCs. `-1`, the default, keeps cards forever so existing
   runs are unchanged, `0` makes the Counter a sink and `N` makes a card vanish after N days. See

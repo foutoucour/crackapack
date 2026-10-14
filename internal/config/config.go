@@ -116,6 +116,23 @@ type EnergyConfig struct {
 	CostTable []EnergyCost `yaml:"cost_table"`
 }
 
+// Modes of the Counter's own supply of boosters.
+const (
+	// CounterSupplyNone is the default: the Counter opens nothing.
+	CounterSupplyNone = "none"
+	// CounterSupplyFixed makes the Counter open a fixed number of boosters a day, with no energy.
+	CounterSupplyFixed = "fixed"
+)
+
+// CounterSupplyConfig is how the Counter stocks itself by opening boosters, as a special player.
+type CounterSupplyConfig struct {
+	// Mode is CounterSupplyNone (the default), CounterSupplyFixed or, later, an energy mode.
+	Mode string `yaml:"mode"`
+
+	// BoostersPerDay is the number of boosters the Counter opens each day in fixed mode.
+	BoostersPerDay int `yaml:"boosters_per_day"`
+}
+
 // ArchetypeConfig is the supply behaviour of one NPC archetype, see docs/core-features.md.
 // An archetype given in YAML replaces the default of the same name as a whole: every field
 // must be set.
@@ -223,6 +240,9 @@ type Config struct {
 	// default, keeps cards forever.
 	CounterShelfDays int `yaml:"counter_shelf_days"`
 
+	// CounterSupply makes the Counter open boosters to stock itself. The default opens none.
+	CounterSupply CounterSupplyConfig `yaml:"counter_supply"`
+
 	// Energy holds the energy recharge parameters.
 	Energy EnergyConfig `yaml:"energy"`
 
@@ -269,6 +289,7 @@ func defaults() Config {
 		CounterSellPct:   60,
 		CounterBuyPct:    120,
 		CounterShelfDays: -1,
+		CounterSupply:    CounterSupplyConfig{Mode: CounterSupplyNone},
 		WelcomeBonus:     200,
 		DailyReward:      100,
 		Energy: EnergyConfig{
@@ -401,6 +422,9 @@ func validate(cfg Config) error {
 		}
 	}
 	if err := validateEnergy(cfg.Energy); err != nil {
+		return err
+	}
+	if err := validateCounterSupply(cfg.CounterSupply); err != nil {
 		return err
 	}
 	if err := validateNPCs(cfg.NPCs); err != nil {

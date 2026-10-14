@@ -23,8 +23,9 @@ type Engine struct {
 	energy        *domain.Energy
 	collection    *domain.Collection
 	counter       *domain.Counter
-	crowd         *domain.Crowd    // nil in a run without NPCs
-	exchange      *domain.Exchange // nil unless trades are enabled
+	crowd         *domain.Crowd         // nil in a run without NPCs
+	supply        *domain.CounterSupply // nil unless the Counter opens boosters
+	exchange      *domain.Exchange      // nil unless trades are enabled
 	opener        *domain.Opener
 	policy        PlayerPolicy
 	boosterCosts  map[string]int // setCode -> energy cost; openable sets only
@@ -38,6 +39,8 @@ type Engine struct {
 	dayTradesRefused  int
 	dayNPCBoosters    int
 	dayNPCSold        int
+	daySupplyBoosters int
+	daySupplyCards    int
 }
 
 type options struct {
@@ -163,6 +166,10 @@ func NewEngine(
 	if err != nil {
 		return nil, err
 	}
+	supply, err := newCounterSupply(cfg, catalogues, counter)
+	if err != nil {
+		return nil, err
+	}
 
 	// Build opener with the classic layout.
 	opener := domain.NewOpener(
@@ -230,6 +237,7 @@ func NewEngine(
 		collection:    collection,
 		counter:       counter,
 		crowd:         crowd,
+		supply:        supply,
 		exchange:      exchange,
 		opener:        opener,
 		policy:        policy,
@@ -287,6 +295,8 @@ func (e *Engine) Run() (Result, error) {
 		e.dayTradesRefused = 0
 		e.dayNPCBoosters = 0
 		e.dayNPCSold = 0
+		e.daySupplyBoosters = 0
+		e.daySupplyCards = 0
 
 		if e.exchange != nil {
 			e.exchange.StartDay(day)
@@ -298,6 +308,9 @@ func (e *Engine) Run() (Result, error) {
 				return Result{}, fmt.Errorf("sim: day %d tick %d: energy tick: %w", day, tick, err)
 			}
 			e.counter.Tick()
+			if err := e.tickSupply(); err != nil {
+				return Result{}, fmt.Errorf("sim: day %d tick %d: %w", day, tick, err)
+			}
 			if err := e.tickCrowd(); err != nil {
 				return Result{}, fmt.Errorf("sim: day %d tick %d: %w", day, tick, err)
 			}
@@ -341,6 +354,9 @@ func (e *Engine) Run() (Result, error) {
 	if e.exchange != nil {
 		addTradeSummary(summary, days)
 	}
+	if e.supply != nil {
+		addCounterSummary(summary, days)
+	}
 
 	return Result{Days: days, Summary: summary}, nil
 }
@@ -367,6 +383,30 @@ func (e *Engine) tickCrowd() error {
 	e.dayNPCBoosters += tick.BoostersOpened
 	e.dayNPCSold += tick.CardsSold
 	return nil
+}
+
+// tickSupply advances the Counter's supply by one tick and books what it opened into the day
+// counters. It does nothing when the Counter opens no boosters.
+func (e *Engine) tickSupply() error {
+	if e.supply == nil {
+		return nil
+	}
+	tick, err := e.supply.Tick()
+	if err != nil {
+		return err
+	}
+	e.daySupplyBoosters += tick.BoostersOpened
+	e.daySupplyCards += tick.CardsOpened
+	return nil
+}
+
+// counterMetrics returns what the Counter opened on the day just ended, or nil when it opens
+// nothing.
+func (e *Engine) counterMetrics() *CounterDayMetrics {
+	if e.supply == nil {
+		return nil
+	}
+	return &CounterDayMetrics{BoostersOpened: e.daySupplyBoosters, CardsOpened: e.daySupplyCards}
 }
 
 // npcMetrics returns the crowd's metrics for the day just ended, or nil without a crowd.
@@ -427,6 +467,7 @@ func (e *Engine) snapshotDay(day int) (DayMetrics, error) {
 	return DayMetrics{
 		Day:             day,
 		NPC:             e.npcMetrics(),
+		Counter:         e.counterMetrics(),
 		Trade:           e.tradeMetrics(),
 		MoneySupply:     supply,
 		StockByRarity:   stock,

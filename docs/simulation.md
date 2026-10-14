@@ -124,7 +124,7 @@ All config keys and their defaults are listed in
 |-------|------|---------|
 | Economy | `coin_rate`, `counter_sell_pct`, `counter_buy_pct`, `welcome_bonus`, `daily_reward` | Coin flow and Counter pricing |
 | Energy | `energy.*` | Opening pace; see [Energy](core-features.md#energy) |
-| Counter | `initial_stock`, `fallback_price`, `counter_shelf_days` | Starting inventory, price floor and how long sold cards stay, see [The Counter's shelf life](#the-counters-shelf-life) |
+| Counter | `initial_stock`, `fallback_price`, `counter_shelf_days`, `counter_supply.*` | Starting inventory, price floor, how long sold cards stay and how the Counter stocks itself, see [The Counter's shelf life](#the-counters-shelf-life) and [The Counter as a special player](#the-counter-as-a-special-player) |
 | NPCs | `npcs.population`, `npcs.archetypes.*` | The NPC crowd; see [NPC crowd](#npc-crowd) |
 | Simulation | `sessions_per_day`, `run_days`, `seed` | Run parameters |
 | Sweep | `sweep_rates`, `targets` | Grid and calibration conditions |
@@ -213,6 +213,8 @@ above the run horizon. Config validation keeps it from passing by accident: an `
 | `npc_boosters_opened` | Boosters the NPCs opened over the run. Present only when `npcs.population` is above zero |
 | `npc_cards_sold` | Cards the NPCs sent to the Counter over the run. Present only with a crowd |
 | `npc_cards_held` | Cards all NPC collections hold after the last day. Present only with a crowd |
+| `counter_boosters_opened` | Boosters the Counter opened to stock itself over the run. Present only when it opens boosters |
+| `counter_cards_opened` | Cards those boosters held, all put on the Counter's shelf. Present only when it opens boosters |
 
 Judge the pace of one set by running it alone, with `--sets RAV` for example. With several sets the
 player shares energy between them, so every set takes longer. A set costs the same energy alone or
@@ -256,6 +258,32 @@ With a crowd, the stock settles near the crowd's daily sales times N, so N becom
 Counter's supply. With a sink or a short life the crowd stops flooding the Counter. A supply of
 boosters opened by the Counter itself is not built yet, see
 [TODO](todo.md#mechanics-not-simulated-yet-in-v1).
+
+## The Counter as a special player
+
+`counter_supply` lets the Counter open boosters to stock itself, as a player of its own. It is a
+feature flag: the default mode `none` opens nothing, and a run with it is the same as before it
+existed.
+
+```yaml
+counter_supply:
+  mode: fixed
+  boosters_per_day: 100
+```
+
+| Mode | The Counter |
+|------|-------------|
+| `none` | Opens nothing. This is the default. |
+| `fixed` | Opens `boosters_per_day` boosters a day, spread over the day, with no energy. It picks the set uniformly. |
+
+The cards it opens go on its shelf like cards sold to it, so `counter_shelf_days` applies to them:
+with `0` they vanish at once, and with a number of days they vanish after that long. Initial stock
+still never vanishes.
+
+The Counter draws on a random stream of its own, derived from `seed`. Adding a supply to a config
+does not change what the player or the NPCs draw, so two runs that differ only by the supply stay
+comparable. `compare` refuses a run that opens boosters against one that does not, because their
+columns differ.
 
 ## NPC crowd
 
