@@ -121,6 +121,11 @@ func NewEngine(
 		}
 	}
 
+	// A sheet card no catalogue holds would make a run with a supply or a crowd fail late.
+	if err := checkSheetCards(catalogues, supplementary); err != nil {
+		return nil, err
+	}
+
 	// A reference set no price covers would be valued at fallback_price and collapse the median,
 	// moving every energy cost a tier without a sign.
 	if err := checkReferencePriced(o.reference, catalogues, prices); err != nil {
