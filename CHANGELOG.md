@@ -8,6 +8,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Config validation is stricter, after a stress test of the new Counter settings. Numeric keys have
+  upper bounds, see [ADR-0014](docs/adr/0014-numeric-config-keys-have-upper-bounds.md). The Counter's
+  energy reserve must hold the dearest tier, see
+  [ADR-0015](docs/adr/0015-the-counters-reserve-must-hold-its-dearest-tier.md). A null item in a
+  sequence, a float in an integer field and an unknown rarity under `initial_stock` are errors,
+  where they were skipped, truncated and ignored, see
+  [ADR-0017](docs/adr/0017-config-input-is-strict.md). A config that relied on any of them no longer
+  loads.
+- A run fails at the start, naming the set and the `--supplementary` flag, when a booster sheet holds
+  a card that no loaded catalogue has, see
+  [ADR-0016](docs/adr/0016-a-run-fails-when-a-sheet-card-has-no-catalogue.md).
+- A config error is no longer prefixed with `config:` twice.
+
+### Fixed
+
+- The Counter's energy mode no longer panics, with `invalid argument to IntN`, when the energy costs
+  of the sets are so varied that the weights of its pick overflow. It returns an error naming the
+  costs.
+- A large `coins_per_energy`, and the other money keys, can no longer overflow the ledger or the
+  fee: they have upper bounds.
+
 - `tools/fetchdata` merges the prices of a call into the existing `prices.json` instead of
   overwriting it, so the sets of a catalogue directory can be downloaded in several calls. A
   `prices.json` it cannot decode stops the run and is left untouched.

@@ -49,6 +49,10 @@ many parameters at once for a config that meets the goals.
     milestone item below. Not built: no hook exists for it yet.
   - [x] Simulated player policies that trade, `trader`, and one that hunts for exploits by chaining
     trades across NPCs, `exploiter`. A test shows that no trade gains value.
+  - [ ] A way to decline an open offer. The exploiter's unanswered counter-offers stay open until
+    they expire, and every session and tick scans them, so its cost explodes with many sessions and
+    NPCs, see [Trades](simulation.md#trades). Declining them, or closing them when a session ends,
+    would remove the cliff. It needs an API on the Exchange and on the policies.
 - [ ] **Daily quests and chest**, see [Daily quests and chest](retention.md#daily-quests-and-chest).
   - [ ] Three quests a day drawn from a catalogue of quests, and a claim step.
   - [ ] The chest worth +2 energy. `Energy` has no way to add a bonus yet.

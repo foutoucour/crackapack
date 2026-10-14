@@ -137,6 +137,17 @@ above the 144 ticks of a day, an energy cost no larger reserve plus savings can 
 (`energy.cost_table[i].cost` above `reserve_cap + savings_cap`), and a `days_to_*` target whose
 maximum exceeds `run_days`.
 
+It also rejects:
+- A numeric key above its upper bound, see [ADR-0014](adr/0014-numeric-config-keys-have-upper-bounds.md).
+- A Counter energy whose `reserve_cap` cannot hold the dearest energy cost, savings not counting,
+  see [ADR-0015](adr/0015-the-counters-reserve-must-hold-its-dearest-tier.md).
+- A null item in a sequence, a float where an integer is expected and an unknown rarity under
+  `initial_stock`, see [ADR-0017](adr/0017-config-input-is-strict.md).
+
+A run fails at the start when a booster sheet holds a card that no loaded catalogue has, usually
+because a supplementary pool such as TSB was not passed, see
+[ADR-0016](adr/0016-a-run-fails-when-a-sheet-card-has-no-catalogue.md).
+
 ### Catalogue directory
 
 A directory of MTGJSON v5 set files, one per set code (`RAV.json`, `TSP.json`,
@@ -443,7 +454,10 @@ Two policies trade, see `--player`:
 - `exploiter` chains trades across every NPC looking for a gain. It finds none: a test runs both
   policies for 30 days, at a margin of 0% and 10%, and checks that no proposal or acceptance raises
   the player's coins plus the reference value of its cards. A property test does the same for
-  random offers straight against the Exchange.
+  random offers straight against the Exchange. Its cost grows with the sessions, the NPCs and the
+  shelf cards it probes, because a counter-offer it does not accept stays open until it expires:
+  at 144 sessions a day with 300 NPCs, 10 days take over a minute, against 2 seconds at 3 sessions a
+  day. The other policies are not affected.
 
 A run with trades adds these metrics, summed over the run in the summary and per day in
 `days.csv`: `trade_player_proposals`, `trade_npc_offers`, `trade_accepted`, `trade_countered`,
