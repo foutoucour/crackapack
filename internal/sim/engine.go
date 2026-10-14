@@ -166,10 +166,6 @@ func NewEngine(
 	if err != nil {
 		return nil, err
 	}
-	supply, err := newCounterSupply(cfg, catalogues, counter)
-	if err != nil {
-		return nil, err
-	}
 
 	// Build opener with the classic layout.
 	opener := domain.NewOpener(
@@ -209,6 +205,10 @@ func NewEngine(
 			return nil, fmt.Errorf("sim: energy cost for %q: %w", cat.Code, err)
 		}
 		boosterCosts[cat.Code] = cost
+	}
+	supply, err := newCounterSupply(cfg, catalogues, counter, boosterCosts)
+	if err != nil {
+		return nil, err
 	}
 	maxWait, err := maxBoosterWaitMinutes(energyParams, boosterCosts)
 	if err != nil {

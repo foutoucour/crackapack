@@ -33,7 +33,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - `counter_supply`, a feature flag that makes the Counter open boosters to stock itself. The mode
-  `fixed` opens a set number a day, with no energy. The default `none` opens nothing, so existing
+  `fixed` opens a set number a day, with no energy, and the mode `energy` opens a booster whenever
+  the Counter's own energy pays the cost of the set. The default `none` opens nothing, so existing
   runs are unchanged. A run that opens boosters adds the `counter_boosters_opened` and
   `counter_cards_opened` metrics. See
   [The Counter as a special player](docs/simulation.md#the-counter-as-a-special-player).

@@ -122,15 +122,34 @@ const (
 	CounterSupplyNone = "none"
 	// CounterSupplyFixed makes the Counter open a fixed number of boosters a day, with no energy.
 	CounterSupplyFixed = "fixed"
+	// CounterSupplyEnergy makes the Counter open boosters from an energy budget of its own, paying
+	// the energy cost of each set.
+	CounterSupplyEnergy = "energy"
 )
+
+// CounterEnergyConfig is the energy of the Counter in energy mode. It has the shape of the
+// player's energy, only much larger.
+type CounterEnergyConfig struct {
+	// RechargePerTick is the energy added to the reserve each tick.
+	RechargePerTick int `yaml:"recharge_per_tick"`
+	// ReserveCap is the most energy the main reserve holds.
+	ReserveCap int `yaml:"reserve_cap"`
+	// SavingsIntervalTicks is the ticks between savings recharges once the reserve is full.
+	SavingsIntervalTicks int `yaml:"savings_interval_ticks"`
+	// SavingsCap is the most energy the savings pool holds.
+	SavingsCap int `yaml:"savings_cap"`
+}
 
 // CounterSupplyConfig is how the Counter stocks itself by opening boosters, as a special player.
 type CounterSupplyConfig struct {
-	// Mode is CounterSupplyNone (the default), CounterSupplyFixed or, later, an energy mode.
+	// Mode is CounterSupplyNone (the default), CounterSupplyFixed or CounterSupplyEnergy.
 	Mode string `yaml:"mode"`
 
 	// BoostersPerDay is the number of boosters the Counter opens each day in fixed mode.
 	BoostersPerDay int `yaml:"boosters_per_day"`
+
+	// Energy is the Counter's energy in energy mode.
+	Energy CounterEnergyConfig `yaml:"energy"`
 }
 
 // ArchetypeConfig is the supply behaviour of one NPC archetype, see docs/core-features.md.
@@ -289,9 +308,13 @@ func defaults() Config {
 		CounterSellPct:   60,
 		CounterBuyPct:    120,
 		CounterShelfDays: -1,
-		CounterSupply:    CounterSupplyConfig{Mode: CounterSupplyNone},
-		WelcomeBonus:     200,
-		DailyReward:      100,
+		// ASSUMPTION: the Counter's energy is a starting guess, twenty times the player's recharge.
+		CounterSupply: CounterSupplyConfig{
+			Mode:   CounterSupplyNone,
+			Energy: CounterEnergyConfig{RechargePerTick: 20, ReserveCap: 100, SavingsIntervalTicks: 1, SavingsCap: 1000},
+		},
+		WelcomeBonus: 200,
+		DailyReward:  100,
 		Energy: EnergyConfig{
 			RechargePerTick:      1,
 			ReserveCap:           10,
@@ -424,7 +447,7 @@ func validate(cfg Config) error {
 	if err := validateEnergy(cfg.Energy); err != nil {
 		return err
 	}
-	if err := validateCounterSupply(cfg.CounterSupply); err != nil {
+	if err := validateCounterSupply(cfg.CounterSupply, cfg.Energy.CostTable); err != nil {
 		return err
 	}
 	if err := validateNPCs(cfg.NPCs); err != nil {

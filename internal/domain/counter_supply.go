@@ -22,10 +22,20 @@ type CounterSupply struct {
 	opener  *Opener
 	rng     *rand.Rand
 
-	// perDay is the boosters opened each day. credit accumulates it a tick at a time, so that a
-	// day's openings match perDay exactly, as for an NPC.
+	// Fixed mode: perDay is the boosters opened each day. credit accumulates it a tick at a time,
+	// so that a day's openings match perDay exactly, as for an NPC.
 	perDay int
 	credit int
+
+	// Energy mode: the Counter opens a booster whenever its energy pays the cost of the set it has
+	// picked next. weights make the pick proportional to 1/cost, so every set gets an equal share
+	// of energy and a dear set is opened less often. next stays picked until the booster is
+	// opened, so that a dear set is not re-rolled while its energy builds up.
+	energy    *Energy
+	costs     map[string]int
+	weights   []int
+	weightSum int
+	next      int // index into sets, or -1 when none is picked
 }
 
 // NewFixedCounterSupply returns a supply that opens boostersPerDay boosters a day, spread over the
@@ -50,13 +60,67 @@ func NewFixedCounterSupply(counter *Counter, sets []SetCatalogue, opener *Opener
 	return &CounterSupply{counter: counter, sets: sets, opener: opener, rng: rng, perDay: boostersPerDay}, nil
 }
 
+// NewEnergyCounterSupply returns a supply that opens a booster whenever energy pays the energy cost
+// of the set it has picked, from costs keyed by set code. A set is picked with a weight of
+// 1/cost, so each set gets an equal share of energy.
+//
+// It returns an error when counter, opener, rng or energy is nil, when sets is empty, or when a
+// set has no positive cost. A cost above what energy can ever hold is not checked here: the supply
+// would then never open that set.
+func NewEnergyCounterSupply(counter *Counter, sets []SetCatalogue, opener *Opener, rng *rand.Rand, energy *Energy, costs map[string]int) (*CounterSupply, error) {
+	switch {
+	case counter == nil:
+		return nil, errors.New("counter supply: counter must not be nil")
+	case opener == nil:
+		return nil, errors.New("counter supply: opener must not be nil")
+	case rng == nil:
+		return nil, errors.New("counter supply: rng must not be nil")
+	case energy == nil:
+		return nil, errors.New("counter supply: energy must not be nil")
+	case len(sets) == 0:
+		return nil, errors.New("counter supply: at least one set is required")
+	}
+	costList := make([]int, len(sets))
+	for i, cat := range sets {
+		cost, ok := costs[cat.Code]
+		if !ok || cost <= 0 {
+			return nil, fmt.Errorf("counter supply: set %q needs a positive energy cost, got %d", cat.Code, cost)
+		}
+		costList[i] = cost
+	}
+	scale := 1
+	for _, cost := range costList {
+		scale = scale / gcd(scale, cost) * cost
+	}
+	weights := make([]int, len(sets))
+	var sum int
+	for i, cost := range costList {
+		weights[i] = scale / cost
+		sum += weights[i]
+	}
+	return &CounterSupply{
+		counter: counter, sets: sets, opener: opener, rng: rng,
+		energy: energy, costs: costs, weights: weights, weightSum: sum, next: -1,
+	}, nil
+}
+
+func gcd(a, b int) int {
+	for b != 0 {
+		a, b = b, a%b
+	}
+	return a
+}
+
 // Tick advances the supply by one tick and opens the boosters it has come due for.
 func (s *CounterSupply) Tick() (SupplyTick, error) {
+	if s.energy != nil {
+		return s.tickEnergy()
+	}
 	var total SupplyTick
 	s.credit += s.perDay
 	for s.credit >= TicksPerDay {
 		s.credit -= TicksPerDay
-		cards, err := s.openBooster()
+		cards, err := s.openBooster(s.sets[s.rng.IntN(len(s.sets))])
 		if err != nil {
 			return total, err
 		}
@@ -66,9 +130,48 @@ func (s *CounterSupply) Tick() (SupplyTick, error) {
 	return total, nil
 }
 
-// openBooster opens one booster of a set chosen uniformly and shelves every card it holds.
-func (s *CounterSupply) openBooster() (int, error) {
-	cat := s.sets[s.rng.IntN(len(s.sets))]
+// tickEnergy recharges the Counter's energy and opens every booster it can now pay for.
+func (s *CounterSupply) tickEnergy() (SupplyTick, error) {
+	var total SupplyTick
+	if err := s.energy.Tick(1); err != nil {
+		return total, fmt.Errorf("counter supply: energy: %w", err)
+	}
+	for {
+		if s.next < 0 {
+			s.next = s.pickWeighted()
+		}
+		cat := s.sets[s.next]
+		cost := s.costs[cat.Code]
+		if s.energy.Reserve()+s.energy.Savings() < cost {
+			return total, nil
+		}
+		if err := s.energy.Spend(cost); err != nil {
+			return total, fmt.Errorf("counter supply: spend energy for %q: %w", cat.Code, err)
+		}
+		cards, err := s.openBooster(cat)
+		if err != nil {
+			return total, err
+		}
+		s.next = -1
+		total.BoostersOpened++
+		total.CardsOpened += cards
+	}
+}
+
+// pickWeighted returns the index of a set chosen with a probability proportional to its weight.
+func (s *CounterSupply) pickWeighted() int {
+	r := s.rng.IntN(s.weightSum)
+	for i, w := range s.weights {
+		if r < w {
+			return i
+		}
+		r -= w
+	}
+	return len(s.sets) - 1
+}
+
+// openBooster opens one booster of cat and shelves every card it holds.
+func (s *CounterSupply) openBooster(cat SetCatalogue) (int, error) {
 	booster, err := s.opener.Open(BoosterLayoutClassic, cat)
 	if err != nil {
 		return 0, fmt.Errorf("counter supply: open booster of %q: %w", cat.Code, err)

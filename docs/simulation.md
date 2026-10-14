@@ -275,6 +275,26 @@ counter_supply:
 |------|-------------|
 | `none` | Opens nothing. This is the default. |
 | `fixed` | Opens `boosters_per_day` boosters a day, spread over the day, with no energy. It picks the set uniformly. |
+| `energy` | Opens a booster whenever its own energy pays the energy cost of the set it picked. |
+
+In `energy` mode the Counter has an energy of its own, shaped like the player's and much larger. It
+pays the same energy cost per set as the player, set by the
+[cost table](core-features.md#energy), and the Counter's energy never feeds the player's.
+
+```yaml
+counter_supply:
+  mode: energy
+  energy:
+    recharge_per_tick: 20
+    reserve_cap: 100
+    savings_interval_ticks: 1
+    savings_cap: 1000
+```
+
+The Counter picks each set with a weight of one over its cost, so every set gets an equal share of
+energy and a dear set is opened less often. A pick stays until its booster is opened, so a dear
+set is not re-rolled while its energy builds up. The energy must be able to hold the dearest
+tier, or the config is rejected. The values above are the defaults, and they are guesses.
 
 The cards it opens go on its shelf like cards sold to it, so `counter_shelf_days` applies to them:
 with `0` they vanish at once, and with a number of days they vanish after that long. Initial stock
