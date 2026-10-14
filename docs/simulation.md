@@ -123,7 +123,7 @@ All config keys and their defaults are listed in
 | Group | Keys | Purpose |
 |-------|------|---------|
 | Economy | `coin_rate`, `counter_sell_pct`, `counter_buy_pct`, `welcome_bonus`, `daily_reward` | Coin flow and Counter pricing |
-| Energy | `energy.*` | Opening pace; see [Energy](core-features.md#energy) |
+| Energy | `energy.*` | Opening pace, and the coin fee on dear boosters; see [Energy](core-features.md#energy) and [The coin fee on dear boosters](#the-coin-fee-on-dear-boosters) |
 | Counter | `initial_stock`, `fallback_price`, `counter_shelf_days`, `counter_supply.*`, `counter_budget.*` | Starting inventory, price floor, how long sold cards stay and how the Counter stocks and pays for itself, see [The Counter's shelf life](#the-counters-shelf-life) and [The Counter as a special player](#the-counter-as-a-special-player) |
 | NPCs | `npcs.population`, `npcs.archetypes.*` | The NPC crowd; see [NPC crowd](#npc-crowd) |
 | Simulation | `sessions_per_day`, `run_days`, `seed` | Run parameters |
@@ -221,6 +221,7 @@ above the run horizon. Config validation keeps it from passing by accident: an `
 | `days_to_100pct.<setcode>` | First day (1-based) where every card of the set is owned: its whole binder |
 | `coins_after_full_binder` | Coins the player gains from the first day every openable set is complete to the end of the run; `0` when that day is never reached. It measures the coins that have nothing left to buy |
 | `max_booster_wait_minutes` | Longest wait, from empty reserve and empty savings, to afford one booster of any openable set. It follows from the energy settings and does not depend on play |
+| `booster_fee_coins` | Coin fees the player paid to open boosters over the run. Present only when `energy.coins_per_energy` is above zero |
 | `npc_boosters_opened` | Boosters the NPCs opened over the run. Present only when `npcs.population` is above zero |
 | `npc_cards_sold` | Cards the NPCs sent to the Counter over the run. Present only with a crowd |
 | `npc_cards_held` | Cards all NPC collections hold after the last day. Present only with a crowd |
@@ -244,6 +245,38 @@ so `max_booster_wait_minutes` only changes when a set with a higher cost joins t
 | `idle` | Does nothing, so only the NPCs act and the run measures the supply they send to the Counter |
 | `trader` | Plays like the `collector` and also trades with NPCs, see [Trades](#trades) |
 | `exploiter` | Plays like the `collector` and chains trades across every NPC looking for a gain, see [Trades](#trades) |
+
+## The coin fee on dear boosters
+
+A booster's energy cost stops at the dearest tier of the cost table, 12 energy by default. Past that
+cap a booster keeps paying out more coins per energy, see
+[Expensive old sets and the 12-energy cap](specs-review.md#expensive-old-sets-and-the-12-energy-cap).
+The fee makes the player pay for the difference in coins, so a dear set cannot be farmed for the
+price of 12 energy. The decision is recorded in
+[ADR-0019](adr/0019-the-player-pays-a-coin-fee-on-boosters-above-the-energy-cap.md).
+
+`energy.coins_per_energy`, the price `p` of one energy point, turns it on. A booster worth more than
+the cap's energy costs the cap's energy and, in coins, its cash-out value minus the cap times `p`.
+- The cash-out value is what the Counter would pay for the booster's cards, at `counter_sell_pct`.
+- The fee goes from the player to the `booster_fee` account and leaves the economy.
+- A booster worth no more than the cap times `p` pays no fee. At a `p` of 100 that is every
+  2005-2007 set.
+- The default 0 means no fee, and a run without one is the same as before the setting.
+
+The fee is a price in coins, while a booster's value scales with `coin_rate`. A `p` that suits one
+rate charges nothing at a lower rate and a lot at a higher one, so change them together.
+
+The player pays the fee when it opens the booster. A player short of coins is refused and loses no
+energy, just as one short of energy loses no coins. The `collector` and `cash-out` policies pass
+over a set whose fee they cannot pay and open the next one, rather than wait on a booster they
+cannot afford. The fees a set carries are in `WorldView.BoosterFees`.
+
+A run with a fee adds `booster_fee_coins` to the summary and to `days.csv`, and `booster_fee` to the
+money supply in `result.json`. `compare` refuses a run with a fee against one without, because their columns differ.
+
+The Counter has the same rule with its own `p`, see
+[The coin top-up and the treasury](#the-coin-top-up-and-the-treasury). Both read the fee from one
+function, so a set costs the player and the Counter the same at the same `p`.
 
 ## The Counter's shelf life
 
@@ -349,8 +382,9 @@ the dearest cost of the cost table. The fee goes from the treasury to `counter_f
 economy. A Counter whose treasury cannot pay the fee of a set picks another set the next tick.
 
 The 2005-2007 sets pay no fee at a `p` of 100, since none is worth more than 12 energy at that
-price. The rule is the one of the energy and coin top-up idea in the [TODO](todo.md), applied to
-the Counter only: the player's energy still cannot be bought with coins.
+price. The player pays the same rule with its own `p`, see
+[The coin fee on dear boosters](#the-coin-fee-on-dear-boosters). Neither pays coins for energy
+itself: the fee is a price on a dear booster, and energy still cannot be bought.
 
 The Counter draws on a random stream of its own, derived from `seed`. Adding a supply to a config
 does not change what the player or the NPCs draw, so two runs that differ only by the supply stay

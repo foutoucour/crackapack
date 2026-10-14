@@ -29,9 +29,11 @@ type Engine struct {
 	exchange      *domain.Exchange      // nil unless trades are enabled
 	opener        *domain.Opener
 	policy        PlayerPolicy
-	boosterCosts  map[string]int // setCode -> energy cost; openable sets only
-	maxWait       float64        // max_booster_wait_minutes of the run
-	ran           bool           // guards against calling Run more than once
+	boosterCosts  map[string]int          // setCode -> energy cost; openable sets only
+	boosterFees   map[string]domain.Coins // setCode -> coin fee the player pays; only sets that have one
+	feeOn         bool                    // the run prices energy and so reports the player's fees
+	maxWait       float64                 // max_booster_wait_minutes of the run
+	ran           bool                    // guards against calling Run more than once
 
 	// per-day session counters; reset at the start of each day
 	dayBoostersOpened int
@@ -44,6 +46,7 @@ type Engine struct {
 	daySupplyCards    int
 	daySupplyFees     domain.Coins
 	dayBrokeRefusals  int
+	dayBoosterFees    domain.Coins
 }
 
 type options struct {
@@ -225,6 +228,10 @@ func NewEngine(
 	if err != nil {
 		return nil, err
 	}
+	boosterFees, err := coinFees(cfg.Energy.CoinsPerEnergy, energyCap(cfg.Energy.CostTable), cfg.CoinRate, cfg.CounterSellPct, catalogues, avgValues)
+	if err != nil {
+		return nil, err
+	}
 	supply, err := newCounterSupply(cfg, catalogues, counter, boosterCosts, journal, fees)
 	if err != nil {
 		return nil, err
@@ -262,6 +269,8 @@ func NewEngine(
 		opener:        opener,
 		policy:        policy,
 		boosterCosts:  boosterCosts,
+		boosterFees:   boosterFees,
+		feeOn:         cfg.Energy.CoinsPerEnergy > 0,
 		maxWait:       maxWait,
 	}, nil
 }
@@ -319,6 +328,7 @@ func (e *Engine) Run() (Result, error) {
 		e.daySupplyCards = 0
 		e.daySupplyFees = 0
 		e.dayBrokeRefusals = 0
+		e.dayBoosterFees = 0
 
 		if err := fundTreasury(e.journal, e.cfg.CounterBudget.DailyFloat, fmt.Sprintf("daily float day %d", day)); err != nil {
 			return Result{}, fmt.Errorf("sim: day %d: %w", day, err)
@@ -382,6 +392,9 @@ func (e *Engine) Run() (Result, error) {
 	}
 	if e.counterOn {
 		addCounterSummary(summary, days)
+	}
+	if e.feeOn {
+		addBoosterFeeSummary(summary, days)
 	}
 
 	return Result{Days: days, Summary: summary}, nil
@@ -454,6 +467,15 @@ func (e *Engine) counterMetrics() *CounterDayMetrics {
 	}
 }
 
+// boosterFeeMetrics returns the fees the player paid on the day just ended, or nil in a run with no
+// fee price.
+func (e *Engine) boosterFeeMetrics() *BoosterFeeDayMetrics {
+	if !e.feeOn {
+		return nil
+	}
+	return &BoosterFeeDayMetrics{Coins: e.dayBoosterFees}
+}
+
 // npcMetrics returns the crowd's metrics for the day just ended, or nil without a crowd.
 func (e *Engine) npcMetrics() *NPCDayMetrics {
 	if e.crowd == nil {
@@ -474,6 +496,9 @@ func (e *Engine) snapshotDay(day int) (DayMetrics, error) {
 	}
 	if e.cfg.CounterBudget.Enabled {
 		accounts = append(accounts, domain.AccountCounterTreasury, domain.AccountCounterFloat, domain.AccountCounterFee)
+	}
+	if e.feeOn {
+		accounts = append(accounts, domain.AccountBoosterFee)
 	}
 	if e.exchange != nil {
 		accounts = append(accounts, domain.AccountTradeTopUp)
@@ -516,6 +541,7 @@ func (e *Engine) snapshotDay(day int) (DayMetrics, error) {
 		Day:             day,
 		NPC:             e.npcMetrics(),
 		Counter:         e.counterMetrics(),
+		BoosterFee:      e.boosterFeeMetrics(),
 		Trade:           e.tradeMetrics(),
 		MoneySupply:     supply,
 		StockByRarity:   stock,

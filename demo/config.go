@@ -25,6 +25,12 @@ const demSeed uint64 = 42
 // Counter as a special player without moving its calibration. A smaller treasury runs the Counter
 // out of coins at the higher rates, which removes the passing window.
 //
+// Energy costs 300 coins a point, so the cap's 12 energy is worth 3,600 coins. At the dearest rate
+// of the sweep the demo's boosters are worth more than that and the player pays the difference as
+// a fee; at the other rates no booster is. The sweep outcome above does not change. A price of 200
+// would drain the player to a few hundred coins at rate 400, and a price of 100 would do so at
+// rate 200 as well.
+//
 // Note: days_to_100pct_cu.dem = 4 at all rates (the collector's buy-all-cheapest
 // strategy is rate-insensitive on this dataset). That metric is informative but
 // not a calibration target here.
@@ -37,6 +43,8 @@ npcs:
   surplus_hold_days: 2
 trades:
   enabled: true
+energy:
+  coins_per_energy: 300
 counter_supply:
   mode: fixed
   boosters_per_day: 40

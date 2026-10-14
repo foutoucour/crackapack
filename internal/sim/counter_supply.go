@@ -1,7 +1,6 @@
 package sim
 
 import (
-	"errors"
 	"fmt"
 	"math/rand/v2"
 
@@ -50,32 +49,11 @@ func newCounterSupply(cfg config.Config, openable []domain.SetCatalogue, counter
 	return supply, nil
 }
 
-// counterCoinFees returns the coin fee of one booster of each openable set, keyed by set code. A
-// booster worth more than the energy cap costs its cash-out value, what the Counter would pay the
-// player for its cards, minus what the cap is worth at coins_per_energy. With coins_per_energy at
-// 0, or outside energy mode, no set has a fee.
-//
-// The cap is the dearest energy cost of the cost table, the cost a booster has once it passes the
-// last tier.
+// counterCoinFees returns the coin fee of each openable set for the Counter, see coinFees. Outside
+// energy mode no set has a fee.
 func counterCoinFees(cfg config.Config, openable []domain.SetCatalogue, avgValues []domain.USDCents) (map[string]domain.Coins, error) {
-	p := cfg.CounterSupply.CoinsPerEnergy
-	if p <= 0 || cfg.CounterSupply.Mode != config.CounterSupplyEnergy {
+	if cfg.CounterSupply.Mode != config.CounterSupplyEnergy {
 		return nil, nil
 	}
-	var energyCap int
-	for _, tier := range cfg.Energy.CostTable {
-		energyCap = max(energyCap, tier.Cost)
-	}
-	capValue := domain.Coins(energyCap) * p
-	fees := make(map[string]domain.Coins, len(openable))
-	for i, cat := range openable {
-		value, err := domain.PriceToCoins(avgValues[i], cfg.CoinRate, cfg.CounterSellPct)
-		if err != nil && !errors.Is(err, domain.ErrSubCoin) {
-			return nil, fmt.Errorf("sim: coin fee of %q: %w", cat.Code, err)
-		}
-		if value > capValue {
-			fees[cat.Code] = value - capValue
-		}
-	}
-	return fees, nil
+	return coinFees(cfg.CounterSupply.CoinsPerEnergy, energyCap(cfg.Energy.CostTable), cfg.CoinRate, cfg.CounterSellPct, openable, avgValues)
 }

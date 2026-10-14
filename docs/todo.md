@@ -87,10 +87,16 @@ many parameters at once for a config that meets the goals.
 - [ ] **Energy cost plus coin top-up**, so that coins matter for pace. A booster keeps its energy
   cost and part of that energy can be paid in coins at one rate. Without energy a pack cannot be
   opened. Decided: the design above. To simulate: the limit on converting.
-  - [ ] A constant `p`, in coins per energy, at least the best coins per energy of the tiered sets
-    (about 92). Start at 100.
-  - [ ] A mandatory coin fee for a booster worth more than the 12-energy cap, `V - 12p` for a booster
-    of value V. The 2005-2007 sets pay nothing.
+  - [x] A constant `p`, in coins per energy, at least the best coins per energy of the tiered sets
+    (about 92). Start at 100. Built as `energy.coins_per_energy`, off by default.
+  - [x] A mandatory coin fee for a booster worth more than the 12-energy cap, `V - 12p` for a booster
+    of value V. The 2005-2007 sets pay nothing. See
+    [The coin fee on dear boosters](simulation.md#the-coin-fee-on-dear-boosters) and
+    [ADR-0019](adr/0019-the-player-pays-a-coin-fee-on-boosters-above-the-energy-cap.md).
+  - [ ] The `collector` stalls when no set's fee is affordable. On RAV, TSP and TSB over 30 days at a
+    `p` of 10 it opened no booster, since it spends its coins on cards and never saves for a fee.
+    Not a problem at a `p` of 100, where these sets pay nothing. It belongs with the converting
+    policy below, which has to manage coins against the fee.
   - [ ] Optional conversion of energy into coins, with a limit. Simulate three variants: a minimum
     energy share (never below 1 energy), an escalating price that resets daily, and both.
   - [ ] Simulate the energy cost as the current 3, 5, 8 and 12 tiers and as a continuous price of

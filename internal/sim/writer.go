@@ -47,8 +47,8 @@ type column struct {
 // The returned slice does not include the "day" column (always first, emitted separately).
 // setCodes must be sorted ascending. The optional groups follow the set columns, each only for a
 // run that has it, so the output of other runs is unchanged: with.npc appends the three NPC
-// columns, with.counter the five columns of the Counter's own doings, and with.trades the trade
-// account balance and the eight trade columns.
+// columns, with.counter the five columns of the Counter's own doings, with.boosterFee the coin fee
+// the player paid that day, and with.trades the trade account balance and the eight trade columns.
 //
 // Accessing nil maps in DayMetrics (MoneySupply, StockByRarity, SetProgress)
 // returns zero values; callers may safely pass a zero-valued DayMetrics to
@@ -108,6 +108,13 @@ func dayColumns(d DayMetrics, setCodes []string, with extras) []column {
 			column{name: "counter_broke_refusals", value: int64(counter.BrokeRefusals)},
 		)
 	}
+	if with.boosterFee {
+		var fee BoosterFeeDayMetrics
+		if d.BoosterFee != nil {
+			fee = *d.BoosterFee
+		}
+		cols = append(cols, column{name: "booster_fee_coins", value: int64(fee.Coins)})
+	}
 	if with.trades {
 		var trade TradeDayMetrics
 		if d.Trade != nil {
@@ -129,9 +136,9 @@ func dayColumns(d DayMetrics, setCodes []string, with extras) []column {
 }
 
 // extras says which optional groups of columns a run has: the NPC crowd, the Counter's own
-// openings and trades. Every day of a run agrees, so the first one decides.
+// openings, the player's booster fee and trades. Every day of a run agrees, so the first one decides.
 type extras struct {
-	npc, counter, trades bool
+	npc, counter, trades, boosterFee bool
 }
 
 // extrasOf reports which optional groups of columns the run behind days has.
@@ -139,7 +146,7 @@ func extrasOf(days []DayMetrics) extras {
 	if len(days) == 0 {
 		return extras{}
 	}
-	return extras{npc: days[0].NPC != nil, counter: days[0].Counter != nil, trades: days[0].Trade != nil}
+	return extras{npc: days[0].NPC != nil, counter: days[0].Counter != nil, trades: days[0].Trade != nil, boosterFee: days[0].BoosterFee != nil}
 }
 
 // WriteJSON encodes r as JSON and writes it to w.
@@ -168,7 +175,8 @@ func WriteJSON(w io.Writer, r Result) error {
 //  7. npc_boosters_opened, npc_cards_sold, npc_cards_held, only when the run had an NPC crowd
 //  8. counter_boosters_opened, counter_cards_opened, counter_fee_coins, counter_treasury,
 //     counter_broke_refusals, only when the Counter opened boosters or had a treasury
-//  9. trade_topup, then the eight trade_* columns, only when the run had trades
+//  9. booster_fee_coins, only when the run priced energy in coins (energy.coins_per_energy)
+//  10. trade_topup, then the eight trade_* columns, only when the run had trades
 //
 // Set codes and the presence of the optional groups are determined from the first DayMetrics
 // entry if present.

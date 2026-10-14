@@ -15,6 +15,10 @@ func (e *Engine) buildWorldView(day int) WorldView {
 	for _, cat := range e.catalogues {
 		setProgress[cat.Code] = e.collection.BinderProgress(cat)
 	}
+	fees := make(map[string]domain.Coins, len(e.boosterFees))
+	for k, v := range e.boosterFees {
+		fees[k] = v
+	}
 	// Copy boosterCosts so the policy cannot mutate the engine's map.
 	costs := make(map[string]int, len(e.boosterCosts))
 	for k, v := range e.boosterCosts {
@@ -27,6 +31,7 @@ func (e *Engine) buildWorldView(day int) WorldView {
 		EnergyTotal:    e.energy.Reserve() + e.energy.Savings(),
 		SetProgress:    setProgress,
 		BoosterCosts:   costs,
+		BoosterFees:    fees,
 		Catalogues:     e.catalogues,
 		Prices:         e.prices,
 		OwnedCards:     e.collection.Snapshot(),
@@ -74,9 +79,23 @@ func (p *port) OpenBooster(setCode string) error {
 		return err
 	}
 
+	// The balance is checked first so that a refusal for coins never costs energy, and the fee is
+	// posted last so that a refusal for energy never costs coins.
+	fee := p.e.boosterFees[setCode]
+	if balance := p.e.journal.Balance(domain.AccountPlayer); balance < fee {
+		// A player who cannot pay the fee is a normal policy guard, like one short of energy.
+		return fmt.Errorf("open booster %q: fee of %d coins, balance %d: %w", setCode, fee, balance, domain.ErrInsufficientBalance)
+	}
 	if err := p.e.energy.Spend(cost); err != nil {
 		// Insufficient energy is a normal policy guard, not a fatal error.
 		return err
+	}
+	if fee > 0 {
+		if err := p.e.journal.Post(domain.Entry{From: domain.AccountPlayer, To: domain.AccountBoosterFee, Amount: fee, Memo: "booster fee: set " + setCode}); err != nil {
+			p.fatalErr = fmt.Errorf("open booster %q: post fee: %w", setCode, err)
+			return p.fatalErr
+		}
+		p.e.dayBoosterFees += fee
 	}
 
 	booster, err := p.e.opener.Open(domain.BoosterLayoutClassic, *cat)

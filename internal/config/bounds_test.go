@@ -29,6 +29,7 @@ func TestLoad_upperBounds(t *testing.T) {
 		{key: "counter_budget.daily_float", yaml: "counter_budget:\n  enabled: true\n  daily_float: %d\n", bound: 1_000_000_000_000},
 		{key: "counter_supply.coins_per_energy", yaml: "counter_budget:\n  enabled: true\ncounter_supply:\n  mode: energy\n  coins_per_energy: %d\n", bound: 1_000_000_000_000},
 		{key: "counter_supply.boosters_per_day", yaml: "counter_supply:\n  mode: fixed\n  boosters_per_day: %d\n", bound: 100_000},
+		{key: "energy.coins_per_energy", yaml: "energy:\n  coins_per_energy: %d\n", bound: 1_000_000_000_000},
 		{key: "energy.recharge_per_tick", yaml: "energy:\n  recharge_per_tick: %d\n", bound: 1_000},
 		{key: "energy.reserve_cap", yaml: "energy:\n  reserve_cap: %d\n", bound: 10_000},
 		{key: "energy.savings_cap", yaml: "energy:\n  savings_cap: %d\n", bound: 100_000},

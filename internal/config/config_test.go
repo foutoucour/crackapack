@@ -31,6 +31,7 @@ func TestLoad_defaults(t *testing.T) {
 		{"Energy.ReserveCap", cfg.Energy.ReserveCap, 10},
 		{"Energy.SavingsIntervalTicks", cfg.Energy.SavingsIntervalTicks, 3},
 		{"Energy.SavingsCap", cfg.Energy.SavingsCap, 200},
+		{"Energy.CoinsPerEnergy", cfg.Energy.CoinsPerEnergy, domain.Coins(0)},
 		{"FallbackPrice", cfg.FallbackPrice, domain.USDCents(1)},
 		{"SessionsPerDay", cfg.SessionsPerDay, 3},
 		{"RunDays", cfg.RunDays, 90},
@@ -302,6 +303,11 @@ func TestLoad_errorCases(t *testing.T) {
 			name:        "energy_savings_cap_negative",
 			yaml:        "energy:\n  savings_cap: -1",
 			wantKeyword: "energy.savings_cap",
+		},
+		{
+			name:        "energy_coins_per_energy_negative",
+			yaml:        "energy:\n  coins_per_energy: -1",
+			wantKeyword: "energy.coins_per_energy",
 		},
 		{
 			name:        "energy_cost_table_empty",

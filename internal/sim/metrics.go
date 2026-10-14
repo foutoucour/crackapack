@@ -40,6 +40,12 @@ type CounterDayMetrics struct {
 	BrokeRefusals int
 }
 
+// BoosterFeeDayMetrics is what the player paid in coin fees to open boosters on one day.
+type BoosterFeeDayMetrics struct {
+	// Coins is the fees paid from the player's wallet during the day.
+	Coins domain.Coins
+}
+
 // TradeDayMetrics is what happened to the trades with NPCs on one day.
 type TradeDayMetrics struct {
 	// PlayerProposals counts the offers the player made, counters to NPC offers included.
@@ -69,6 +75,10 @@ type DayMetrics struct {
 	// Counter is nil when the Counter does not open boosters, which keeps the output of such runs
 	// unchanged.
 	Counter *CounterDayMetrics `json:",omitempty"`
+
+	// BoosterFee is nil when the player pays no coin fee, which keeps the output of such runs
+	// unchanged.
+	BoosterFee *BoosterFeeDayMetrics `json:",omitempty"`
 
 	// Trade is nil when trades are not enabled, which keeps the output of such runs unchanged.
 	Trade *TradeDayMetrics `json:",omitempty"`
@@ -153,6 +163,9 @@ type DayMetrics struct {
 //   - counter_broke_refusals: sales refused because the treasury could not pay
 //   - counter_treasury: coins in the treasury after the last day
 //
+// A run where the player pays a coin fee for energy adds one, absent from every other run:
+//   - booster_fee_coins: coin fees the player paid to open boosters over the run
+//
 // A run with trades adds eight more, absent from every other run, each summed over the run:
 //   - trade_player_proposals, trade_npc_offers: offers the player and the NPCs made
 //   - trade_accepted, trade_countered, trade_refused, trade_expired: how offers ended
@@ -178,6 +191,16 @@ func addCounterSummary(s Summary, days []DayMetrics) {
 	if len(days) > 0 {
 		s["counter_treasury"] = float64(days[len(days)-1].Counter.Treasury)
 	}
+}
+
+// addBoosterFeeSummary adds the total of the player's booster fees to s. Every entry of days must
+// carry booster fee metrics.
+func addBoosterFeeSummary(s Summary, days []DayMetrics) {
+	var fees domain.Coins
+	for _, d := range days {
+		fees += d.BoosterFee.Coins
+	}
+	s["booster_fee_coins"] = float64(fees)
 }
 
 // addNPCSummary adds the crowd totals to s. Every entry of days must carry NPC metrics.
