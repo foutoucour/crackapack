@@ -158,7 +158,7 @@ are the goals and their bands, the scope, and the remedies that change a rule.
   pre-Mirage sets loadable.
 - [ ] **Reference value of a card with no TCGplayer price.** Today it is `fallback_price`.
 - [ ] **Foil prices.** A foil shares its non-foil's price, a documented simplification pending a
-  per-finish source.
+  per-finish source. An `etched` finish loads as a foil, so it shares that price too.
 - [ ] **Duplicate protection and jokers:** commons and uncommons only, or rares once the set is
   complete, see [Lessons from MTG Arena](retention.md#lessons-from-mtg-arena).
 - [ ] **Scope:** Ninth and Tenth Edition in V1, and a first economy run on Planar Chaos and Future

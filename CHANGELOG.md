@@ -44,6 +44,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A catalogue holding the MTGJSON `etched` finish, which the sets MAT, NEO, SNC and VOW do, made
+  every run that loaded it fail with `unknown finish "etched"`. The loader now reads `etched` as a
+  foil.
 - The Counter's energy mode no longer panics, with `invalid argument to IntN`, when the energy costs
   of the sets are so varied that the weights of its pick overflow. It returns an error naming the
   costs.
