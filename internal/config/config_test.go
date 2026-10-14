@@ -496,3 +496,38 @@ targets:
 		t.Errorf("Max: got %v, want 90", got.Max)
 	}
 }
+
+func TestLoad_counterShelfDays(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		yaml    string
+		want    int
+		wantErr string
+	}{
+		{name: "default keeps cards forever", yaml: "", want: -1},
+		{name: "zero is a sink", yaml: "counter_shelf_days: 0\n", want: 0},
+		{name: "a number of days", yaml: "counter_shelf_days: 3\n", want: 3},
+		{name: "explicit forever", yaml: "counter_shelf_days: -1\n", want: -1},
+		{name: "below forever is rejected", yaml: "counter_shelf_days: -2\n", wantErr: "counter_shelf_days"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cfg, err := config.Load(strings.NewReader(tc.yaml))
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("error = %v, want one naming %s", err, tc.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.CounterShelfDays != tc.want {
+				t.Errorf("CounterShelfDays = %d, want %d", cfg.CounterShelfDays, tc.want)
+			}
+		})
+	}
+}

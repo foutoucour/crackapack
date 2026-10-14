@@ -124,7 +124,7 @@ All config keys and their defaults are listed in
 |-------|------|---------|
 | Economy | `coin_rate`, `counter_sell_pct`, `counter_buy_pct`, `welcome_bonus`, `daily_reward` | Coin flow and Counter pricing |
 | Energy | `energy.*` | Opening pace; see [Energy](core-features.md#energy) |
-| Counter | `initial_stock`, `fallback_price` | Starting inventory and price floor |
+| Counter | `initial_stock`, `fallback_price`, `counter_shelf_days` | Starting inventory, price floor and how long sold cards stay, see [The Counter's shelf life](#the-counters-shelf-life) |
 | NPCs | `npcs.population`, `npcs.archetypes.*` | The NPC crowd; see [NPC crowd](#npc-crowd) |
 | Simulation | `sessions_per_day`, `run_days`, `seed` | Run parameters |
 | Sweep | `sweep_rates`, `targets` | Grid and calibration conditions |
@@ -228,6 +228,34 @@ so `max_booster_wait_minutes` only changes when a set with a higher cost joins t
 | `idle` | Does nothing, so only the NPCs act and the run measures the supply they send to the Counter |
 | `trader` | Plays like the `collector` and also trades with NPCs, see [Trades](#trades) |
 | `exploiter` | Plays like the `collector` and chains trades across every NPC looking for a gain, see [Trades](#trades) |
+
+## The Counter's shelf life
+
+`counter_shelf_days` sets how long a card sold to the Counter stays in its stock. It is a feature
+flag: the default `-1` keeps the Counter reselling what it buys, and a run with it is the same as
+before it existed. Change one line in the config file to enable or disable it.
+
+| Value | Meaning |
+|-------|---------|
+| `-1` | Cards stay forever. This is the default. |
+| `0` | Cards vanish at once, so the Counter is a sink. |
+| `N`, 1 or more | A card vanishes N days after it was sold. |
+
+```yaml
+counter_shelf_days: 2
+```
+
+The setting covers every card sold to the Counter, by the player or as NPC surplus. The player is
+still paid for a sale, so coins are still created. A card the player bought from the Counter and
+sells back goes on the shelf like any other.
+- Initial stock never vanishes, since it is not a sold card.
+- A purchase takes the oldest sold copy first, so the copies about to vanish are not wasted.
+- A card sold at some tick vanishes exactly N days of ticks later.
+
+With a crowd, the stock settles near the crowd's daily sales times N, so N becomes the dial of the
+Counter's supply. With a sink or a short life the crowd stops flooding the Counter. A supply of
+boosters opened by the Counter itself is not built yet, see
+[TODO](todo.md#mechanics-not-simulated-yet-in-v1).
 
 ## NPC crowd
 

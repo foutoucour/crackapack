@@ -218,6 +218,11 @@ type Config struct {
 	// DailyReward is the coins awarded each in-game day (default 100, per core-features.md).
 	DailyReward domain.Coins `yaml:"daily_reward"`
 
+	// CounterShelfDays is how many days a card sold to the Counter, by the player or by the
+	// NPCs, stays in its stock before it vanishes. 0 makes the Counter a sink, and -1, the
+	// default, keeps cards forever.
+	CounterShelfDays int `yaml:"counter_shelf_days"`
+
 	// Energy holds the energy recharge parameters.
 	Energy EnergyConfig `yaml:"energy"`
 
@@ -260,11 +265,12 @@ type Config struct {
 // [Load] overlays the YAML file on top, leaving absent fields at their defaults.
 func defaults() Config {
 	return Config{
-		CoinRate:       100, // see docs/adr/0006-coin-rate-is-100-per-dollar.md
-		CounterSellPct: 60,
-		CounterBuyPct:  120,
-		WelcomeBonus:   200,
-		DailyReward:    100,
+		CoinRate:         100, // see docs/adr/0006-coin-rate-is-100-per-dollar.md
+		CounterSellPct:   60,
+		CounterBuyPct:    120,
+		CounterShelfDays: -1,
+		WelcomeBonus:     200,
+		DailyReward:      100,
 		Energy: EnergyConfig{
 			RechargePerTick:      1,
 			ReserveCap:           10,
@@ -357,6 +363,9 @@ func validate(cfg Config) error {
 	}
 	if cfg.CounterSellPct <= 0 {
 		return fmt.Errorf("config: counter_sell_pct must be > 0, got %d", cfg.CounterSellPct)
+	}
+	if cfg.CounterShelfDays < -1 {
+		return fmt.Errorf("config: counter_shelf_days must be >= -1 (-1 keeps cards forever), got %d", cfg.CounterShelfDays)
 	}
 	if cfg.CounterBuyPct <= 0 {
 		return fmt.Errorf("config: counter_buy_pct must be > 0, got %d", cfg.CounterBuyPct)

@@ -23,7 +23,26 @@ type CounterParams struct {
 	// Absent rarities default to zero. Only non-foil, non-basic-land cards are
 	// stocked initially.
 	InitialStock map[Rarity]int
+	// ShelfLife is how long a card sold to the Counter, by the player or as NPC surplus, stays
+	// in stock. The zero value keeps it forever.
+	ShelfLife ShelfLife
 }
+
+// ShelfLife is how long a card sold to the Counter stays on its shelf. The zero value is
+// forever, so a CounterParams that does not set it keeps cards as the Counter always did.
+type ShelfLife struct {
+	// Limited is true when the card vanishes after Days. Days is ignored otherwise.
+	Limited bool
+	// Days is the number of days on the shelf. Zero means the card vanishes at once, which
+	// makes the Counter a sink. It must not be negative.
+	Days int
+}
+
+// ForeverOnShelf returns the ShelfLife of a card that never vanishes.
+func ForeverOnShelf() ShelfLife { return ShelfLife{} }
+
+// VanishAfterDays returns the ShelfLife of a card that vanishes after days days on the shelf.
+func VanishAfterDays(days int) ShelfLife { return ShelfLife{Limited: true, Days: days} }
 
 var (
 	// ErrUnknownCard is returned when a trade references a CardID absent from
@@ -50,8 +69,17 @@ type Counter struct {
 	params    CounterParams
 	valuer    Valuer
 	journal   *Journal
-	stock     map[CardKey]int
+	stock     map[CardKey]int // initial stock, and sold cards when they never vanish
+	resold    map[CardKey][]shelfBatch
+	tick      int
 	cardIndex map[CardID]Card
+}
+
+// shelfBatch is the copies of a card sold to the Counter at the same tick. A card is on the shelf
+// only when its ShelfLife is limited and above zero days. Batches of a card are in arrival order.
+type shelfBatch struct {
+	tick int
+	qty  int
 }
 
 // NewCounter builds a Counter and populates initial stock from cats.
@@ -68,6 +96,7 @@ type Counter struct {
 //   - SellPct must be <= BuyPct (otherwise a round trip through the Counter profits)
 //   - FallbackPrice must be >= 0
 //   - every value in InitialStock must be >= 0
+//   - a limited ShelfLife must have Days >= 0
 func NewCounter(cats []SetCatalogue, prices PriceSnapshot, journal *Journal, params CounterParams) (*Counter, error) {
 	if journal == nil {
 		return nil, fmt.Errorf("counter: journal must not be nil")
@@ -89,6 +118,10 @@ func NewCounter(cats []SetCatalogue, prices PriceSnapshot, journal *Journal, par
 		if v < 0 {
 			return nil, fmt.Errorf("counter: InitialStock[%s] must be >= 0, got %d", r, v)
 		}
+	}
+
+	if params.ShelfLife.Limited && params.ShelfLife.Days < 0 {
+		return nil, fmt.Errorf("counter: ShelfLife.Days must be >= 0, got %d", params.ShelfLife.Days)
 	}
 
 	cardIndex := make(map[CardID]Card)
@@ -122,6 +155,7 @@ func NewCounter(cats []SetCatalogue, prices PriceSnapshot, journal *Journal, par
 		valuer:    NewValuer(prices, params.FallbackPrice),
 		journal:   journal,
 		stock:     stock,
+		resold:    make(map[CardKey][]shelfBatch),
 		cardIndex: cardIndex,
 	}, nil
 }
@@ -130,8 +164,8 @@ func NewCounter(cats []SetCatalogue, prices PriceSnapshot, journal *Journal, par
 // The Counter pays the player SellPct% of the card's reference value.
 //
 // On success: posts Entry{From: AccountCounterSale, To: AccountPlayer} and
-// adds one copy of key to stock. The Counter always accepts cards from the
-// player; existing stock is not checked.
+// puts one copy of key on the shelf for params.ShelfLife: forever by default, or until it
+// vanishes. The Counter always accepts cards from the player; existing stock is not checked.
 //
 // Returns ErrUnknownCard if the card ID is not in any catalogue or if the
 // requested finish is not listed for that card.
@@ -154,7 +188,7 @@ func (c *Counter) BuyFromPlayer(key CardKey) error {
 	}); err != nil {
 		return fmt.Errorf("counter: post payment for card %q finish %q: %w", key.ID, key.Finish, err)
 	}
-	c.stock[key]++
+	c.shelve(key, 1)
 	return nil
 }
 
@@ -174,7 +208,7 @@ func (c *Counter) SellToPlayer(key CardKey) error {
 	if _, err := c.lookupCard(key); err != nil {
 		return err
 	}
-	if c.stock[key] <= 0 {
+	if c.Stock(key) <= 0 {
 		return fmt.Errorf("counter: card %q finish %q: %w", key.ID, key.Finish, ErrOutOfStock)
 	}
 	coins, err := c.tradeCoins(c.referencePrice(key.ID), c.params.BuyPct)
@@ -189,15 +223,16 @@ func (c *Counter) SellToPlayer(key CardKey) error {
 	}); err != nil {
 		return fmt.Errorf("counter: post payment for card %q finish %q: %w", key.ID, key.Finish, err)
 	}
-	c.stock[key]--
+	c.unshelve(key)
 	return nil
 }
 
-// AcceptSurplus adds n copies of key to stock without touching the ledger: NPCs hold no coins
+// AcceptSurplus shelves n copies of key without touching the ledger: NPCs hold no coins
 // and have no account, so what they sell to the Counter costs nothing and pays nothing.
 //
 // Returns ErrUnknownCard if the card ID is not in any catalogue or if the finish is not listed
 // for that card, and InvalidQuantityError when n is not positive. Stock is unchanged on error.
+// The surplus goes on the shelf for params.ShelfLife, like a card sold by the player.
 func (c *Counter) AcceptSurplus(key CardKey, n int) error {
 	if n <= 0 {
 		return &InvalidQuantityError{N: n}
@@ -205,28 +240,100 @@ func (c *Counter) AcceptSurplus(key CardKey, n int) error {
 	if _, err := c.lookupCard(key); err != nil {
 		return err
 	}
-	c.stock[key] += n
+	c.shelve(key, n)
 	return nil
+}
+
+// Tick advances the Counter's clock by one tick and removes the cards whose shelf life has ended.
+// Initial stock never vanishes: only cards sold to the Counter do.
+func (c *Counter) Tick() {
+	c.tick++
+	if len(c.resold) == 0 {
+		return
+	}
+	lifeTicks := c.params.ShelfLife.Days * TicksPerDay
+	for key, batches := range c.resold {
+		expired := 0
+		for expired < len(batches) && c.tick-batches[expired].tick >= lifeTicks {
+			expired++
+		}
+		switch {
+		case expired == len(batches):
+			delete(c.resold, key)
+		case expired > 0:
+			c.resold[key] = batches[expired:]
+		}
+	}
 }
 
 // Stock returns the current number of copies of key held by the Counter.
 func (c *Counter) Stock(key CardKey) int {
-	return c.stock[key]
+	return c.stock[key] + shelved(c.resold[key])
+}
+
+// shelve puts n sold copies of key on the shelf for the ShelfLife of the Counter.
+func (c *Counter) shelve(key CardKey, n int) {
+	life := c.params.ShelfLife
+	switch {
+	case !life.Limited:
+		c.stock[key] += n
+	case life.Days == 0:
+		// A sink: the copies are gone.
+	default:
+		batches := c.resold[key]
+		if last := len(batches) - 1; last >= 0 && batches[last].tick == c.tick {
+			batches[last].qty += n
+			return
+		}
+		c.resold[key] = append(batches, shelfBatch{tick: c.tick, qty: n})
+	}
+}
+
+// unshelve takes one copy of key off the shelf for the player. The oldest sold copy goes first,
+// so the copies about to vanish are not wasted. Initial stock goes last. The caller has checked
+// that the Counter holds a copy.
+func (c *Counter) unshelve(key CardKey) {
+	batches := c.resold[key]
+	if len(batches) == 0 {
+		c.stock[key]--
+		return
+	}
+	if batches[0].qty > 1 {
+		batches[0].qty--
+		return
+	}
+	if len(batches) == 1 {
+		delete(c.resold, key)
+		return
+	}
+	c.resold[key] = batches[1:]
+}
+
+func shelved(batches []shelfBatch) int {
+	var total int
+	for _, b := range batches {
+		total += b.qty
+	}
+	return total
 }
 
 // StockByRarity returns the total copies in stock grouped by rarity.
 // Only cards known to the Counter's catalogue contribute to the result.
 func (c *Counter) StockByRarity() map[Rarity]int {
 	result := make(map[Rarity]int)
-	for key, qty := range c.stock {
+	add := func(key CardKey, qty int) {
 		if qty <= 0 {
-			continue
+			return
 		}
-		card, ok := c.cardIndex[key.ID]
-		if !ok {
-			continue
+		if card, ok := c.cardIndex[key.ID]; ok {
+			result[card.Rarity] += qty
 		}
-		result[card.Rarity] += qty
+	}
+	for key, qty := range c.stock {
+		add(key, qty)
+	}
+	for key, batches := range c.resold {
+		add(key, shelved(batches))
 	}
 	return result
 }
