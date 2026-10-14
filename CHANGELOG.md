@@ -32,6 +32,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `counter_shelf_days`, a feature flag for how long a card sold to the Counter stays in its stock,
+  whether it comes from the player or from NPCs. `-1`, the default, keeps cards forever so existing
+  runs are unchanged, `0` makes the Counter a sink and `N` makes a card vanish after N days. See
+  [The Counter's shelf life](docs/simulation.md#the-counters-shelf-life).
 - The `mythic` rarity, so the core sets Magic 2010 to Magic 2015 load. The Counter stocks it
   (`initial_stock.mythic`, default 2), the `whale` wishes for it and the `targeted_collector` ranks
   it above a rare, see [ADR-0013](docs/adr/0013-mythic-is-a-rarity-of-its-own.md). The demo set DEM
