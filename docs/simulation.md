@@ -494,10 +494,9 @@ Two policies trade, see `--player`:
 - `exploiter` chains trades across every NPC looking for a gain. It finds none: a test runs both
   policies for 30 days, at a margin of 0% and 10%, and checks that no proposal or acceptance raises
   the player's coins plus the reference value of its cards. A property test does the same for
-  random offers straight against the Exchange. Its cost grows with the sessions, the NPCs and the
-  shelf cards it probes, because a counter-offer it does not accept stays open until it expires:
-  at 144 sessions a day with 300 NPCs, 10 days take over a minute, against 2 seconds at 3 sessions a
-  day. The other policies are not affected.
+  random offers straight against the Exchange. A counter-offer the exploiter will not accept is
+  declined immediately, so open offers do not accumulate across sessions. A benchmark covers the
+  high-session-rate case so the cliff cannot return unseen.
 
 A run with trades adds these metrics, summed over the run in the summary and per day in
 `days.csv`: `trade_player_proposals`, `trade_npc_offers`, `trade_accepted`, `trade_countered`,
@@ -508,7 +507,9 @@ Which of these settings move the economy and which do not is measured in
 [What the NPC crowd and trades change](specs-review.md#what-the-npc-crowd-and-trades-change).
 
 To see the cost of a long run, `go test ./internal/sim -run '^$' -bench BenchmarkRun -benchmem`
-runs 90 days with 500 NPCs with and without trades.
+runs 90 days with 500 NPCs with and without trades. To check the exploiter's cost at the
+formerly-slow config, run `go test ./internal/sim -run '^$' -bench BenchmarkExploiterHighSessionRate
+-benchmem` (144 sessions/day, 30 NPCs, 10 days).
 
 ## Run diagram
 

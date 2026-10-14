@@ -13,7 +13,7 @@ var ErrTradesDisabled = errors.New("sim: trades are not enabled in this run")
 
 // Trading is the trade side of a Session: what the player sees of the NPCs and what it can do
 // with them. An NPC counters a short offer once, and that counter is an open offer the player
-// answers with AcceptOffer. See docs/simulation.md.
+// answers with AcceptOffer or DeclineOffer. See docs/simulation.md.
 //
 // Refusals, a missing offer and an insufficient balance are normal outcomes. Any other error
 // aborts the run.
@@ -35,6 +35,10 @@ type Trading interface {
 	AcceptOffer(offerID int) (domain.Decision, error)
 	// CounterOffer answers an offer an NPC proposed with other cards. The NPC accepts or refuses.
 	CounterOffer(offerID int, give []domain.TradeLine, topUp domain.Coins) (domain.Decision, error)
+	// DeclineOffer closes an open offer without trading: the player rejects a counter it will not
+	// take. No cards or coins move. It returns domain.ErrOfferNotFound for an offer that is not
+	// open.
+	DeclineOffer(offerID int) error
 }
 
 func (p *port) Offers() []domain.Offer {
@@ -90,6 +94,20 @@ func (p *port) CounterOffer(offerID int, give []domain.TradeLine, topUp domain.C
 	return p.tradeResult("counter offer", func() (domain.Decision, error) {
 		return p.e.exchange.Counter(offerID, give, topUp)
 	})
+}
+
+func (p *port) DeclineOffer(offerID int) error {
+	if p.e.exchange == nil {
+		return ErrTradesDisabled
+	}
+	if err := p.e.exchange.Decline(offerID); err != nil {
+		if errors.Is(err, domain.ErrOfferNotFound) {
+			return err
+		}
+		p.fatalErr = fmt.Errorf("decline offer: %w", err)
+		return err
+	}
+	return nil
 }
 
 // tradeResult runs a trade action and passes its error on to the policy when it is a normal

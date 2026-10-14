@@ -11,11 +11,16 @@ import (
 func (x *Exchange) StartDay(day int) {
 	x.day = day
 	x.dayOffers = 0
-	for _, id := range slices.Sorted(maps.Keys(x.open)) {
-		o := x.open[id]
-		if o.LastDay >= day {
-			continue
+	// Collect expired IDs before closing them: close modifies openIDs, so we must not iterate it
+	// and close at the same time. openIDs is in creation order; IDs at the front expire first.
+	var toExpire []int
+	for _, id := range x.openIDs {
+		if x.open[id].LastDay < day {
+			toExpire = append(toExpire, id)
 		}
+	}
+	for _, id := range toExpire {
+		o := x.open[id]
 		x.close(id)
 		x.stats.Expired++
 		x.record(o, OutcomeExpired, nil)

@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"slices"
 )
 
 // Propose offers the NPC npcID a swap: the player gives playerGives and topUp coins, the NPC gives
@@ -180,8 +181,23 @@ func (x *Exchange) newID() int {
 	return x.nextID
 }
 
+// Decline closes the open offer offerID without trading: the player rejects a counter it will
+// not take. No cards or coins move. It records the offer as refused in the history.
+//
+// It returns ErrOfferNotFound for an offer that is not open.
+func (x *Exchange) Decline(offerID int) error {
+	o, ok := x.open[offerID]
+	if !ok {
+		return fmt.Errorf("%w: %d", ErrOfferNotFound, offerID)
+	}
+	x.close(offerID)
+	x.record(o, OutcomeRefused, nil)
+	return nil
+}
+
 func (x *Exchange) store(o Offer) {
 	x.open[o.ID] = o
+	x.openIDs = append(x.openIDs, o.ID)
 	x.openCount[o.NPC]++
 }
 
@@ -191,6 +207,7 @@ func (x *Exchange) close(id int) {
 		return
 	}
 	delete(x.open, id)
+	x.openIDs = slices.DeleteFunc(x.openIDs, func(oid int) bool { return oid == id })
 	x.openCount[o.NPC]--
 	if x.openCount[o.NPC] <= 0 {
 		delete(x.openCount, o.NPC)
