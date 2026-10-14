@@ -227,7 +227,7 @@ above the run horizon. Config validation keeps it from passing by accident: an `
 | `counter_boosters_opened` | Boosters the Counter opened to stock itself over the run. Present only when it opens boosters |
 | `counter_cards_opened` | Cards those boosters held, all put on the Counter's shelf. Present only when it opens boosters or has a treasury |
 | `counter_fee_coins` | Coin fees the Counter paid from its treasury to open boosters. Present with the Counter metrics |
-| `counter_broke_refusals` | Sales the Counter refused because its treasury could not pay. Present with the Counter metrics |
+| `counter_broke_refusals` | Cards the Counter refused because its treasury could not pay, counted once per card and session. Present with the Counter metrics |
 | `counter_treasury` | Coins in the treasury after the last day. Present with the Counter metrics |
 
 Judge the pace of one set by running it alone, with `--sets RAV` for example. With several sets the
@@ -267,6 +267,12 @@ sells back goes on the shelf like any other.
 - Initial stock never vanishes, since it is not a sold card.
 - A purchase takes the oldest sold copy first, so the copies about to vanish are not wasted.
 - A card sold at some tick vanishes exactly N days of ticks later.
+
+A sale is permanent, and no player policy loses anything by it, see
+[ADR-0018](adr/0018-cards-sold-to-the-counter-can-vanish.md). The collector, the trader and the
+exploiter sell only above a playset, and the trader and the exploiter trade a duplicate before they
+sell it. When the Counter has a treasury and cannot pay, the player offers it each card once per
+session, not each copy: the other copies carry the same price and would be refused too.
 
 With a crowd, the stock settles near the crowd's daily sales times N, so N becomes the dial of the
 Counter's supply. With a sink or a short life the crowd stops flooding the Counter. A supply of

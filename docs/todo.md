@@ -113,8 +113,10 @@ many parameters at once for a config that meets the goals.
   - [x] Stage 3: a finite coin budget for the Counter, instead of minting, with the coin fee for
     expensive boosters. Built behind `counter_budget` and `counter_supply.coins_per_energy`, to be
     simulated. It makes coins a closed loop with its own ledger invariants.
-  - [ ] Adapt the player policies, since selling becomes permanent.
-  - [ ] An ADR for vanishing sales.
+  - [x] Adapt the player policies, since selling becomes permanent. None lost a card it needs, and a
+    test pins that; a broke Counter is now offered each card once per session, not each copy.
+  - [x] An ADR for vanishing sales, see
+    [ADR-0018](adr/0018-cards-sold-to-the-counter-can-vanish.md).
 
 ### Calibration and decisions
 

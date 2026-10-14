@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- A player that sells duplicates to a Counter with a treasury it has emptied offers each card once
+  per session, not each copy, since the copies would be refused at the same price. Balances,
+  treasury and sales are unchanged; `counter_broke_refusals` and `total_refused_trades` now count
+  cards, not copies, so they fall by a large factor (86% in one 60-day run). Recorded in
+  [ADR-0018](docs/adr/0018-cards-sold-to-the-counter-can-vanish.md) with the rule for cards that
+  vanish.
 - Config validation is stricter, after a stress test of the new Counter settings. Numeric keys have
   upper bounds, see [ADR-0014](docs/adr/0014-numeric-config-keys-have-upper-bounds.md). The Counter's
   energy reserve must hold the dearest tier, see
