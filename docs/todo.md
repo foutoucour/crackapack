@@ -95,8 +95,9 @@ many parameters at once for a config that meets the goals.
     against about 17 with 25 NPCs.
   - [x] Stage 2: the Counter pays energy and booster costs from an energy of its own. The coin top-up
     for expensive boosters comes with stage 3, since it needs the Counter's treasury.
-  - [ ] Stage 3: a finite coin budget for the Counter, instead of minting. To be simulated. It makes
-    coins a closed loop with its own ledger invariants.
+  - [x] Stage 3: a finite coin budget for the Counter, instead of minting, with the coin fee for
+    expensive boosters. Built behind `counter_budget` and `counter_supply.coins_per_energy`, to be
+    simulated. It makes coins a closed loop with its own ledger invariants.
   - [ ] Adapt the player policies, since selling becomes permanent.
   - [ ] An ADR for vanishing sales.
 

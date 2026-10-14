@@ -41,6 +41,7 @@ func runSupplyTicks(t *testing.T, supply *domain.CounterSupply, counter *domain.
 		}
 		total.BoostersOpened += tick.BoostersOpened
 		total.CardsOpened += tick.CardsOpened
+		total.FeeCoins += tick.FeeCoins
 	}
 	return total
 }

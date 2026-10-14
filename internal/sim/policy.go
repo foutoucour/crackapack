@@ -12,8 +12,9 @@ import "github.com/foutoucour/crackapack/internal/domain"
 // A run without trades still offers the Trading methods, which refuse or return nothing, so a
 // policy needs no check.
 //
-// Only ErrSubCoin (from BuyFromPlayer or SellToPlayer) is treated as a normal
-// refusal; all other domain errors abort the simulation run.
+// Only ErrSubCoin (from BuyFromPlayer or SellToPlayer) and ErrCounterBroke (from BuyFromPlayer
+// when the Counter has a treasury) are treated as normal refusals; all other domain errors abort
+// the simulation run.
 type Session interface {
 	Trading
 

@@ -124,7 +124,7 @@ All config keys and their defaults are listed in
 |-------|------|---------|
 | Economy | `coin_rate`, `counter_sell_pct`, `counter_buy_pct`, `welcome_bonus`, `daily_reward` | Coin flow and Counter pricing |
 | Energy | `energy.*` | Opening pace; see [Energy](core-features.md#energy) |
-| Counter | `initial_stock`, `fallback_price`, `counter_shelf_days`, `counter_supply.*` | Starting inventory, price floor, how long sold cards stay and how the Counter stocks itself, see [The Counter's shelf life](#the-counters-shelf-life) and [The Counter as a special player](#the-counter-as-a-special-player) |
+| Counter | `initial_stock`, `fallback_price`, `counter_shelf_days`, `counter_supply.*`, `counter_budget.*` | Starting inventory, price floor, how long sold cards stay and how the Counter stocks and pays for itself, see [The Counter's shelf life](#the-counters-shelf-life) and [The Counter as a special player](#the-counter-as-a-special-player) |
 | NPCs | `npcs.population`, `npcs.archetypes.*` | The NPC crowd; see [NPC crowd](#npc-crowd) |
 | Simulation | `sessions_per_day`, `run_days`, `seed` | Run parameters |
 | Sweep | `sweep_rates`, `targets` | Grid and calibration conditions |
@@ -214,7 +214,10 @@ above the run horizon. Config validation keeps it from passing by accident: an `
 | `npc_cards_sold` | Cards the NPCs sent to the Counter over the run. Present only with a crowd |
 | `npc_cards_held` | Cards all NPC collections hold after the last day. Present only with a crowd |
 | `counter_boosters_opened` | Boosters the Counter opened to stock itself over the run. Present only when it opens boosters |
-| `counter_cards_opened` | Cards those boosters held, all put on the Counter's shelf. Present only when it opens boosters |
+| `counter_cards_opened` | Cards those boosters held, all put on the Counter's shelf. Present only when it opens boosters or has a treasury |
+| `counter_fee_coins` | Coin fees the Counter paid from its treasury to open boosters. Present with the Counter metrics |
+| `counter_broke_refusals` | Sales the Counter refused because its treasury could not pay. Present with the Counter metrics |
+| `counter_treasury` | Coins in the treasury after the last day. Present with the Counter metrics |
 
 Judge the pace of one set by running it alone, with `--sets RAV` for example. With several sets the
 player shares energy between them, so every set takes longer. A set costs the same energy alone or
@@ -299,6 +302,38 @@ tier, or the config is rejected. The values above are the defaults, and they are
 The cards it opens go on its shelf like cards sold to it, so `counter_shelf_days` applies to them:
 with `0` they vanish at once, and with a number of days they vanish after that long. Initial stock
 still never vanishes.
+
+### The coin top-up and the treasury
+
+By default the Counter mints the coins it pays to the player. `counter_budget` gives it a finite
+treasury instead, another feature flag that is off by default.
+
+```yaml
+counter_budget:
+  enabled: true
+  initial: 100000
+  daily_float: 5000
+```
+
+With the budget on, the Counter pays the player from the treasury, and what the player pays for a
+card goes into it. The treasury is a guarded account, so it never goes negative.
+- **Broke Counter:** a sale the treasury cannot pay is refused and the card goes back to the player.
+  It counts as a refusal, in `counter_broke_refusals`.
+- **The float:** `initial` funds the treasury at the start and `daily_float` adds coins each day. They
+  are the only new coins of a Counter with a budget.
+- **Accounts:** `counter_treasury`, `counter_float` and `counter_fee` join the money supply of every
+  day. `counter_sale` and `counter_purchase` stay at zero, since the treasury replaces them.
+
+`counter_supply.coins_per_energy`, the price `p` of one energy point, adds a coin fee to the
+boosters the Counter opens in `energy` mode. It needs the budget, because the treasury pays the
+fee, and it is rejected without it. A booster worth more than the energy cap costs its cash-out
+value, what the Counter would pay the player for its cards, minus the cap times `p`. The cap is
+the dearest cost of the cost table. The fee goes from the treasury to `counter_fee` and leaves the
+economy. A Counter whose treasury cannot pay the fee of a set picks another set the next tick.
+
+The 2005-2007 sets pay no fee at a `p` of 100, since none is worth more than 12 energy at that
+price. The rule is the one of the energy and coin top-up idea in the [TODO](todo.md), applied to
+the Counter only: the player's energy still cannot be bought with coins.
 
 The Counter draws on a random stream of its own, derived from `seed`. Adding a supply to a config
 does not change what the player or the NPCs draw, so two runs that differ only by the supply stay

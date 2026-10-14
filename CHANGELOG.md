@@ -32,6 +32,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `counter_budget`, a feature flag that gives the Counter a finite treasury instead of minted coins.
+  A sale the treasury cannot pay is refused, and `daily_float` is the only new coin. With
+  `counter_supply.coins_per_energy` the Counter also pays a coin fee from the treasury for boosters
+  worth more than the energy cap. A run with a treasury adds `counter_fee_coins`,
+  `counter_broke_refusals` and `counter_treasury`, and the `counter_treasury`, `counter_float` and
+  `counter_fee` accounts. The demo config turns on the supply and a treasury large enough to leave
+  its sweep unchanged. See
+  [The Counter as a special player](docs/simulation.md#the-counter-as-a-special-player).
 - `counter_supply`, a feature flag that makes the Counter open boosters to stock itself. The mode
   `fixed` opens a set number a day, with no energy, and the mode `energy` opens a booster whenever
   the Counter's own energy pays the cost of the set. The default `none` opens nothing, so existing

@@ -150,6 +150,24 @@ type CounterSupplyConfig struct {
 
 	// Energy is the Counter's energy in energy mode.
 	Energy CounterEnergyConfig `yaml:"energy"`
+
+	// CoinsPerEnergy is the coin price of one energy point, p. A booster worth more than the
+	// energy cap costs its value minus the cap times p in coins, paid from the treasury. It needs
+	// energy mode and the budget, and 0 means no coin fee.
+	CoinsPerEnergy domain.Coins `yaml:"coins_per_energy"`
+}
+
+// CounterBudgetConfig gives the Counter a finite treasury of coins. Without it the Counter mints
+// the coins it pays to the player.
+type CounterBudgetConfig struct {
+	// Enabled turns the budget on. The default false keeps a Counter that mints its coins.
+	Enabled bool `yaml:"enabled"`
+
+	// Initial is the coins in the treasury at the start of the run.
+	Initial domain.Coins `yaml:"initial"`
+
+	// DailyFloat is the coins added to the treasury each day, the one faucet of a closed Counter.
+	DailyFloat domain.Coins `yaml:"daily_float"`
 }
 
 // ArchetypeConfig is the supply behaviour of one NPC archetype, see docs/core-features.md.
@@ -262,6 +280,9 @@ type Config struct {
 	// CounterSupply makes the Counter open boosters to stock itself. The default opens none.
 	CounterSupply CounterSupplyConfig `yaml:"counter_supply"`
 
+	// CounterBudget gives the Counter a finite treasury. The default is off.
+	CounterBudget CounterBudgetConfig `yaml:"counter_budget"`
+
 	// Energy holds the energy recharge parameters.
 	Energy EnergyConfig `yaml:"energy"`
 
@@ -308,6 +329,8 @@ func defaults() Config {
 		CounterSellPct:   60,
 		CounterBuyPct:    120,
 		CounterShelfDays: -1,
+		// ASSUMPTION: the budget values are starting guesses.
+		CounterBudget: CounterBudgetConfig{Initial: 100000},
 		// ASSUMPTION: the Counter's energy is a starting guess, twenty times the player's recharge.
 		CounterSupply: CounterSupplyConfig{
 			Mode:   CounterSupplyNone,
@@ -447,7 +470,10 @@ func validate(cfg Config) error {
 	if err := validateEnergy(cfg.Energy); err != nil {
 		return err
 	}
-	if err := validateCounterSupply(cfg.CounterSupply, cfg.Energy.CostTable); err != nil {
+	if err := validateCounterBudget(cfg.CounterBudget); err != nil {
+		return err
+	}
+	if err := validateCounterSupply(cfg); err != nil {
 		return err
 	}
 	if err := validateNPCs(cfg.NPCs); err != nil {

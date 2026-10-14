@@ -294,6 +294,32 @@ func TestBuild_determinism(t *testing.T) {
 	}
 }
 
+// TestBuild_demoExercisesTheCounterAsASpecialPlayer checks that the demo config turns on the
+// Counter's supply and treasury, and that a run reports what they did.
+func TestBuild_demoExercisesTheCounterAsASpecialPlayer(t *testing.T) {
+	t.Parallel()
+	ds := demo.Build()
+	cfg, err := config.Load(strings.NewReader(ds.ConfigYAML))
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+	if cfg.CounterSupply.Mode != config.CounterSupplyFixed || !cfg.CounterBudget.Enabled {
+		t.Fatalf("demo config has supply %q and budget enabled %v, want a fixed supply and a budget",
+			cfg.CounterSupply.Mode, cfg.CounterBudget.Enabled)
+	}
+	cfg.RunDays = 5
+
+	cats, supps, prices := loadDemoInputs(t, ds)
+	summary := runOnce(t, cfg, cfg.SweepRates[0], cats, supps, prices)
+
+	if summary["counter_boosters_opened"] <= 0 {
+		t.Errorf("counter_boosters_opened = %v, want the Counter to open boosters", summary["counter_boosters_opened"])
+	}
+	if summary["counter_treasury"] <= 0 {
+		t.Errorf("counter_treasury = %v, want a treasury that still holds coins", summary["counter_treasury"])
+	}
+}
+
 // --- helpers ---
 
 func rarityCount(cat domain.SetCatalogue) map[domain.Rarity]int {

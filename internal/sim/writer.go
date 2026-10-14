@@ -47,7 +47,7 @@ type column struct {
 // The returned slice does not include the "day" column (always first, emitted separately).
 // setCodes must be sorted ascending. The optional groups follow the set columns, each only for a
 // run that has it, so the output of other runs is unchanged: with.npc appends the three NPC
-// columns, with.counter the two columns of the Counter's own openings, and with.trades the trade
+// columns, with.counter the five columns of the Counter's own doings, and with.trades the trade
 // account balance and the eight trade columns.
 //
 // Accessing nil maps in DayMetrics (MoneySupply, StockByRarity, SetProgress)
@@ -103,6 +103,9 @@ func dayColumns(d DayMetrics, setCodes []string, with extras) []column {
 		cols = append(cols,
 			column{name: "counter_boosters_opened", value: int64(counter.BoostersOpened)},
 			column{name: "counter_cards_opened", value: int64(counter.CardsOpened)},
+			column{name: "counter_fee_coins", value: int64(counter.FeeCoins)},
+			column{name: "counter_treasury", value: int64(counter.Treasury)},
+			column{name: "counter_broke_refusals", value: int64(counter.BrokeRefusals)},
 		)
 	}
 	if with.trades {
@@ -163,7 +166,8 @@ func WriteJSON(w io.Writer, r Result) error {
 //  6. per-set columns sorted by set code:
 //     <code>_owned, <code>_total, <code>_cu_owned, <code>_cu_total, <code>_playsets
 //  7. npc_boosters_opened, npc_cards_sold, npc_cards_held, only when the run had an NPC crowd
-//  8. counter_boosters_opened, counter_cards_opened, only when the Counter opened boosters
+//  8. counter_boosters_opened, counter_cards_opened, counter_fee_coins, counter_treasury,
+//     counter_broke_refusals, only when the Counter opened boosters or had a treasury
 //  9. trade_topup, then the eight trade_* columns, only when the run had trades
 //
 // Set codes and the presence of the optional groups are determined from the first DayMetrics

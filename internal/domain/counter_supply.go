@@ -10,6 +10,8 @@ import (
 type SupplyTick struct {
 	BoostersOpened int
 	CardsOpened    int
+	// FeeCoins is the coin fees paid from the treasury to open those boosters.
+	FeeCoins Coins
 }
 
 // CounterSupply opens boosters on behalf of the Counter, which then behaves as a special player:
@@ -33,6 +35,8 @@ type CounterSupply struct {
 	// opened, so that a dear set is not re-rolled while its energy builds up.
 	energy    *Energy
 	costs     map[string]int
+	journal   *Journal         // set with fees, to pay them from the treasury
+	fees      map[string]Coins // coins per booster, by set code
 	weights   []int
 	weightSum int
 	next      int // index into sets, or -1 when none is picked
@@ -67,7 +71,7 @@ func NewFixedCounterSupply(counter *Counter, sets []SetCatalogue, opener *Opener
 // It returns an error when counter, opener, rng or energy is nil, when sets is empty, or when a
 // set has no positive cost. A cost above what energy can ever hold is not checked here: the supply
 // would then never open that set.
-func NewEnergyCounterSupply(counter *Counter, sets []SetCatalogue, opener *Opener, rng *rand.Rand, energy *Energy, costs map[string]int) (*CounterSupply, error) {
+func NewEnergyCounterSupply(counter *Counter, sets []SetCatalogue, opener *Opener, rng *rand.Rand, energy *Energy, costs map[string]int, opts ...SupplyOption) (*CounterSupply, error) {
 	switch {
 	case counter == nil:
 		return nil, errors.New("counter supply: counter must not be nil")
@@ -98,10 +102,14 @@ func NewEnergyCounterSupply(counter *Counter, sets []SetCatalogue, opener *Opene
 		weights[i] = scale / cost
 		sum += weights[i]
 	}
-	return &CounterSupply{
+	s := &CounterSupply{
 		counter: counter, sets: sets, opener: opener, rng: rng,
 		energy: energy, costs: costs, weights: weights, weightSum: sum, next: -1,
-	}, nil
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s, nil
 }
 
 func gcd(a, b int) int {
@@ -145,6 +153,15 @@ func (s *CounterSupply) tickEnergy() (SupplyTick, error) {
 		if s.energy.Reserve()+s.energy.Savings() < cost {
 			return total, nil
 		}
+		paid, afford, err := s.payFee(cat)
+		if err != nil {
+			return total, err
+		}
+		if !afford {
+			s.next = -1
+			return total, nil
+		}
+		total.FeeCoins += paid
 		if err := s.energy.Spend(cost); err != nil {
 			return total, fmt.Errorf("counter supply: spend energy for %q: %w", cat.Code, err)
 		}
@@ -156,6 +173,23 @@ func (s *CounterSupply) tickEnergy() (SupplyTick, error) {
 		total.BoostersOpened++
 		total.CardsOpened += cards
 	}
+}
+
+// payFee pays the coin fee of cat from the treasury. It returns the coins paid, and false when the
+// treasury cannot pay, in which case nothing moves.
+func (s *CounterSupply) payFee(cat SetCatalogue) (paid Coins, afford bool, err error) {
+	fee := s.fees[cat.Code]
+	if fee <= 0 || s.journal == nil {
+		return 0, true, nil
+	}
+	err = s.journal.Post(Entry{From: AccountCounterTreasury, To: AccountCounterFee, Amount: fee, Memo: "booster fee: set " + cat.Code})
+	switch {
+	case errors.Is(err, ErrInsufficientBalance):
+		return 0, false, nil
+	case err != nil:
+		return 0, false, fmt.Errorf("counter supply: pay fee for %q: %w", cat.Code, err)
+	}
+	return fee, true, nil
 }
 
 // pickWeighted returns the index of a set chosen with a probability proportional to its weight.
@@ -182,4 +216,18 @@ func (s *CounterSupply) openBooster(cat SetCatalogue) (int, error) {
 		}
 	}
 	return len(booster.Cards), nil
+}
+
+// SupplyOption tunes NewEnergyCounterSupply.
+type SupplyOption func(*CounterSupply)
+
+// WithCoinFees makes the supply pay fees[set code] coins from AccountCounterTreasury to
+// AccountCounterFee before it opens a booster of that set. A fee the treasury cannot pay means the
+// booster is not opened that tick and the supply picks another set the next. A set with no fee
+// costs no coins.
+func WithCoinFees(journal *Journal, fees map[string]Coins) SupplyOption {
+	return func(s *CounterSupply) {
+		s.journal = journal
+		s.fees = fees
+	}
 }
