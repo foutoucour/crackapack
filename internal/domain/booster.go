@@ -250,7 +250,8 @@ func revealKey(k CardKey, cards map[CardID]Card) (int, int) {
 }
 
 // rarityRank maps a Rarity to its reveal-order sort rank.
-// Rare is always 4 (last). Unknown strings return 3 (between special and rare).
+// Rare and mythic share rank 4 (last): they fill the same booster slot. Unknown strings return 3
+// (between special and rare).
 func rarityRank(r Rarity) int {
 	switch r {
 	case RarityCommon:
@@ -259,7 +260,7 @@ func rarityRank(r Rarity) int {
 		return 1
 	case RaritySpecial:
 		return 2
-	case RarityRare:
+	case RarityRare, RarityMythic:
 		return 4
 	default:
 		return 3

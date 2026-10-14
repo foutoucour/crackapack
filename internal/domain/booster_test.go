@@ -348,8 +348,8 @@ func TestClassicGenerator_statisticsRavnica(t *testing.T) {
 				nNFUncommon++
 			case domain.RarityRare:
 				nNFRare++
-			case domain.RaritySpecial:
-				// Special (timeshifted) cards are not tracked for Ravnica slot counts.
+			case domain.RaritySpecial, domain.RarityMythic:
+				// Special (timeshifted) and mythic cards are not tracked for Ravnica slot counts.
 			}
 		}
 

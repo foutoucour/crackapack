@@ -50,6 +50,7 @@ func TestLoad_defaults(t *testing.T) {
 		domain.RarityUncommon: 8,
 		domain.RarityRare:     2,
 		domain.RaritySpecial:  2,
+		domain.RarityMythic:   2,
 	}
 	for r, want := range wantStock {
 		t.Run("InitialStock/"+string(r), func(t *testing.T) {

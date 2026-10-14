@@ -134,7 +134,7 @@ func TestLoadSetCatalogue_errors(t *testing.T) {
 			setupFS: func() fstest.MapFS {
 				return fstest.MapFS{"set.json": &fstest.MapFile{Data: []byte(
 					`{"data":{"code":"SYN","name":"X","cards":[` +
-						`{"uuid":"u1","name":"n","number":"1","rarity":"mythic","finishes":[],"supertypes":[],"identifiers":{}}` +
+						`{"uuid":"u1","name":"n","number":"1","rarity":"bonus","finishes":[],"supertypes":[],"identifiers":{}}` +
 						`],"booster":{"draft":{"boosters":[],"sheets":{}}}}}`,
 				)}}
 			},
@@ -583,7 +583,7 @@ func TestLoadCardPool_invalidCardRarity(t *testing.T) {
 
 	fsys := fstest.MapFS{"pool.json": &fstest.MapFile{Data: []byte(
 		`{"data":{"code":"TSB","name":"X","cards":[` +
-			`{"uuid":"u1","name":"n","number":"1","rarity":"mythic","finishes":[],"supertypes":[],"identifiers":{}}` +
+			`{"uuid":"u1","name":"n","number":"1","rarity":"bonus","finishes":[],"supertypes":[],"identifiers":{}}` +
 			`]}}`,
 	)}}
 	_, err := domain.LoadCardPool(fsys, "pool.json")
@@ -612,5 +612,23 @@ func TestLoadCardPool_missingFile(t *testing.T) {
 	}
 	if ce.Field != "(file)" {
 		t.Errorf("CatalogueError.Field = %q, want (file)", ce.Field)
+	}
+}
+
+func TestLoadCardPool_acceptsMythicRarity(t *testing.T) {
+	t.Parallel()
+
+	fsys := fstest.MapFS{"pool.json": &fstest.MapFile{Data: []byte(
+		`{"data":{"code":"M10","name":"Magic 2010","cards":[` +
+			`{"uuid":"u1","name":"n","number":"1","rarity":"mythic","finishes":["nonfoil"],"supertypes":[],"identifiers":{}}` +
+			`]}}`,
+	)}}
+
+	cat, err := domain.LoadCardPool(fsys, "pool.json")
+	if err != nil {
+		t.Fatalf("LoadCardPool: %v", err)
+	}
+	if got := cat.Cards["u1"].Rarity; got != domain.RarityMythic {
+		t.Errorf("rarity = %q, want %q", got, domain.RarityMythic)
 	}
 }

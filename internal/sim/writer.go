@@ -31,6 +31,7 @@ func csvRarities() []domain.Rarity {
 		domain.RarityUncommon,
 		domain.RarityRare,
 		domain.RaritySpecial,
+		domain.RarityMythic,
 	}
 }
 

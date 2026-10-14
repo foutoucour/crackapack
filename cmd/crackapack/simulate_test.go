@@ -268,10 +268,10 @@ func TestSimulate_missingCatalogueFile(t *testing.T) {
 func TestSimulate_badCardInCatalogue(t *testing.T) {
 	t.Parallel()
 
-	// Build a MapFS with a corrupt RAV.json (unknown rarity "mythic").
+	// Build a MapFS with a corrupt RAV.json (unknown rarity "bonus").
 	badCatJSON := []byte(`{"data":{"code":"RAV","name":"Ravnica (bad)",` +
 		`"cards":[{"uuid":"rav-bad-001","name":"Bad Card","number":"1",` +
-		`"rarity":"mythic","finishes":["nonfoil"],"supertypes":[],"identifiers":{}}],` +
+		`"rarity":"bonus","finishes":["nonfoil"],"supertypes":[],"identifiers":{}}],` +
 		`"booster":{"draft":{"boosters":[{"contents":{"common":1},"weight":1}],` +
 		`"sheets":{"common":{"cards":{"rav-bad-001":10},"totalWeight":10,"foil":false,"balanceColors":false}}}}}}`)
 
