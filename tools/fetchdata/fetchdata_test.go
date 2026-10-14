@@ -181,3 +181,65 @@ func TestRunLeavesNoPartialFileWhenPricesAreTruncated(t *testing.T) {
 		}
 	}
 }
+
+func TestRunMergesIntoTheExistingPriceSnapshot(t *testing.T) {
+	srv, _ := newMTGJSON(t, map[string][]byte{
+		"/RAV.json":               []byte(ravSet),
+		"/AllPricesToday.json.gz": gzipped(t, allPrices),
+	})
+	dir := t.TempDir()
+	pricesPath := filepath.Join(dir, "prices.json")
+	earlier := `{"tsp-plain": 777, "rav-plain": 999, "rav-unpriced": 42}`
+	if err := os.WriteFile(pricesPath, []byte(earlier), filePerm); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := runTool(t, srv, "--sets", "RAV", "--catalogue-dir", dir, "--prices", pricesPath); err != nil {
+		t.Fatal(err)
+	}
+
+	raw, err := os.ReadFile(pricesPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]int64
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]int64{
+		"tsp-plain":     777, // a set of an earlier run is kept as it was
+		"rav-plain":     26,  // a requested card takes its fresh price
+		"rav-foil-only": 616,
+		"rav-rounding":  115,
+		// rav-unpriced had a price before and has none now, so it is dropped
+	}
+	if !maps.Equal(want, got) {
+		t.Errorf("price snapshot = %v, want %v", got, want)
+	}
+}
+
+func TestRunKeepsAnUnreadablePriceSnapshotUntouched(t *testing.T) {
+	srv, _ := newMTGJSON(t, map[string][]byte{
+		"/RAV.json":               []byte(ravSet),
+		"/AllPricesToday.json.gz": gzipped(t, allPrices),
+	})
+	dir := t.TempDir()
+	pricesPath := filepath.Join(dir, "prices.json")
+	const corrupt = `{"tsp-plain": 77`
+	if err := os.WriteFile(pricesPath, []byte(corrupt), filePerm); err != nil {
+		t.Fatal(err)
+	}
+
+	err := runTool(t, srv, "--sets", "RAV", "--catalogue-dir", dir, "--prices", pricesPath)
+
+	if err == nil || !strings.Contains(err.Error(), pricesPath) {
+		t.Fatalf("error = %v, want one naming %s", err, pricesPath)
+	}
+	got, readErr := os.ReadFile(pricesPath)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(got) != corrupt {
+		t.Errorf("snapshot = %q, want it left as %q", got, corrupt)
+	}
+}

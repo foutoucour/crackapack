@@ -1,5 +1,6 @@
 // Command fetchdata downloads real simulation inputs from MTGJSON on demand: one
-// catalogue file per set, and a price snapshot restricted to the cards of those sets.
+// catalogue file per set, and the prices of the cards of those sets, merged into a price snapshot
+// that keeps the prices of the sets fetched by earlier runs.
 //
 // The output is what `crackapack simulate` and `crackapack sweep` read through
 // --catalogue-dir and --prices.
@@ -56,7 +57,7 @@ type app struct {
 	stderr  io.Writer
 }
 
-// run parses args, downloads the requested sets and writes the price snapshot.
+// run parses args, downloads the requested sets and merges their prices into the price snapshot.
 func (a app) run(ctx context.Context, args []string) error {
 	flags := flag.NewFlagSet("fetchdata", flag.ContinueOnError)
 	flags.SetOutput(a.stderr)
@@ -66,7 +67,7 @@ func (a app) run(ctx context.Context, args []string) error {
 	}
 	sets := flags.String("sets", "", "comma-separated MTGJSON set codes to download, e.g. RAV,TSP,TSB (required)")
 	catalogueDir := flags.String("catalogue-dir", "catalogues", "directory that receives one <CODE>.json per set")
-	prices := flags.String("prices", "prices.json", "price snapshot file to write")
+	prices := flags.String("prices", "prices.json", "price snapshot file to merge the prices into")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -80,6 +81,11 @@ func (a app) run(ctx context.Context, args []string) error {
 	}
 	if err := os.MkdirAll(filepath.Dir(*prices), dirPerm); err != nil {
 		return fmt.Errorf("create prices directory: %w", err)
+	}
+
+	existing, err := readSnapshot(*prices)
+	if err != nil {
+		return err
 	}
 
 	wanted := make(map[string]struct{})
@@ -98,11 +104,11 @@ func (a app) run(ctx context.Context, args []string) error {
 		fmt.Fprintf(a.stdout, "%s: %d cards -> %s\n", code, len(uuids), path)
 	}
 
-	count, err := a.downloadPrices(ctx, wanted, *prices)
+	priced, total, err := a.downloadPrices(ctx, wanted, existing, *prices)
 	if err != nil {
 		return fmt.Errorf("prices: %w", err)
 	}
-	fmt.Fprintf(a.stdout, "prices: %d of %d cards priced -> %s\n", count, len(wanted), *prices)
+	fmt.Fprintf(a.stdout, "prices: %d of %d cards priced, %d in the snapshot -> %s\n", priced, len(wanted), total, *prices)
 	return nil
 }
 

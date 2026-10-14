@@ -4,8 +4,11 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -47,27 +50,50 @@ func (a app) download(ctx context.Context, name, path string) error {
 	})
 }
 
-// downloadPrices streams the MTGJSON price file, keeps the cards in wanted, writes the
-// snapshot to path and returns how many cards it priced.
-func (a app) downloadPrices(ctx context.Context, wanted map[string]struct{}, path string) (int, error) {
+// readSnapshot returns the price snapshot at path, or an empty one when the file does not exist
+// yet. A file that cannot be read or decoded is an error, so a merge never replaces it.
+func readSnapshot(path string) (map[string]int64, error) {
+	raw, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return map[string]int64{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read price snapshot %s: %w", path, err)
+	}
+	snapshot := map[string]int64{}
+	if err := json.Unmarshal(raw, &snapshot); err != nil {
+		return nil, fmt.Errorf("decode price snapshot %s: %w", path, err)
+	}
+	return snapshot, nil
+}
+
+// downloadPrices streams the MTGJSON price file, merges the prices of the cards in wanted into
+// existing and writes the result to path. A wanted card without a fresh price loses its old one,
+// so a refresh never keeps a stale price. It returns how many wanted cards got a price and how
+// many cards the snapshot holds.
+func (a app) downloadPrices(ctx context.Context, wanted map[string]struct{}, existing map[string]int64, path string) (priced, total int, err error) {
 	body, err := a.get(ctx, pricesFile)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	defer func() { _ = body.Close() }() // read-only: close error is not actionable
 
 	zr, err := gzip.NewReader(body)
 	if err != nil {
-		return 0, fmt.Errorf("decompress %s: %w", pricesFile, err)
+		return 0, 0, fmt.Errorf("decompress %s: %w", pricesFile, err)
 	}
-	snapshot, err := extractPrices(zr, wanted)
+	fresh, err := extractPrices(zr, wanted)
 	if err != nil {
-		return 0, fmt.Errorf("read %s: %w", pricesFile, err)
+		return 0, 0, fmt.Errorf("read %s: %w", pricesFile, err)
 	}
+	for id := range wanted {
+		delete(existing, id)
+	}
+	maps.Copy(existing, fresh)
 	err = writeFileAtomic(path, func(w io.Writer) error {
-		return json.NewEncoder(w).Encode(snapshot)
+		return json.NewEncoder(w).Encode(existing)
 	})
-	return len(snapshot), err
+	return len(fresh), len(existing), err
 }
 
 // cardUUIDs returns the UUID of every card in the MTGJSON set file at path.
