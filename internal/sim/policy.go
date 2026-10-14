@@ -26,7 +26,8 @@ type Session interface {
 	OpenBooster(setCode string) error
 
 	// SellDuplicates sells all copies above keep to the Counter. keep must be in [1,4].
-	// Sub-coin trades are counted as refused and the card is restored to the collection.
+	// Sub-coin trades are counted as refused and the card is restored to the collection. A
+	// Counter that cannot pay refuses once per card, not once per copy.
 	// Returns the number of individual cards sold and the number refused.
 	SellDuplicates(keep int) (sold, refused int)
 
