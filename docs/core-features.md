@@ -64,7 +64,8 @@ of the fun: the feeling of opening a Teferi or an Akroma.
 
 The compositions below are the draft boosters defined by MTGJSON, checked on 2026-10-10 against
 MTGJSON 5.3.0. MTGJSON is the source because Scryfall does not publish booster contents. All seven
-are 15 cards, with no mythics (introduced in 2008).
+are 15 cards, with no mythics (introduced in 2008). The simulation also loads sets with mythics, see
+[ADR-0013](adr/0013-mythic-is-a-rarity-of-its-own.md).
 
 | Set | MTGJSON sets | Non-foil slots | Foil |
 | --- | --- | --- | --- |
