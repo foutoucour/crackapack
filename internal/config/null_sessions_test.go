@@ -182,23 +182,17 @@ initial_stock:
 	}
 }
 
-// TestLoad_null_listItem verifies the chosen null-in-sequence behaviour:
-// go.yaml.in/yaml/v3 skips null scalar items when decoding into a typed slice,
-// so "targets: [null]" is treated the same as "targets: []" (no targets).
-// This is consistent with the "null means absent" rule; the null entry is
-// silently omitted from the decoded slice and validation passes with no targets.
-// A user who wants a target must supply a non-null mapping item.
-func TestLoad_null_listItem(t *testing.T) {
+// TestLoad_null_listItemIsRejected verifies that a null item in a sequence is an error naming its
+// path. The decoder would skip it silently, so "targets: [null]" would pass as "no targets" and a
+// null inside cost_table would drop a tier unnoticed, see ADR-0017.
+func TestLoad_null_listItemIsRejected(t *testing.T) {
 	t.Parallel()
 	const yaml = `
 targets:
   - null
 `
-	cfg, err := config.Load(strings.NewReader(yaml))
-	if err != nil {
-		t.Fatalf("Load: unexpected error for null list item: %v", err)
-	}
-	if len(cfg.Targets) != 0 {
-		t.Errorf("Targets len = %d, want 0 (null item skipped)", len(cfg.Targets))
+	_, err := config.Load(strings.NewReader(yaml))
+	if err == nil || !strings.Contains(err.Error(), "targets[0]") {
+		t.Fatalf("error = %v, want one naming targets[0]", err)
 	}
 }

@@ -108,7 +108,7 @@ func loadInputs(a simulateArgs) (inputs, error) {
 	}
 	cfg, err := config.Load(reader)
 	if err != nil {
-		return inputs{}, fmt.Errorf("config: %w", err)
+		return inputs{}, err
 	}
 
 	// 2. Load openable catalogues (booster.draft section required).

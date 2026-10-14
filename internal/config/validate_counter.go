@@ -41,8 +41,10 @@ func validateCounterSupply(cfg Config) error {
 	}
 }
 
-// validateCounterEnergy checks the Counter's energy. Like the player's, it must be able to hold the
-// cost of every booster, or the Counter would never open that tier.
+// validateCounterEnergy checks the Counter's energy. The reserve must hold the dearest cost of the
+// cost table: the Counter's pick stays until it can be paid, and savings only grow slowly while
+// the reserve is full, so a cost that needs savings can leave the Counter nearly idle, see
+// ADR-0015.
 func validateCounterEnergy(e CounterEnergyConfig, costTable []EnergyCost) error {
 	switch {
 	case e.RechargePerTick <= 0:
@@ -54,13 +56,17 @@ func validateCounterEnergy(e CounterEnergyConfig, costTable []EnergyCost) error 
 	case e.SavingsCap < 0:
 		return fmt.Errorf("config: counter_supply.energy.savings_cap must be >= 0, got %d", e.SavingsCap)
 	}
+	dearest, at := 0, -1
 	for i, entry := range costTable {
-		if entry.Cost > e.ReserveCap+e.SavingsCap {
-			return fmt.Errorf(
-				"config: counter_supply.energy: energy.cost_table[%d].cost (%d) exceeds reserve_cap (%d) + savings_cap (%d); the Counter could never open that booster",
-				i, entry.Cost, e.ReserveCap, e.SavingsCap,
-			)
+		if entry.Cost > dearest {
+			dearest, at = entry.Cost, i
 		}
+	}
+	if dearest > e.ReserveCap {
+		return fmt.Errorf(
+			"config: counter_supply.energy.reserve_cap (%d) must hold the dearest energy cost, %d (energy.cost_table[%d].cost); savings do not count, the Counter could stay nearly idle",
+			e.ReserveCap, dearest, at,
+		)
 	}
 	return nil
 }
