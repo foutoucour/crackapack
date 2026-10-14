@@ -389,6 +389,39 @@ func TestProposeFromNPCsOffersEachDuplicateOnce(t *testing.T) {
 	}
 }
 
+func TestDeclineClosesAnOpenOffer(t *testing.T) {
+	t.Parallel()
+	fx := offerFixture(t, 1, 0, domain.ExchangeParams{})
+	if err := fx.exchange.ProposeFromNPCs(); err != nil {
+		t.Fatalf("ProposeFromNPCs: %v", err)
+	}
+	offers := fx.exchange.Offers()
+	if len(offers) != 1 {
+		t.Fatalf("got %d open offers, want 1 to decline", len(offers))
+	}
+	id := offers[0].ID
+
+	if err := fx.exchange.Decline(id); err != nil {
+		t.Fatalf("Decline: %v", err)
+	}
+
+	if got := len(fx.exchange.Offers()); got != 0 {
+		t.Errorf("after Decline: got %d open offers, want 0", got)
+	}
+	if _, err := fx.exchange.Accept(id); !errors.Is(err, domain.ErrOfferNotFound) {
+		t.Errorf("Accept after Decline = %v, want ErrOfferNotFound", err)
+	}
+}
+
+func TestDeclineReturnsErrOfferNotFoundForUnknownID(t *testing.T) {
+	t.Parallel()
+	fx := newExchangeFixture(t, 1, tradingSpec(0), domain.ExchangeParams{})
+
+	if err := fx.exchange.Decline(999); !errors.Is(err, domain.ErrOfferNotFound) {
+		t.Errorf("Decline of unknown ID = %v, want ErrOfferNotFound", err)
+	}
+}
+
 func TestProposeFromNPCsSharesTheDailyCapAcrossTheCrowd(t *testing.T) {
 	t.Parallel()
 	const npcCount, days, dailyCap = 40, 300, 5

@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `Exchange.Decline` and `Trading.DeclineOffer` let a player policy close an open counter-offer
+  without trading. The `exploiter` policy now declines counters whose top-up exceeds its limit
+  instead of leaving them open, eliminating the cost cliff at high session rates. Open offer IDs
+  are kept in insertion order so `Offers()` and `StartDay()` no longer sort on every call.
+  `BenchmarkExploiterHighSessionRate` covers the formerly-slow configuration so the cliff cannot
+  return unseen.
+
 - `energy.coins_per_energy`, a price in coins for one energy point. A booster worth more than the
   energy cap then costs the cap's energy and a coin fee for the rest, which leaves the economy into
   the `booster_fee` account. It is off by default, and a run without it is unchanged. A run with it

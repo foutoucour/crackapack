@@ -27,7 +27,7 @@ func TestSession_tradingIsDisabledWithoutTrades(t *testing.T) {
 	t.Parallel()
 	var ran bool
 	var decision domain.Decision
-	var acceptErr, counterErr error
+	var acceptErr, counterErr, declineErr error
 	var offers []domain.Offer
 	var npcCount int
 	policy := scriptPolicy{ran: &ran, script: func(s sim.Session) {
@@ -36,6 +36,7 @@ func TestSession_tradingIsDisabledWithoutTrades(t *testing.T) {
 		decision = s.ProposeTrade(0, nil, nil, 0)
 		_, acceptErr = s.AcceptOffer(1)
 		_, counterErr = s.CounterOffer(1, nil, 0)
+		declineErr = s.DeclineOffer(1)
 	}}
 
 	runResult(t, smallConfig(), policy)
@@ -51,6 +52,9 @@ func TestSession_tradingIsDisabledWithoutTrades(t *testing.T) {
 	}
 	if !errors.Is(acceptErr, sim.ErrTradesDisabled) || !errors.Is(counterErr, sim.ErrTradesDisabled) {
 		t.Errorf("AcceptOffer = %v, CounterOffer = %v, want ErrTradesDisabled", acceptErr, counterErr)
+	}
+	if !errors.Is(declineErr, sim.ErrTradesDisabled) {
+		t.Errorf("DeclineOffer = %v, want ErrTradesDisabled", declineErr)
 	}
 }
 
