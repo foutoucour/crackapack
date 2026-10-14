@@ -67,7 +67,36 @@ many parameters at once for a config that meets the goals.
   coins.
 - [ ] **Coin sinks.** Coins have nothing to buy once the binder is done, and the pile after a full
   binder was 330,000 to 1 million coins in the runs. Sinks were deferred until trades or cosmetics
-  exist. Choose them, see [Economy: risks and fixes](specs-review.md#economy-risks-and-fixes).
+  exist. Choose them, see [Economy: risks and fixes](specs-review.md#economy-risks-and-fixes). The
+  leading candidate is the coin top-up in the item below.
+- [ ] **Energy cost plus coin top-up**, so that coins matter for pace. A booster keeps its energy
+  cost and part of that energy can be paid in coins at one rate. Without energy a pack cannot be
+  opened. Decided: the design above. To simulate: the limit on converting.
+  - [ ] A constant `p`, in coins per energy, at least the best coins per energy of the tiered sets
+    (about 92). Start at 100.
+  - [ ] A mandatory coin fee for a booster worth more than the 12-energy cap, `V - 12p` for a booster
+    of value V. The 2005-2007 sets pay nothing.
+  - [ ] Optional conversion of energy into coins, with a limit. Simulate three variants: a minimum
+    energy share (never below 1 energy), an escalating price that resets daily, and both.
+  - [ ] Simulate the energy cost as the current 3, 5, 8 and 12 tiers and as a continuous price of
+    `V / p`. Replacing the tiers needs a new ADR superseding
+    [ADR-0008](adr/0008-energy-cost-reference-is-the-catalogue-directory.md).
+  - [ ] A property test that converting coins into energy never raises net worth.
+  - [ ] A player policy that converts, since the sink only works if the player uses it.
+  - [ ] An ADR when the variant is chosen.
+- [ ] **The Counter as a special player.** Cards sold to the Counter vanish, whatever the source,
+  and the Counter opens its own boosters from an energy budget. Stock then follows the real pull
+  rates, and the NPC crowd no longer feeds it. Multiple counters were considered and rejected as
+  too complex.
+  - [ ] Stage 1: a flag so sales vanish, and a fixed supply of boosters a day for the Counter, with
+    no energy. Sweep the supply, since supply sets the pace: an empty Counter with no crowd took
+    about 49 days for the binder against about 17 with 25 NPCs.
+  - [ ] Stage 2: the Counter pays energy and booster costs, including the coin top-up for expensive
+    boosters. To be evaluated.
+  - [ ] Stage 3: a finite coin budget for the Counter, instead of minting. To be simulated. It makes
+    coins a closed loop with its own ledger invariants.
+  - [ ] Adapt the player policies, since selling becomes permanent.
+  - [ ] An ADR for vanishing sales.
 
 ### Calibration and decisions
 
@@ -81,9 +110,14 @@ are the goals and their bands, the scope, and the remedies that change a rule.
   RAV and TSP with the defaults gave about 3,400 boosters a day at 500 NPCs and millions of cards
   in the Counter after 90 days. With the Counter starting empty, 50 NPCs were enough to match the
   default-stock pace. One seed, one dataset.
+- [ ] **Keep thresholds of the trading archetypes.** A playset hunter keeps four copies and so has
+  almost nothing to trade, and a speculator keeping two trades half as much as the others. Decide
+  whether they should be trade partners, see
+  [Why hunters and speculators trade less](specs-review.md#why-hunters-and-speculators-trade-less).
 - [ ] **A lever that keeps the Counter's stock scarce.** With a crowd of that size, "limited stock"
   no longer limits what a player can buy, which weakens the fix for "everything can be bought at the
-  Counter".
+  Counter". The leading option is the Counter as a special player, see the item under
+  [Mechanics not simulated yet](#mechanics-not-simulated-yet-in-v1).
 - [ ] **Initial Counter stock:** which cards, instead of a flat count per rarity.
 - [ ] **Counter rates:** the 60% and 120% are starting values.
 - [ ] **Energy:** calibrate the cost tiers against the real booster values, and check the
@@ -93,8 +127,9 @@ are the goals and their bands, the scope, and the remedies that change a rule.
   [Open questions](specs-review.md#open-questions).
 - [ ] **Remedy for the 12-energy cap.** The priciest old sets create too many coins per energy, see
   [Expensive old sets](specs-review.md#expensive-old-sets-and-the-12-energy-cap). No remedy is
-  chosen, so no ADR is written. Accepting `booster.default` when `booster.draft` is absent would
-  make pre-Mirage sets loadable.
+  chosen, so no ADR is written. The leading candidate is the coin fee above the cap, in the energy
+  cost plus coin top-up item. Accepting `booster.default` when `booster.draft` is absent would make
+  pre-Mirage sets loadable.
 - [ ] **Reference value of a card with no TCGplayer price.** Today it is `fallback_price`.
 - [ ] **Foil prices.** A foil shares its non-foil's price, a documented simplification pending a
   per-finish source.
@@ -102,7 +137,30 @@ are the goals and their bands, the scope, and the remedies that change a rule.
   complete, see [Lessons from MTG Arena](retention.md#lessons-from-mtg-arena).
 - [ ] **Scope:** Ninth and Tenth Edition in V1, and a first economy run on Planar Chaos and Future
   Sight, which no recorded run covers.
+- [ ] **Star printings:** a rule for the foil-only duplicate printings of 10E, 9ED and ONS, which
+  make their binders almost unreachable, see
+  [The star printings of 10E, 9ED and ONS](specs-review.md#the-star-printings-of-10e-9ed-and-ons).
 - [ ] **When live prices replace the snapshot**, if ever.
+
+### Scenarios to run
+
+Runs that test whether the economy is as stable as the sensitivity runs suggest. The first and last
+run today. The other two wait for features that are not built. The
+[tuning system](#tuning-system-and-metrics) can reuse them as its scenarios.
+
+- [ ] **A coin-bound run.** Energy is the throttle today. Players end with 0.4 to 2.2 million coins,
+  and the coin rate, the Counter percentages and the trade settings did not move the pace, see
+  [What each parameter does](specs-review.md#what-each-parameter-does). Lower the energy cost or
+  raise `sessions_per_day` until coins limit what the player can buy, then repeat the coin sweeps
+  there.
+- [ ] **A run with faucets and sinks.** Run it once the quest, milestone and coin sink items above
+  exist. Today's balance only grows, and the rewards add coins and energy on top.
+- [ ] **A mixed player population.** Several play styles in one run, with skipped days and different
+  session counts, instead of one rational player present every day. Needs the short-session policy
+  listed under [Tuning system and metrics](#tuning-system-and-metrics).
+- [ ] **An expensive-set run.** Run sets worth far more per booster than the 2005-2007 ones, to see
+  where the economy breaks and to inform the [12-energy remedy](#calibration-and-decisions). The
+  catalogue directory holds only sets from 2002 to 2014, and no pre-Mirage set.
 
 ### Tuning system and metrics
 
@@ -143,6 +201,8 @@ are the goals and their bands, the scope, and the remedies that change a rule.
   - [ ] **New goals** for quests, milestones and trades as those mechanics land. The system does
     not need them to start.
 - [ ] A metric for rare stock-outs, for example the days a card the player wants is out of stock.
+- [ ] Coin pressure metrics, to judge whether coins matter: the share of income absorbed by sinks,
+  the days to afford a chosen goal, the energy converted per day and the change in net worth.
 - [ ] Money supply by flow once quests, milestones and trades add flows.
 - [ ] More player policies: short sessions. The trading policies exist.
 - [ ] Move the findings of the supply runs into the docs once the defaults are settled.

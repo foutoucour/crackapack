@@ -62,7 +62,7 @@ func TestWriteCSV_columnOrder(t *testing.T) {
 		t.Fatalf("expected at least 2 lines (header + data), got %d", len(lines))
 	}
 	header := lines[0]
-	wantPrefix := "day,player,welcome_bonus,daily_reward,counter_sale,counter_purchase,stock_common,stock_uncommon,stock_rare,stock_special,collection_usd,collection_coins,boosters_opened,cards_sold,cards_bought,trades_refused"
+	wantPrefix := "day,player,welcome_bonus,daily_reward,counter_sale,counter_purchase,stock_common,stock_uncommon,stock_rare,stock_special,stock_mythic,collection_usd,collection_coins,boosters_opened,cards_sold,cards_bought,trades_refused"
 	if !strings.HasPrefix(header, wantPrefix) {
 		t.Errorf("CSV header does not start with expected columns.\ngot:  %q\nwant prefix: %q", header, wantPrefix)
 	}

@@ -105,7 +105,15 @@ supplementary pool such as `TSB` there too. Both default outputs are git-ignored
 The snapshot holds one price per card of the requested sets: the latest TCGplayer retail price in
 US cents, non-foil first and foil for cards that exist only as foils. A card with no TCGplayer
 price is left out, so the simulation prices it at `fallback_price` and counts it in
-`unpriced_cards`. Re-run the tool to refresh the prices; it overwrites both outputs.
+`unpriced_cards`.
+
+Each run merges its prices into the `prices.json` that is already there, so the sets can be
+downloaded in several calls.
+- The prices of the sets of earlier calls stay as they were.
+- A requested card takes its fresh price. One that has none now loses its old price.
+- A `prices.json` the tool cannot decode stops the run and is left untouched.
+
+Re-run the tool for a set to refresh its prices. The catalogue files are overwritten.
 
 ### Config YAML
 
@@ -136,6 +144,9 @@ A directory of MTGJSON v5 set files, one per set code (`RAV.json`, `TSP.json`,
 Supplementary pools (`--supplementary`) do not require it. An openable set keeps only the cards
 that a booster sheet contains, see [ADR-0007](adr/0007-catalogues-count-only-obtainable-cards.md).
 
+A card is common, uncommon, rare, mythic or special, see
+[ADR-0013](adr/0013-mythic-is-a-rarity-of-its-own.md). Any other rarity stops the run.
+
 MTGJSON files for sets before Mirage (1996) have no `booster.draft`, so the loader rejects them.
 [Which sets can be simulated](specs-review.md#which-sets-can-be-simulated) lists them and the
 workaround.
@@ -152,9 +163,8 @@ see [ADR-0008](adr/0008-energy-cost-reference-is-the-catalogue-directory.md).
   cost.
 
 The price snapshot has to cover every set file of the directory. A set with no price in it would be
-valued at `fallback_price` and pull the median down, so the run stops with an error naming the set.
-`tools/fetchdata` writes prices only for the sets of one call and overwrites `prices.json`, so
-download all the sets of the directory in a single call.
+valued at `fallback_price` and pull the median down. `tools/fetchdata` merges each call into
+`prices.json`, so fetch every set of the directory, in one call or several.
 
 ### Price snapshot JSON
 
@@ -287,7 +297,7 @@ An archetype names a trade behaviour, see
 | `playset_hunter` | Commons and uncommons, up to a playset, or up to its `keep_copies` when that is lower |
 | `targeted_collector` | The cards it lacks, rarest first |
 | `speculator` | The most valuable cards it lacks, and asks for the most valuable duplicates first |
-| `whale` | Rares and specials, at random |
+| `whale` | Rares, mythics and specials, at random |
 
 Every trade setting is a key of the configuration, so a scenario is a config file:
 
@@ -328,6 +338,9 @@ A run with trades adds these metrics, summed over the run in the summary and per
 `days.csv`: `trade_player_proposals`, `trade_npc_offers`, `trade_accepted`, `trade_countered`,
 `trade_refused`, `trade_expired`, `trade_volume_coins` and `trade_topup_coins`. `days.csv` also
 gets the `trade_topup` balance. `compare` refuses a run with trades against one without.
+
+Which of these settings move the economy and which do not is measured in
+[What the NPC crowd and trades change](specs-review.md#what-the-npc-crowd-and-trades-change).
 
 To see the cost of a long run, `go test ./internal/sim -run '^$' -bench BenchmarkRun -benchmem`
 runs 90 days with 500 NPCs with and without trades.

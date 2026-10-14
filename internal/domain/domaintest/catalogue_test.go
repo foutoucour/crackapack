@@ -75,7 +75,7 @@ func TestNewCatalogue_hasColorshiftedSheet(t *testing.T) {
 			if sc.Weight == 10 {
 				hasRareWeight = true
 			}
-		case domain.RarityCommon, domain.RaritySpecial:
+		case domain.RarityCommon, domain.RaritySpecial, domain.RarityMythic:
 			// colorshifted sheet contains only uncommons and rares; other rarities are ignored here
 		}
 	}

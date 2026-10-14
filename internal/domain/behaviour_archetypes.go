@@ -45,10 +45,12 @@ func (b targetedCollectorBehaviour) PickWishes(ctx WishContext, n int, _ *rand.R
 	return wishesOf(firstN(pool, n), 1)
 }
 
-// collectorRank orders rarities for a collector: a rare or special card comes before an uncommon,
-// which comes before a common.
+// collectorRank orders rarities for a collector: a mythic comes before a rare or special card,
+// which comes before an uncommon, which comes before a common.
 func collectorRank(r Rarity) int {
 	switch r {
+	case RarityMythic:
+		return 3
 	case RarityRare, RaritySpecial:
 		return 2
 	case RarityUncommon:
@@ -81,13 +83,13 @@ func (b speculatorBehaviour) Propose(ctx ProposalContext) (want, give []TradeLin
 	return proposeSwap(ctx, b.params)
 }
 
-// whaleBehaviour goes for rares and specials, at random.
+// whaleBehaviour goes for rares, mythics and specials, at random.
 type whaleBehaviour struct{ base }
 
 func (b whaleBehaviour) PickWishes(ctx WishContext, n int, rng *rand.Rand) []Wish {
 	var pool []Card
 	for _, card := range lacking(ctx) {
-		if card.Rarity == RarityRare || card.Rarity == RaritySpecial {
+		if card.Rarity == RarityRare || card.Rarity == RarityMythic || card.Rarity == RaritySpecial {
 			pool = append(pool, card)
 		}
 	}

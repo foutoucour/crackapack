@@ -51,11 +51,11 @@ type mtgSheet struct {
 	BalanceColors bool           `json:"balanceColors"`
 }
 
-// isValidRarity reports whether r is a recognised rarity for V1 sets.
-// Unknown strings (mythic, bonus, empty) are rejected by the caller.
+// isValidRarity reports whether r is a recognised rarity.
+// Unknown strings (bonus, empty) are rejected by the caller.
 func isValidRarity(r Rarity) bool {
 	switch r {
-	case RarityCommon, RarityUncommon, RarityRare, RaritySpecial:
+	case RarityCommon, RarityUncommon, RarityRare, RaritySpecial, RarityMythic:
 		return true
 	default:
 		return false

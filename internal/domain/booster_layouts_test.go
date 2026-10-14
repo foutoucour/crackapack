@@ -153,7 +153,7 @@ func TestClassicGenerator_statisticsTimeSpiral(t *testing.T) {
 					foilByGroup["common"]++
 				case domain.RarityUncommon:
 					foilByGroup["uncommon"]++
-				case domain.RarityRare:
+				case domain.RarityRare, domain.RarityMythic:
 					foilByGroup["rare"]++
 				case domain.RaritySpecial:
 					// TSP has no special-rarity cards in its main set; unreachable

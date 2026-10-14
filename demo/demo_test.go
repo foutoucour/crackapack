@@ -58,6 +58,19 @@ func TestBuild_structure(t *testing.T) {
 		if counts[domain.RarityRare] < 15 {
 			t.Errorf("DEM: rares = %d, want >= 15", counts[domain.RarityRare])
 		}
+		if counts[domain.RarityMythic] < 3 {
+			t.Errorf("DEM: mythics = %d, want >= 3", counts[domain.RarityMythic])
+		}
+	})
+
+	t.Run("DEM_rare_sheet_holds_mythics", func(t *testing.T) {
+		t.Parallel()
+		for _, sc := range dem.Sheets["rare"].Cards {
+			if dem.Cards[sc.ID].Rarity == domain.RarityMythic {
+				return
+			}
+		}
+		t.Error("DEM: the rare sheet holds no mythic, so no booster can open one")
 	})
 
 	t.Run("DEM_booster_sizes", func(t *testing.T) {
@@ -337,7 +350,7 @@ func checkPriceDistribution(t *testing.T, cats []domain.SetCatalogue, prices dom
 					commonPrices = append(commonPrices, p)
 				case domain.RarityRare:
 					rarePrices = append(rarePrices, p)
-				case domain.RarityUncommon, domain.RaritySpecial:
+				case domain.RarityUncommon, domain.RaritySpecial, domain.RarityMythic:
 					// not checked individually
 				}
 			}

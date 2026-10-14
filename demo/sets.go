@@ -15,7 +15,16 @@ const (
 	demCommonCount   = 80 // 16 per colour (W U B R G)
 	demUncommonCount = 30
 	demRareCount     = 15
+	demMythicCount   = 3
 	demBasicCount    = 5
+)
+
+// DEM mythic sheet weights. A rare card weighs 10 on the rare sheet, so three mythics at 7 open in
+// about one rare slot in eight, the rate of the real core sets. The foil sheet keeps the same
+// ratio against its rare weight of 180.
+const (
+	demMythicWeight     = 7
+	demMythicFoilWeight = 26
 )
 
 // DEM booster option weights (Ravnica-style five-option foil pattern, total 1000).
@@ -46,9 +55,10 @@ const (
 
 // newDEMCatalogue builds the demo classic set (Ravnica-style layout).
 //
-// 80 commons (16 per colour W/U/B/R/G) + 30 uncommons + 15 rares + 5 basics.
+// 80 commons (16 per colour W/U/B/R/G) + 30 uncommons + 15 rares + 3 mythics + 5 basics.
 // Common sheet: 85 cards, BalanceColors=false (Ravnica-block style).
-// Foil sheet: 125 non-basic cards (commons + uncommons + rares).
+// Rare sheet: the rares and the mythics. Foil sheet: 128 non-basic cards (commons, uncommons,
+// rares and mythics).
 // Booster options: five-option Ravnica pattern, weights sum to 1000.
 func newDEMCatalogue() domain.SetCatalogue {
 	// Mono colours cycling W U B R G for colour-balanced draws.
@@ -58,7 +68,7 @@ func newDEMCatalogue() domain.SetCatalogue {
 
 	// Commons: dem-c-000 to dem-c-079, colours cycling W,U,B,R,G.
 	commonSheet := make([]domain.SheetCard, 0, demCommonCount+demBasicCount)
-	foilSheet := make([]domain.SheetCard, 0, demCommonCount+demUncommonCount+demRareCount)
+	foilSheet := make([]domain.SheetCard, 0, demCommonCount+demUncommonCount+demRareCount+demMythicCount)
 	for i := range demCommonCount {
 		id := domain.CardID(fmt.Sprintf("dem-c-%03d", i))
 		cards[id] = domain.Card{
@@ -104,7 +114,7 @@ func newDEMCatalogue() domain.SetCatalogue {
 	}
 
 	// Rares: dem-r-000 to dem-r-014.
-	rareSheet := make([]domain.SheetCard, 0, demRareCount)
+	rareSheet := make([]domain.SheetCard, 0, demRareCount+demMythicCount)
 	for i := range demRareCount {
 		id := domain.CardID(fmt.Sprintf("dem-r-%03d", i))
 		cards[id] = domain.Card{
@@ -116,6 +126,20 @@ func newDEMCatalogue() domain.SetCatalogue {
 		}
 		rareSheet = append(rareSheet, domain.SheetCard{ID: id, Weight: 10})
 		foilSheet = append(foilSheet, domain.SheetCard{ID: id, Weight: 180})
+	}
+
+	// Mythics: dem-m-000 to dem-m-002, in the rare slot.
+	for i := range demMythicCount {
+		id := domain.CardID(fmt.Sprintf("dem-m-%03d", i))
+		cards[id] = domain.Card{
+			ID:       id,
+			Name:     fmt.Sprintf("Demo Mythic %d", i),
+			Number:   fmt.Sprintf("%d", demCommonCount+demBasicCount+demUncommonCount+demRareCount+i+1),
+			Rarity:   domain.RarityMythic,
+			Finishes: []domain.Finish{domain.FinishNonFoil, domain.FinishFoil},
+		}
+		rareSheet = append(rareSheet, domain.SheetCard{ID: id, Weight: demMythicWeight})
+		foilSheet = append(foilSheet, domain.SheetCard{ID: id, Weight: demMythicFoilWeight})
 	}
 
 	sortSheetByID(commonSheet)

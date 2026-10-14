@@ -224,7 +224,7 @@ type Config struct {
 	// InitialStock is the number of each-rarity card copies stocked in the Counter
 	// at simulation start. A partial YAML map merges with the defaults per key;
 	// only the specified rarities are overridden.
-	// ASSUMPTION defaults (pending calibration): common 20, uncommon 8, rare 2, special 2.
+	// ASSUMPTION defaults (pending calibration): common 20, uncommon 8, rare 2, special 2, mythic 2.
 	InitialStock map[domain.Rarity]int `yaml:"initial_stock"`
 
 	// FallbackPrice is the price in USDCents for cards absent from the price snapshot.
@@ -283,6 +283,7 @@ func defaults() Config {
 			domain.RarityUncommon: 8,
 			domain.RarityRare:     2,
 			domain.RaritySpecial:  2,
+			domain.RarityMythic:   2,
 		},
 		FallbackPrice: 1, // ASSUMPTION
 		// ASSUMPTION: archetype shares, rhythms, keep thresholds and the trade settings are starting

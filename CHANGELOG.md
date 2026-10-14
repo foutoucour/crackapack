@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `tools/fetchdata` merges the prices of a call into the existing `prices.json` instead of
+  overwriting it, so the sets of a catalogue directory can be downloaded in several calls. A
+  `prices.json` it cannot decode stops the run and is left untouched.
+- `days.csv` has a `stock_mythic` column after `stock_special`. `result.json` is unchanged for
+  runs on sets without mythics.
 - [ADR-0009](docs/adr/0009-npc-archetypes-are-data.md) is superseded by ADR-0010: an archetype now
   names a trade behaviour, and its supply parameters stay data.
 - A booster's energy cost is relative to the median booster value of every openable set in the
@@ -27,6 +32,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- The `mythic` rarity, so the core sets Magic 2010 to Magic 2015 load. The Counter stocks it
+  (`initial_stock.mythic`, default 2), the `whale` wishes for it and the `targeted_collector` ranks
+  it above a rare, see [ADR-0013](docs/adr/0013-mythic-is-a-rarity-of-its-own.md). The demo set DEM
+  holds three mythics.
 - Trades with NPCs in the simulation, behind `trades.enabled` (default off, so existing runs are
   unchanged). NPCs hold their surplus on a shelf, wish for cards, propose swaps for the player's
   duplicates and counter a short offer once. Every setting is a config key, and two player

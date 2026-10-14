@@ -20,6 +20,8 @@ const (
 	chaseRareCents  = 3000 // chase rare price: $30
 	specialLoCents  = 20   // cheapest timeshifted: 20 cents
 	specialHiCents  = 200  // most expensive timeshifted: $2
+	mythicLoCents   = 200  // cheapest mythic: $2
+	mythicHiCents   = 5000 // most expensive mythic: $50
 	chaseRareCount  = 3    // first N rares per catalogue (by sorted ID) are chase rares
 )
 
@@ -32,6 +34,7 @@ const (
 //   - Uncommon: 10–100 cents
 //   - Rare:     50–2000 cents (regular); $30 for the first chaseRareCount rares per set
 //   - Special:  20–200 cents (timeshifted)
+//   - Mythic:   200–5000 cents
 //
 // Within each catalogue, one non-basic card (the last by sorted ID) is left
 // unpriced to exercise the fallback-price path.
@@ -64,6 +67,8 @@ func newDemoPrices(cats []domain.SetCatalogue, rng *rand.Rand) domain.PriceSnaps
 				}
 			case domain.RaritySpecial:
 				price = cubicCents(rng, specialLoCents, specialHiCents)
+			case domain.RarityMythic:
+				price = cubicCents(rng, mythicLoCents, mythicHiCents)
 			}
 			snap[id] = price
 		}

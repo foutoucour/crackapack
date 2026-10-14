@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"maps"
 	"math/rand/v2"
 	"slices"
 	"testing"
@@ -351,5 +352,57 @@ func TestPlaysetHunterNeverWishesForMoreCopiesThanItKeeps(t *testing.T) {
 		if w.Want != keep {
 			t.Errorf("wish %q wants %d copies, want %d: the NPC sells every copy above its keep threshold, so a larger want is never met", w.ID, w.Want, keep)
 		}
+	}
+}
+
+// withMythic returns a copy of cat with one more card, a mythic. The catalogue's rare stays a rare.
+func withMythic(t *testing.T, cat domain.SetCatalogue) (domain.SetCatalogue, domain.CardID) {
+	t.Helper()
+	const mythicID domain.CardID = "synth-mythic-0000"
+	cards := maps.Clone(cat.Cards)
+	cards[mythicID] = domain.Card{
+		ID:       mythicID,
+		Name:     "Mythic",
+		Number:   "999",
+		Rarity:   domain.RarityMythic,
+		Finishes: []domain.Finish{domain.FinishNonFoil},
+	}
+	cat.Cards = cards
+	return cat, mythicID
+}
+
+func TestWhaleWishesForMythics(t *testing.T) {
+	t.Parallel()
+	cat, mythic := withMythic(t, domaintest.NewRavnicaCatalogue())
+	b, err := domain.NewBehaviour("whale", domain.BehaviourParams{})
+	if err != nil {
+		t.Fatalf("NewBehaviour: %v", err)
+	}
+
+	wishes := b.PickWishes(domain.WishContext{NPC: behaviourNPC(t, cat), Scope: behaviourScope(cat)}, 100, rand.New(rand.NewPCG(2, 2)))
+
+	if !slices.ContainsFunc(wishes, func(w domain.Wish) bool { return w.ID == mythic }) {
+		t.Errorf("wishes %v do not include the mythic %q", wishes, mythic)
+	}
+}
+
+func TestTargetedCollectorWishesMythicsBeforeRares(t *testing.T) {
+	t.Parallel()
+	cat, mythic := withMythic(t, domaintest.NewRavnicaCatalogue())
+	b, err := domain.NewBehaviour("targeted_collector", domain.BehaviourParams{})
+	if err != nil {
+		t.Fatalf("NewBehaviour: %v", err)
+	}
+
+	wishes := b.PickWishes(domain.WishContext{NPC: behaviourNPC(t, cat), Scope: behaviourScope(cat)}, 2, rand.New(rand.NewPCG(2, 2)))
+
+	if len(wishes) != 2 {
+		t.Fatalf("got %d wishes, want 2", len(wishes))
+	}
+	if wishes[0].ID != mythic {
+		t.Errorf("first wish is %q (a %s), want the mythic %q", wishes[0].ID, cat.Cards[wishes[0].ID].Rarity, mythic)
+	}
+	if r := cat.Cards[wishes[1].ID].Rarity; r != domain.RarityRare {
+		t.Errorf("second wish is a %s, want a rare", r)
 	}
 }

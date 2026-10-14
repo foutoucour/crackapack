@@ -76,7 +76,7 @@ func TestLoadInputs_unrequestedFileWithDefectIsNamedInTheError(t *testing.T) {
 	}{
 		{"malformed json", "BAD.json", `{"data":`},
 		{"unknown rarity", "ODD.json", `{"data":{"code":"ODD","name":"Odd",` +
-			`"cards":[{"uuid":"odd-1","name":"Odd","number":"1","rarity":"mythic","finishes":["nonfoil"],` +
+			`"cards":[{"uuid":"odd-1","name":"Odd","number":"1","rarity":"bonus","finishes":["nonfoil"],` +
 			`"supertypes":[],"identifiers":{}}],` +
 			`"booster":{"draft":{"boosters":[{"contents":{"common":1},"weight":1}],` +
 			`"sheets":{"common":{"cards":{"odd-1":10},"totalWeight":10,"foil":false,"balanceColors":false}}}}}}`},

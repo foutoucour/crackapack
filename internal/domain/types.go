@@ -2,8 +2,8 @@ package domain
 
 import "math/rand/v2"
 
-// Rarity is the rarity printed on a card. The V1 catalogue (2005-2007) has no mythics.
-// Special is the rarity of Time Spiral's timeshifted cards.
+// Rarity is the rarity printed on a card. Special is the rarity of Time Spiral's timeshifted
+// cards, and mythic the rarity of the rares upgraded from Shards of Alara (2008) on.
 type Rarity string
 
 const (
@@ -11,6 +11,7 @@ const (
 	RarityUncommon Rarity = "uncommon"
 	RarityRare     Rarity = "rare"
 	RaritySpecial  Rarity = "special"
+	RarityMythic   Rarity = "mythic"
 )
 
 // CardID identifies one printing of a card. It is the MTGJSON UUID.
