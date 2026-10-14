@@ -28,6 +28,19 @@ const (
 	// It is unguarded, and its balance is the total spent at the Counter.
 	AccountCounterPurchase Account = "counter_purchase"
 
+	// AccountCounterTreasury is the Counter's coin wallet when the Counter has a budget. It is
+	// guarded, so the Counter cannot pay out more than it holds: a sale to the Counter posts from
+	// it to AccountPlayer, and a purchase from the Counter posts from AccountPlayer to it.
+	AccountCounterTreasury Account = "counter_treasury"
+
+	// AccountCounterFloat is the source account for the coins that fund the Counter's treasury,
+	// at the start and each day. It is unguarded like the other sources.
+	AccountCounterFloat Account = "counter_float"
+
+	// AccountCounterFee is the sink account for the coin fees the Counter pays to open boosters
+	// worth more than the energy cap: the posting goes from the treasury to it.
+	AccountCounterFee Account = "counter_fee"
+
 	// AccountTradeTopUp is the sink account for the coins the player adds to a trade with an NPC:
 	// the top-up posts from AccountPlayer to AccountTradeTopUp. NPCs hold no coins and have no
 	// account, so the coins leave the economy. It is unguarded, and its balance is the total of

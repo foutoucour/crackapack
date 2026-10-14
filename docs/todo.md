@@ -90,13 +90,14 @@ many parameters at once for a config that meets the goals.
   too complex.
   - [x] Stage 1a: the `counter_shelf_days` flag, off by default: `-1` forever, `0` a sink, `N` days
     on the shelf, see [The Counter's shelf life](simulation.md#the-counters-shelf-life).
-  - [ ] Stage 1b: a fixed supply of boosters a day for the Counter, with no energy. Sweep the supply,
+  - [x] Stage 1b: a fixed supply of boosters a day for the Counter, with no energy. Sweep the supply,
     since supply sets the pace: an empty Counter with no crowd took about 49 days for the binder
     against about 17 with 25 NPCs.
-  - [ ] Stage 2: the Counter pays energy and booster costs, including the coin top-up for expensive
-    boosters. To be evaluated.
-  - [ ] Stage 3: a finite coin budget for the Counter, instead of minting. To be simulated. It makes
-    coins a closed loop with its own ledger invariants.
+  - [x] Stage 2: the Counter pays energy and booster costs from an energy of its own. The coin top-up
+    for expensive boosters comes with stage 3, since it needs the Counter's treasury.
+  - [x] Stage 3: a finite coin budget for the Counter, instead of minting, with the coin fee for
+    expensive boosters. Built behind `counter_budget` and `counter_supply.coins_per_energy`, to be
+    simulated. It makes coins a closed loop with its own ledger invariants.
   - [ ] Adapt the player policies, since selling becomes permanent.
   - [ ] An ADR for vanishing sales.
 

@@ -65,6 +65,7 @@ type Comparison struct {
 //   - the results have different day counts
 //   - the results have different set codes (derived from day 0's SetProgress)
 //   - only one of the results has an NPC crowd (derived from day 0's NPC metrics)
+//   - only one of the results has a Counter supply (derived from day 0's Counter metrics)
 //   - only one of the results has trades (derived from day 0's trade metrics)
 //   - a per-day Day number differs at any index (index and both numbers are named)
 func Compare(a, b Result) (Comparison, error) {
@@ -84,13 +85,15 @@ func Compare(a, b Result) (Comparison, error) {
 		}
 	}
 
-	// 2b. Both runs have an NPC crowd or neither: their columns would not line up otherwise.
-	if hasNPCMetrics(a.Days) != hasNPCMetrics(b.Days) {
+	// 2b. Both runs have the same optional columns: they would not line up otherwise.
+	withA, withB := extrasOf(a.Days), extrasOf(b.Days)
+	if withA.npc != withB.npc {
 		return Comparison{}, fmt.Errorf("results differ in NPC crowd: only one of them has NPC metrics")
 	}
-
-	// 2c. Both runs have trades or neither: their columns would not line up otherwise.
-	if hasTradeMetrics(a.Days) != hasTradeMetrics(b.Days) {
+	if withA.counter != withB.counter {
+		return Comparison{}, fmt.Errorf("results differ in counter supply: only one of them has Counter metrics")
+	}
+	if withA.trades != withB.trades {
 		return Comparison{}, fmt.Errorf("results differ in trades: only one of them has trade metrics")
 	}
 
@@ -111,11 +114,10 @@ func Compare(a, b Result) (Comparison, error) {
 	var dayCmps []DayComparison
 	if len(a.Days) > 0 {
 		setCodes := progressSetCodes(a.Days[0].SetProgress)
-		withNPC := hasNPCMetrics(a.Days)
-		withTrades := hasTradeMetrics(a.Days)
+		with := extrasOf(a.Days)
 		dayCmps = make([]DayComparison, len(a.Days))
 		for i := range a.Days {
-			dayCmps[i] = computeDayComparison(a.Days[i], b.Days[i], setCodes, withNPC, withTrades)
+			dayCmps[i] = computeDayComparison(a.Days[i], b.Days[i], setCodes, with)
 		}
 	}
 
@@ -275,11 +277,10 @@ func computeSummaryDiff(a, b Summary) map[string]MetricDiff {
 }
 
 // computeDayComparison produces the per-column deltas for one pair of days.
-// setCodes must be sorted ascending, and withNPC and withTrades must match both days (same
-// contract as dayColumns).
-func computeDayComparison(a, b DayMetrics, setCodes []string, withNPC, withTrades bool) DayComparison {
-	aCols := dayColumns(a, setCodes, withNPC, withTrades)
-	bCols := dayColumns(b, setCodes, withNPC, withTrades)
+// setCodes must be sorted ascending, and with must match both days (same contract as dayColumns).
+func computeDayComparison(a, b DayMetrics, setCodes []string, with extras) DayComparison {
+	aCols := dayColumns(a, setCodes, with)
+	bCols := dayColumns(b, setCodes, with)
 
 	deltas := make([]ColDelta, len(aCols))
 	for i, ac := range aCols {

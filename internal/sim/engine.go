@@ -23,8 +23,10 @@ type Engine struct {
 	energy        *domain.Energy
 	collection    *domain.Collection
 	counter       *domain.Counter
-	crowd         *domain.Crowd    // nil in a run without NPCs
-	exchange      *domain.Exchange // nil unless trades are enabled
+	crowd         *domain.Crowd         // nil in a run without NPCs
+	supply        *domain.CounterSupply // nil unless the Counter opens boosters
+	counterOn     bool                  // the run reports the Counter's own metrics
+	exchange      *domain.Exchange      // nil unless trades are enabled
 	opener        *domain.Opener
 	policy        PlayerPolicy
 	boosterCosts  map[string]int // setCode -> energy cost; openable sets only
@@ -38,6 +40,10 @@ type Engine struct {
 	dayTradesRefused  int
 	dayNPCBoosters    int
 	dayNPCSold        int
+	daySupplyBoosters int
+	daySupplyCards    int
+	daySupplyFees     domain.Coins
+	dayBrokeRefusals  int
 }
 
 type options struct {
@@ -133,8 +139,11 @@ func NewEngine(
 		return nil, fmt.Errorf("sim: energy: %w", err)
 	}
 
-	// Build journal.
+	// Build journal. A Counter with a treasury must not be able to pay out more than it holds.
 	journal := domain.NewJournal()
+	if cfg.CounterBudget.Enabled {
+		journal = domain.NewJournal(domain.AccountPlayer, domain.AccountCounterTreasury)
+	}
 
 	// Build counter: index both openable and supplementary catalogues.
 	allCats := make([]domain.SetCatalogue, 0, len(catalogues)+len(supplementary))
@@ -148,9 +157,13 @@ func NewEngine(
 		FallbackPrice: cfg.FallbackPrice,
 		InitialStock:  cfg.InitialStock,
 		ShelfLife:     shelfLife(cfg.CounterShelfDays),
+		Treasury:      cfg.CounterBudget.Enabled,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("sim: counter: %w", err)
+	}
+	if err := fundTreasury(journal, cfg.CounterBudget.Initial, "initial treasury"); err != nil {
+		return nil, err
 	}
 
 	valuer := domain.NewValuer(prices, cfg.FallbackPrice)
@@ -203,6 +216,14 @@ func NewEngine(
 		}
 		boosterCosts[cat.Code] = cost
 	}
+	fees, err := counterCoinFees(cfg, catalogues, avgValues)
+	if err != nil {
+		return nil, err
+	}
+	supply, err := newCounterSupply(cfg, catalogues, counter, boosterCosts, journal, fees)
+	if err != nil {
+		return nil, err
+	}
 	maxWait, err := maxBoosterWaitMinutes(energyParams, boosterCosts)
 	if err != nil {
 		return nil, fmt.Errorf("sim: %w", err)
@@ -230,6 +251,8 @@ func NewEngine(
 		collection:    collection,
 		counter:       counter,
 		crowd:         crowd,
+		supply:        supply,
+		counterOn:     supply != nil || cfg.CounterBudget.Enabled,
 		exchange:      exchange,
 		opener:        opener,
 		policy:        policy,
@@ -287,6 +310,14 @@ func (e *Engine) Run() (Result, error) {
 		e.dayTradesRefused = 0
 		e.dayNPCBoosters = 0
 		e.dayNPCSold = 0
+		e.daySupplyBoosters = 0
+		e.daySupplyCards = 0
+		e.daySupplyFees = 0
+		e.dayBrokeRefusals = 0
+
+		if err := fundTreasury(e.journal, e.cfg.CounterBudget.DailyFloat, fmt.Sprintf("daily float day %d", day)); err != nil {
+			return Result{}, fmt.Errorf("sim: day %d: %w", day, err)
+		}
 
 		if e.exchange != nil {
 			e.exchange.StartDay(day)
@@ -298,6 +329,9 @@ func (e *Engine) Run() (Result, error) {
 				return Result{}, fmt.Errorf("sim: day %d tick %d: energy tick: %w", day, tick, err)
 			}
 			e.counter.Tick()
+			if err := e.tickSupply(); err != nil {
+				return Result{}, fmt.Errorf("sim: day %d tick %d: %w", day, tick, err)
+			}
 			if err := e.tickCrowd(); err != nil {
 				return Result{}, fmt.Errorf("sim: day %d tick %d: %w", day, tick, err)
 			}
@@ -341,8 +375,23 @@ func (e *Engine) Run() (Result, error) {
 	if e.exchange != nil {
 		addTradeSummary(summary, days)
 	}
+	if e.counterOn {
+		addCounterSummary(summary, days)
+	}
 
 	return Result{Days: days, Summary: summary}, nil
+}
+
+// fundTreasury moves coins from the Counter's float into its treasury. It does nothing for a
+// non-positive amount, which is also what a run without a budget has.
+func fundTreasury(journal *domain.Journal, amount domain.Coins, memo string) error {
+	if amount <= 0 {
+		return nil
+	}
+	if err := journal.Post(domain.Entry{From: domain.AccountCounterFloat, To: domain.AccountCounterTreasury, Amount: amount, Memo: memo}); err != nil {
+		return fmt.Errorf("sim: fund the Counter's treasury (%s): %w", memo, err)
+	}
+	return nil
 }
 
 // shelfLife maps the counter_shelf_days setting to the Counter's ShelfLife: a negative value keeps
@@ -369,6 +418,37 @@ func (e *Engine) tickCrowd() error {
 	return nil
 }
 
+// tickSupply advances the Counter's supply by one tick and books what it opened into the day
+// counters. It does nothing when the Counter opens no boosters.
+func (e *Engine) tickSupply() error {
+	if e.supply == nil {
+		return nil
+	}
+	tick, err := e.supply.Tick()
+	if err != nil {
+		return err
+	}
+	e.daySupplyBoosters += tick.BoostersOpened
+	e.daySupplyCards += tick.CardsOpened
+	e.daySupplyFees += tick.FeeCoins
+	return nil
+}
+
+// counterMetrics returns what the Counter did on its own on the day just ended, or nil when it
+// neither opens boosters nor has a treasury.
+func (e *Engine) counterMetrics() *CounterDayMetrics {
+	if !e.counterOn {
+		return nil
+	}
+	return &CounterDayMetrics{
+		BoostersOpened: e.daySupplyBoosters,
+		CardsOpened:    e.daySupplyCards,
+		FeeCoins:       e.daySupplyFees,
+		Treasury:       e.journal.Balance(domain.AccountCounterTreasury),
+		BrokeRefusals:  e.dayBrokeRefusals,
+	}
+}
+
 // npcMetrics returns the crowd's metrics for the day just ended, or nil without a crowd.
 func (e *Engine) npcMetrics() *NPCDayMetrics {
 	if e.crowd == nil {
@@ -386,6 +466,9 @@ func (e *Engine) snapshotDay(day int) (DayMetrics, error) {
 		domain.AccountDailyReward,
 		domain.AccountCounterSale,
 		domain.AccountCounterPurchase,
+	}
+	if e.cfg.CounterBudget.Enabled {
+		accounts = append(accounts, domain.AccountCounterTreasury, domain.AccountCounterFloat, domain.AccountCounterFee)
 	}
 	if e.exchange != nil {
 		accounts = append(accounts, domain.AccountTradeTopUp)
@@ -427,6 +510,7 @@ func (e *Engine) snapshotDay(day int) (DayMetrics, error) {
 	return DayMetrics{
 		Day:             day,
 		NPC:             e.npcMetrics(),
+		Counter:         e.counterMetrics(),
 		Trade:           e.tradeMetrics(),
 		MoneySupply:     supply,
 		StockByRarity:   stock,

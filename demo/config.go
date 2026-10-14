@@ -20,6 +20,11 @@ const demSeed uint64 = 42
 // The three targets below split the grid: rates 50 and 100 fail at least one
 // target; rates 200 and 400 pass all three.
 //
+// The Counter opens 40 boosters a day and pays from a treasury of 5 million coins plus 20 thousand
+// a day, large enough that the sweep outcome above does not change: the demo exercises the
+// Counter as a special player without moving its calibration. A smaller treasury runs the Counter
+// out of coins at the higher rates, which removes the passing window.
+//
 // Note: days_to_100pct_cu.dem = 4 at all rates (the collector's buy-all-cheapest
 // strategy is rate-insensitive on this dataset). That metric is informative but
 // not a calibration target here.
@@ -32,6 +37,13 @@ npcs:
   surplus_hold_days: 2
 trades:
   enabled: true
+counter_supply:
+  mode: fixed
+  boosters_per_day: 40
+counter_budget:
+  enabled: true
+  initial: 5000000
+  daily_float: 20000
 
 targets:
   - metric: sub_coin_cards

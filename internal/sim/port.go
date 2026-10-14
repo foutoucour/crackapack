@@ -94,8 +94,8 @@ func (p *port) OpenBooster(setCode string) error {
 }
 
 // SellDuplicates sells all copies above keep to the Counter, one copy at a time.
-// Each sell is atomic: remove from collection then sell; on ErrSubCoin refusal
-// the copy is restored and the refusal is counted. Any other error from the
+// Each sell is atomic: remove from collection then sell; on ErrSubCoin or ErrCounterBroke
+// refusal the copy is restored and the refusal is counted. Any other error from the
 // Counter is fatal.
 func (p *port) SellDuplicates(keep int) (sold, refused int) {
 	surplus, err := p.e.collection.DuplicatesAbove(keep)
@@ -111,14 +111,18 @@ func (p *port) SellDuplicates(keep int) (sold, refused int) {
 				return sold, refused
 			}
 			if err := p.e.counter.BuyFromPlayer(s.Key); err != nil {
-				if errors.Is(err, domain.ErrSubCoin) {
-					// Restore and count as refused.
+				if errors.Is(err, domain.ErrSubCoin) || errors.Is(err, domain.ErrCounterBroke) {
+					// Restore and count as refused. A Counter that is out of coins refuses like one
+					// that finds the card worth less than a coin.
 					if addErr := p.e.collection.Add(s.Key, 1); addErr != nil {
 						p.fatalErr = fmt.Errorf("sell duplicates: restore after refusal: %w", addErr)
 						return sold, refused
 					}
 					refused++
 					p.e.dayTradesRefused++
+					if errors.Is(err, domain.ErrCounterBroke) {
+						p.e.dayBrokeRefusals++
+					}
 				} else {
 					p.fatalErr = fmt.Errorf("sell duplicates: counter buy: %w", err)
 					return sold, refused

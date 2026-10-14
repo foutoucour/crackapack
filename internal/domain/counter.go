@@ -26,6 +26,9 @@ type CounterParams struct {
 	// ShelfLife is how long a card sold to the Counter, by the player or as NPC surplus, stays
 	// in stock. The zero value keeps it forever.
 	ShelfLife ShelfLife
+	// Treasury makes the Counter pay from, and be paid into, a guarded treasury account instead of
+	// minting the coins it pays and destroying the coins it is paid.
+	Treasury bool
 }
 
 // ShelfLife is how long a card sold to the Counter stays on its shelf. The zero value is
@@ -49,6 +52,10 @@ var (
 	// all catalogues passed to NewCounter, or when the requested Finish is not
 	// listed for that card.
 	ErrUnknownCard = errors.New("counter: card not in catalogue")
+
+	// ErrCounterBroke is returned by BuyFromPlayer when the Counter has a treasury and the treasury
+	// cannot pay for the card. The card is not taken.
+	ErrCounterBroke = errors.New("counter: treasury cannot pay for the card")
 
 	// ErrOutOfStock is returned by SellToPlayer when the Counter holds no
 	// copies of the requested card.
@@ -169,6 +176,8 @@ func NewCounter(cats []SetCatalogue, prices PriceSnapshot, journal *Journal, par
 //
 // Returns ErrUnknownCard if the card ID is not in any catalogue or if the
 // requested finish is not listed for that card.
+// Returns a wrapped ErrCounterBroke, with the card not taken, if the Counter has a treasury that
+// cannot pay.
 // Returns a wrapped ErrSubCoin if the trade is worth less than one coin.
 // This covers both genuinely sub-coin prices and zero prices
 // (e.g. FallbackPrice == 0 or a snapshot price of 0).
@@ -180,12 +189,19 @@ func (c *Counter) BuyFromPlayer(key CardKey) error {
 	if err != nil {
 		return err
 	}
+	from := AccountCounterSale
+	if c.params.Treasury {
+		from = AccountCounterTreasury
+	}
 	if err := c.journal.Post(Entry{
-		From:   AccountCounterSale,
+		From:   from,
 		To:     AccountPlayer,
 		Amount: coins,
 		Memo:   fmt.Sprintf("buy from player: card %s finish %s", key.ID, key.Finish),
 	}); err != nil {
+		if c.params.Treasury && errors.Is(err, ErrInsufficientBalance) {
+			return fmt.Errorf("counter: card %q finish %q: %w", key.ID, key.Finish, ErrCounterBroke)
+		}
 		return fmt.Errorf("counter: post payment for card %q finish %q: %w", key.ID, key.Finish, err)
 	}
 	c.shelve(key, 1)
@@ -215,9 +231,13 @@ func (c *Counter) SellToPlayer(key CardKey) error {
 	if err != nil {
 		return err
 	}
+	to := AccountCounterPurchase
+	if c.params.Treasury {
+		to = AccountCounterTreasury
+	}
 	if err := c.journal.Post(Entry{
 		From:   AccountPlayer,
-		To:     AccountCounterPurchase,
+		To:     to,
 		Amount: coins,
 		Memo:   fmt.Sprintf("sell to player: card %s finish %s", key.ID, key.Finish),
 	}); err != nil {
@@ -227,7 +247,8 @@ func (c *Counter) SellToPlayer(key CardKey) error {
 	return nil
 }
 
-// AcceptSurplus shelves n copies of key without touching the ledger: NPCs hold no coins
+// AcceptSurplus shelves n copies of key without touching the ledger. It also stocks the cards a
+// CounterSupply opens for the Counter, which cost nothing and pay nothing either: NPCs hold no coins
 // and have no account, so what they sell to the Counter costs nothing and pays nothing.
 //
 // Returns ErrUnknownCard if the card ID is not in any catalogue or if the finish is not listed
