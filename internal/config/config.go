@@ -105,6 +105,11 @@ type EnergyConfig struct {
 	// SavingsCap is the maximum energy held in the savings pool (default 200).
 	SavingsCap int `yaml:"savings_cap"`
 
+	// CoinsPerEnergy is the coin price of one energy point, p. A booster worth more than the
+	// energy cap pays its value minus the cap times p in coins, on top of the cap's energy. The
+	// default 0 means no coin fee.
+	CoinsPerEnergy domain.Coins `yaml:"coins_per_energy"`
+
 	// CostTable maps booster-value/catalogue-median ratio thresholds to energy costs.
 	// Must be non-empty and sorted in ascending order of Threshold. The last entry
 	// is the catch-all for any ratio above the highest Threshold.

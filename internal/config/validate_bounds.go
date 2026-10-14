@@ -39,6 +39,7 @@ func validateBounds(cfg Config) error {
 		{"counter_budget.daily_float", int64(cfg.CounterBudget.DailyFloat), maxCoins},
 		{"counter_supply.coins_per_energy", int64(cfg.CounterSupply.CoinsPerEnergy), maxCoins},
 		{"counter_supply.boosters_per_day", int64(cfg.CounterSupply.BoostersPerDay), maxBoostersPerDay},
+		{"energy.coins_per_energy", int64(cfg.Energy.CoinsPerEnergy), maxCoins},
 		{"energy.recharge_per_tick", int64(cfg.Energy.RechargePerTick), maxEnergyRecharge},
 		{"energy.reserve_cap", int64(cfg.Energy.ReserveCap), maxEnergyReserve},
 		{"energy.savings_cap", int64(cfg.Energy.SavingsCap), maxEnergySavings},

@@ -92,7 +92,8 @@ func cuProgress(prog domain.Progress) (owned, total int) {
 }
 
 // pickTargetSet returns the set code with the lowest (CUOwned / CUTotal) ratio.
-// Sets with no commons+uncommons are skipped. Tie-break: smallest SetCode.
+// Sets with no commons+uncommons are skipped, and so are sets whose coin fee exceeds the balance:
+// waiting on a booster the player cannot pay for would stop it opening any other. Tie-break: smallest SetCode.
 // Returns ("", false) when no valid target exists.
 //
 // Comparison uses cross-multiplication to avoid floating-point:
@@ -116,6 +117,9 @@ func pickTargetSet(v WorldView) (string, bool) {
 		}
 		cuOwned, cuTotal := cuProgress(prog)
 		if cuTotal == 0 {
+			continue
+		}
+		if v.BoosterFees[code] > v.Balance {
 			continue
 		}
 		if bestCode == "" {

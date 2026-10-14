@@ -41,6 +41,11 @@ const (
 	// worth more than the energy cap: the posting goes from the treasury to it.
 	AccountCounterFee Account = "counter_fee"
 
+	// AccountBoosterFee is the sink account for the coin fees the player pays to open boosters worth
+	// more than the energy cap: the fee posts from AccountPlayer to AccountBoosterFee, and the
+	// coins leave the economy. It is unguarded, and its balance is the total of fees paid.
+	AccountBoosterFee Account = "booster_fee"
+
 	// AccountTradeTopUp is the sink account for the coins the player adds to a trade with an NPC:
 	// the top-up posts from AccountPlayer to AccountTradeTopUp. NPCs hold no coins and have no
 	// account, so the coins leave the economy. It is unguarded, and its balance is the total of

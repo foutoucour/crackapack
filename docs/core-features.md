@@ -117,7 +117,9 @@ rhythm of sessions.
 - **Spending:** the reserve first, then the savings.
 - **Cost relative to the catalogue:** every V1 set is expensive in USD today. The cost follows the
   booster's average value relative to the catalogue median, not its absolute value.
-- **Never purchasable**, not even with coins.
+- **Never purchasable**, not even with coins. A booster worth more than the 12-energy cap pays a
+  coin fee on top of the energy, see
+  [The coin fee on dear boosters](simulation.md#the-coin-fee-on-dear-boosters).
 
 | Booster value / catalogue median | Energy cost |
 | --- | --- |

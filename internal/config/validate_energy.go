@@ -23,6 +23,9 @@ func validateEnergy(e EnergyConfig) error {
 	if e.SavingsCap < 0 {
 		return fmt.Errorf("config: energy.savings_cap must be >= 0, got %d", e.SavingsCap)
 	}
+	if e.CoinsPerEnergy < 0 {
+		return fmt.Errorf("config: energy.coins_per_energy must be >= 0, got %d", e.CoinsPerEnergy)
+	}
 	if len(e.CostTable) == 0 {
 		return fmt.Errorf("config: energy.cost_table must not be empty")
 	}

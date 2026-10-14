@@ -26,6 +26,10 @@ type WorldView struct {
 	// BoosterCosts maps each openable set's code to its energy cost per booster.
 	BoosterCosts map[string]int
 
+	// BoosterFees maps each openable set's code to the coins a booster of it costs on top of its
+	// energy. A set with no fee is absent, and the map is empty when the run has no fee price.
+	BoosterFees map[string]domain.Coins
+
 	// Catalogues contains the openable set catalogues (not supplementary ones).
 	Catalogues []domain.SetCatalogue
 

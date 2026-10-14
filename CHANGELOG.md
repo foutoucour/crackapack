@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `energy.coins_per_energy`, a price in coins for one energy point. A booster worth more than the
+  energy cap then costs the cap's energy and a coin fee for the rest, which leaves the economy into
+  the `booster_fee` account. It is off by default, and a run without it is unchanged. A run with it
+  adds `booster_fee_coins` to the summary and `days.csv`, and `compare` refuses it against a run
+  without. See [ADR-0019](docs/adr/0019-the-player-pays-a-coin-fee-on-boosters-above-the-energy-cap.md).
+
 ### Changed
 
 - A player that sells duplicates to a Counter with a treasury it has emptied offers each card once

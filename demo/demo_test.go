@@ -320,6 +320,30 @@ func TestBuild_demoExercisesTheCounterAsASpecialPlayer(t *testing.T) {
 	}
 }
 
+// TestBuild_demoExercisesTheBoosterFee checks that the demo prices energy, and that at the dearest
+// rate of the sweep, where the demo's boosters are worth more than the energy cap, the player pays
+// a fee. At the cheaper rates the fee is zero, so the sweep's calibration does not move.
+func TestBuild_demoExercisesTheBoosterFee(t *testing.T) {
+	t.Parallel()
+	ds := demo.Build()
+	cfg, err := config.Load(strings.NewReader(ds.ConfigYAML))
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+	if cfg.Energy.CoinsPerEnergy <= 0 {
+		t.Fatalf("demo config has coins_per_energy %d, want a price for energy", cfg.Energy.CoinsPerEnergy)
+	}
+	cfg.RunDays = 5
+
+	cats, supps, prices := loadDemoInputs(t, ds)
+	rates := cfg.SweepRates
+	summary := runOnce(t, cfg, rates[len(rates)-1], cats, supps, prices)
+
+	if summary["booster_fee_coins"] <= 0 {
+		t.Errorf("booster_fee_coins = %v at rate %d, want the player to pay a fee", summary["booster_fee_coins"], rates[len(rates)-1])
+	}
+}
+
 // --- helpers ---
 
 func rarityCount(cat domain.SetCatalogue) map[domain.Rarity]int {

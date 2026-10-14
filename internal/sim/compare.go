@@ -66,6 +66,7 @@ type Comparison struct {
 //   - the results have different set codes (derived from day 0's SetProgress)
 //   - only one of the results has an NPC crowd (derived from day 0's NPC metrics)
 //   - only one of the results has a Counter supply (derived from day 0's Counter metrics)
+//   - only one of the results has a booster fee (derived from day 0's booster fee metrics)
 //   - only one of the results has trades (derived from day 0's trade metrics)
 //   - a per-day Day number differs at any index (index and both numbers are named)
 func Compare(a, b Result) (Comparison, error) {
@@ -92,6 +93,9 @@ func Compare(a, b Result) (Comparison, error) {
 	}
 	if withA.counter != withB.counter {
 		return Comparison{}, fmt.Errorf("results differ in counter supply: only one of them has Counter metrics")
+	}
+	if withA.boosterFee != withB.boosterFee {
+		return Comparison{}, fmt.Errorf("results differ in booster fees: only one of them has booster fee metrics")
 	}
 	if withA.trades != withB.trades {
 		return Comparison{}, fmt.Errorf("results differ in trades: only one of them has trade metrics")
