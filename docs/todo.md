@@ -93,17 +93,26 @@ many parameters at once for a config that meets the goals.
     of value V. The 2005-2007 sets pay nothing. See
     [The coin fee on dear boosters](simulation.md#the-coin-fee-on-dear-boosters) and
     [ADR-0019](adr/0019-the-player-pays-a-coin-fee-on-boosters-above-the-energy-cap.md).
-  - [ ] The `collector` stalls when no set's fee is affordable. On RAV, TSP and TSB over 30 days at a
+  - [x] The `collector` stalls when no set's fee is affordable. On RAV, TSP and TSB over 30 days at a
     `p` of 10 it opened no booster, since it spends its coins on cards and never saves for a fee.
-    Not a problem at a `p` of 100, where these sets pay nothing. It belongs with the converting
-    policy below, which has to manage coins against the fee.
-  - [ ] Optional conversion of energy into coins, with a limit. Simulate three variants: a minimum
-    energy share (never below 1 energy), an escalating price that resets daily, and both.
+    Not a problem at a `p` of 100, where these sets pay nothing. Fixed by the `converting-collector`
+    policy, which raises the coin floor by the minimum fee so it never spends the fee buffer on card
+    purchases, and uses coin top-up when short on energy.
+  - [x] Optional coin top-up when opening a booster: the player pays coins for any energy shortfall
+    at rate `p`. Minimum real energy (`min_energy_units`) is always required; coins only is never
+    allowed. Three variants: constant rate (`min_energy`), escalating price that resets daily
+    (`escalating`), and both together. Built behind `energy.coin_topup.*`; see
+    [Energy coin top-up](simulation.md#energy-coin-top-up).
+  - [x] A property test that coin top-up never raises net worth. Asserts
+    `coin_topup_coins >= coin_topup_units × p` for all variants over 54 seed/p/step/variant combos.
+  - [x] A player policy that uses top-up. The `converting-collector` policy uses `OpenBoosterTopUp`
+    in Phase 1 and raises the coin floor by the minimum booster fee to prevent spending the fee
+    buffer on card purchases; see [Player policies](simulation.md#player-policies).
+  - [x] Stall regression test on real RAV+TSP+TSB catalogues: `converting-collector` opens >= 1
+    booster in 30 days at p=10; the plain collector opens 0.
   - [ ] Simulate the energy cost as the current 3, 5, 8 and 12 tiers and as a continuous price of
     `V / p`. Replacing the tiers needs a new ADR superseding
     [ADR-0008](adr/0008-energy-cost-reference-is-the-catalogue-directory.md).
-  - [ ] A property test that converting coins into energy never raises net worth.
-  - [ ] A player policy that converts, since the sink only works if the player uses it.
   - [ ] An ADR when the variant is chosen.
 - [ ] **The Counter as a special player.** Cards sold to the Counter vanish, whatever the source,
   and the Counter opens its own boosters from an energy budget. Stock then follows the real pull
@@ -148,8 +157,10 @@ are the goals and their bands, the scope, and the remedies that change a rule.
 - [ ] **Counter rates:** the 60% and 120% are starting values.
 - [ ] **Energy:** calibrate the cost tiers against the real booster values, and check the
   collector's `collectorReserveDays = 1` and `sessions_per_day` assumptions.
-- [ ] **Pacing target** of a set's binder in about two weeks at 3 visits a day. The simulation gives
-  8 days for RAV and TSP, so decide whether to slow it, see
+- [ ] **Pacing target** of a set's binder in about two weeks at 3 visits a day. Real-data runs
+  (90-day cap, p=100, no NPCs, seeds 42-44) give 8.3 days for RAV (cheap, energy=5) and 11.0 days
+  for TSP (mid, energy=8); at 6/day they take 6.7 and 8.7 days respectively. Both are within the
+  goal but faster than the target; decide whether to slow the pacing, see
   [Open questions](specs-review.md#open-questions).
 - [ ] **Remedy for the 12-energy cap.** The priciest old sets create too many coins per energy, see
   [Expensive old sets](specs-review.md#expensive-old-sets-and-the-12-energy-cap). No remedy is

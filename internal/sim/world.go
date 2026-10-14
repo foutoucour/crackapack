@@ -53,4 +53,21 @@ type WorldView struct {
 
 	// FallbackPrice is the price in USDCents for cards absent from Prices.
 	FallbackPrice domain.USDCents
+
+	// CoinTopupEnabled reports whether the coin top-up (coins for missing energy) is active.
+	CoinTopupEnabled bool
+
+	// CoinTopupMinEnergyUnits is the minimum real energy the player must have to open a booster
+	// via top-up. Zero when top-up is disabled.
+	CoinTopupMinEnergyUnits int
+
+	// CoinTopupRateNow is the coins per energy unit for the immediately next top-up unit,
+	// accounting for today's already-purchased units (escalating variant). Zero when top-up is
+	// disabled.
+	CoinTopupRateNow domain.Coins
+
+	// CoinTopupEscalationStep is the additional coins per successive unit bought with coins
+	// within a day. Zero for the min_energy variant (constant price). Policies use this with
+	// CoinTopupRateNow to compute the total cost for multiple units.
+	CoinTopupEscalationStep domain.Coins
 }

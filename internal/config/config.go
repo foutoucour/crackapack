@@ -90,6 +90,43 @@ type EnergyCost struct {
 	Cost int `yaml:"cost"`
 }
 
+// CoinTopupVariants lists the accepted values for EnergyCoinTopupConfig.Variant.
+const (
+	// CoinTopupVariantMinEnergy applies a minimum real-energy requirement: the player must spend
+	// at least MinEnergyUnits real energy; the rest may be substituted with coins at rate p.
+	CoinTopupVariantMinEnergy = "min_energy"
+	// CoinTopupVariantEscalating applies an escalating price: the first unit of energy bought
+	// with coins within a day costs p; each successive unit costs p + k*EscalationStep (where k
+	// is the number of units already bought today). Resets at day start.
+	CoinTopupVariantEscalating = "escalating"
+	// CoinTopupVariantBoth applies both the minimum-energy requirement and the escalating price.
+	CoinTopupVariantBoth = "both"
+)
+
+// EnergyCoinTopupConfig is the optional feature that lets the player substitute coins for missing
+// energy when opening a booster, at rate p = energy.coins_per_energy per energy unit. Off by
+// default; needs coins_per_energy > 0.
+//
+// A booster can never be opened with coins alone: at least MinEnergyUnits of real energy is
+// always required. Three variants control the substitution price:
+//   - "min_energy": constant price p; the player just must hold MinEnergyUnits real energy.
+//   - "escalating": price starts at p and rises by EscalationStep for each successive unit
+//     bought with coins within a day (the k-th unit costs p + k*EscalationStep). Resets daily.
+//   - "both": the minimum-energy requirement and the escalating price both apply.
+type EnergyCoinTopupConfig struct {
+	// Enabled turns coin top-up on. Default false.
+	Enabled bool `yaml:"enabled"`
+	// Variant is "min_energy", "escalating", or "both". Default "min_energy".
+	Variant string `yaml:"variant"`
+	// MinEnergyUnits is the minimum real energy the player must have to open a booster via
+	// top-up. The booster cannot be opened with coins only. Must be >= 1. Default 1.
+	MinEnergyUnits int `yaml:"min_energy_units"`
+	// EscalationStep is the additional coins per successive unit bought within a day, for
+	// "escalating" or "both". The k-th unit (0-indexed within the day) costs p + k*EscalationStep.
+	// Must be >= 1 when the escalating variant is active. Default 1.
+	EscalationStep domain.Coins `yaml:"escalation_step"`
+}
+
 // EnergyConfig holds the energy recharge parameters described in docs/core-features.md.
 type EnergyConfig struct {
 	// RechargePerTick is the energy added to the reserve each 10-minute tick (default 1).
@@ -109,6 +146,10 @@ type EnergyConfig struct {
 	// energy cap pays its value minus the cap times p in coins, on top of the cap's energy. The
 	// default 0 means no coin fee.
 	CoinsPerEnergy domain.Coins `yaml:"coins_per_energy"`
+
+	// CoinTopup is the optional feature that lets the player substitute coins for missing energy
+	// when opening a booster. Off by default; needs coins_per_energy > 0.
+	CoinTopup EnergyCoinTopupConfig `yaml:"coin_topup"`
 
 	// CostTable maps booster-value/catalogue-median ratio thresholds to energy costs.
 	// Must be non-empty and sorted in ascending order of Threshold. The last entry
@@ -357,6 +398,11 @@ func defaults() Config {
 			ReserveCap:           10,
 			SavingsIntervalTicks: 3, // 3 ticks × 10 min = 30 min (core-features.md)
 			SavingsCap:           200,
+			CoinTopup: EnergyCoinTopupConfig{
+				Variant:        CoinTopupVariantMinEnergy,
+				MinEnergyUnits: 1,
+				EscalationStep: 1,
+			},
 			CostTable: []EnergyCost{
 				{Threshold: 50, Cost: 3},   // booster value ≤ 0.5× catalogue median
 				{Threshold: 100, Cost: 5},  // ≤ 1×

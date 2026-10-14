@@ -24,21 +24,33 @@ func (e *Engine) buildWorldView(day int) WorldView {
 	for k, v := range e.boosterCosts {
 		costs[k] = v
 	}
+	topupMinEnergy := 0
+	if e.coinTopupOn {
+		topupMinEnergy = e.coinTopupMinEnergy
+	}
+	topupStep := domain.Coins(0)
+	if e.coinTopupOn {
+		topupStep = e.coinTopupStep
+	}
 	return WorldView{
-		Day:            day,
-		Balance:        e.journal.Balance(domain.AccountPlayer),
-		DailyReward:    e.cfg.DailyReward,
-		EnergyTotal:    e.energy.Reserve() + e.energy.Savings(),
-		SetProgress:    setProgress,
-		BoosterCosts:   costs,
-		BoosterFees:    fees,
-		Catalogues:     e.catalogues,
-		Prices:         e.prices,
-		OwnedCards:     e.collection.Snapshot(),
-		CoinRate:       e.cfg.CoinRate,
-		CounterBuyPct:  e.cfg.CounterBuyPct,
-		CounterSellPct: e.cfg.CounterSellPct,
-		FallbackPrice:  e.cfg.FallbackPrice,
+		Day:                     day,
+		Balance:                 e.journal.Balance(domain.AccountPlayer),
+		DailyReward:             e.cfg.DailyReward,
+		EnergyTotal:             e.energy.Reserve() + e.energy.Savings(),
+		SetProgress:             setProgress,
+		BoosterCosts:            costs,
+		BoosterFees:             fees,
+		Catalogues:              e.catalogues,
+		Prices:                  e.prices,
+		OwnedCards:              e.collection.Snapshot(),
+		CoinRate:                e.cfg.CoinRate,
+		CounterBuyPct:           e.cfg.CounterBuyPct,
+		CounterSellPct:          e.cfg.CounterSellPct,
+		FallbackPrice:           e.cfg.FallbackPrice,
+		CoinTopupEnabled:        e.coinTopupOn,
+		CoinTopupMinEnergyUnits: topupMinEnergy,
+		CoinTopupRateNow:        e.coinTopupRateNow(),
+		CoinTopupEscalationStep: topupStep,
 	}
 }
 
@@ -178,5 +190,113 @@ func (p *port) BuyCard(key domain.CardKey) error {
 		return err
 	}
 	p.e.dayCardsBought++
+	return nil
+}
+
+// OpenBoosterTopUp opens one booster from setCode, paying coins for any energy shortfall.
+// The player spends all available real energy up to the booster's cost; any remaining cost is
+// paid in coins at the current top-up rate. The player must have at least coinTopupMinEnergy
+// real energy, so opening with coins only is never allowed.
+//
+// When top-up is disabled (coinTopupOn == false), this delegates to OpenBooster.
+func (p *port) OpenBoosterTopUp(setCode string) error {
+	if !p.e.coinTopupOn {
+		return p.OpenBooster(setCode)
+	}
+
+	var cat *domain.SetCatalogue
+	for i := range p.e.catalogues {
+		if p.e.catalogues[i].Code == setCode {
+			cat = &p.e.catalogues[i]
+			break
+		}
+	}
+	if cat == nil {
+		err := fmt.Errorf("open booster with top-up: unknown set %q", setCode)
+		p.fatalErr = err
+		return err
+	}
+
+	cost, ok := p.e.boosterCosts[setCode]
+	if !ok {
+		err := fmt.Errorf("open booster with top-up: no cost for set %q", setCode)
+		p.fatalErr = err
+		return err
+	}
+
+	// Real energy the player can spend toward this booster's cost.
+	available := p.e.energy.Reserve() + p.e.energy.Savings()
+	realEnergy := available
+	if realEnergy > cost {
+		realEnergy = cost
+	}
+
+	// Minimum real energy check: cannot open with coins only.
+	if realEnergy < p.e.coinTopupMinEnergy {
+		return fmt.Errorf("open booster %q with top-up: have %d energy, need at least %d real energy (min_energy_units)",
+			setCode, available, p.e.coinTopupMinEnergy)
+	}
+
+	// If no shortfall, open normally.
+	missingUnits := cost - realEnergy
+	if missingUnits == 0 {
+		return p.OpenBooster(setCode)
+	}
+
+	// Compute coin cost for the shortfall.
+	topUpCoins := p.e.computeTopUpCost(missingUnits)
+
+	// Mandatory fee (ADR-0019), if any.
+	fee := p.e.boosterFees[setCode]
+
+	// Balance check: must cover top-up AND mandatory fee.
+	if balance := p.e.journal.Balance(domain.AccountPlayer); balance < topUpCoins+fee {
+		return fmt.Errorf("open booster %q with top-up: need %d coins (top-up %d + fee %d), balance %d: %w",
+			setCode, topUpCoins+fee, topUpCoins, fee, balance, domain.ErrInsufficientBalance)
+	}
+
+	// Spend real energy first (we've verified sufficient energy above).
+	if err := p.e.energy.Spend(realEnergy); err != nil {
+		p.fatalErr = fmt.Errorf("open booster %q with top-up: spend energy: %w", setCode, err)
+		return p.fatalErr
+	}
+
+	// Pay top-up coins into the sink.
+	if err := p.e.journal.Post(domain.Entry{
+		From:   domain.AccountPlayer,
+		To:     domain.AccountCoinTopup,
+		Amount: topUpCoins,
+		Memo:   fmt.Sprintf("coin top-up: %d units for set %s", missingUnits, setCode),
+	}); err != nil {
+		p.fatalErr = fmt.Errorf("open booster %q with top-up: post top-up: %w", setCode, err)
+		return p.fatalErr
+	}
+	p.e.dayCoinTopupUnits += missingUnits
+	p.e.dayCoinTopupCoins += topUpCoins
+	p.e.coinTopupDayUsed += missingUnits
+
+	// Pay mandatory fee if any.
+	if fee > 0 {
+		if err := p.e.journal.Post(domain.Entry{
+			From:   domain.AccountPlayer,
+			To:     domain.AccountBoosterFee,
+			Amount: fee,
+			Memo:   "booster fee: set " + setCode,
+		}); err != nil {
+			p.fatalErr = fmt.Errorf("open booster %q with top-up: post fee: %w", setCode, err)
+			return p.fatalErr
+		}
+		p.e.dayBoosterFees += fee
+	}
+
+	// Open the booster.
+	booster, err := p.e.opener.Open(domain.BoosterLayoutClassic, *cat)
+	if err != nil {
+		p.fatalErr = fmt.Errorf("open booster with top-up for %q: %w", setCode, err)
+		return p.fatalErr
+	}
+
+	p.e.collection.AddBooster(booster)
+	p.e.dayBoostersOpened++
 	return nil
 }

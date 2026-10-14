@@ -1,6 +1,10 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/foutoucour/crackapack/internal/domain"
+)
 
 // validateEnergy checks the energy block fields and the cost table.
 // It returns an error naming the offending key on the first failure.
@@ -26,6 +30,9 @@ func validateEnergy(e EnergyConfig) error {
 	if e.CoinsPerEnergy < 0 {
 		return fmt.Errorf("config: energy.coins_per_energy must be >= 0, got %d", e.CoinsPerEnergy)
 	}
+	if err := validateEnergyCoinTopup(e.CoinTopup, e.CoinsPerEnergy); err != nil {
+		return err
+	}
 	if len(e.CostTable) == 0 {
 		return fmt.Errorf("config: energy.cost_table must not be empty")
 	}
@@ -50,6 +57,34 @@ func validateEnergy(e EnergyConfig) error {
 				"config: energy.cost_table: entry %d threshold (%d) must be > entry %d threshold (%d); table must be sorted ascending",
 				i, e.CostTable[i].Threshold, i-1, e.CostTable[i-1].Threshold,
 			)
+		}
+	}
+	return nil
+}
+
+// validateEnergyCoinTopup checks the energy coin top-up sub-block.
+// coinsPerEnergy is the outer energy.coins_per_energy; coin_topup needs it above zero.
+func validateEnergyCoinTopup(c EnergyCoinTopupConfig, coinsPerEnergy domain.Coins) error {
+	if !c.Enabled {
+		return nil
+	}
+	if coinsPerEnergy <= 0 {
+		return fmt.Errorf("config: energy.coin_topup.enabled requires energy.coins_per_energy > 0")
+	}
+	switch c.Variant {
+	case CoinTopupVariantMinEnergy, CoinTopupVariantEscalating, CoinTopupVariantBoth:
+		// valid
+	default:
+		return fmt.Errorf("config: energy.coin_topup.variant must be %q, %q or %q, got %q",
+			CoinTopupVariantMinEnergy, CoinTopupVariantEscalating, CoinTopupVariantBoth, c.Variant)
+	}
+	// min_energy_units must be >= 1 for all variants (can never open with coins only).
+	if c.MinEnergyUnits < 1 {
+		return fmt.Errorf("config: energy.coin_topup.min_energy_units must be >= 1, got %d", c.MinEnergyUnits)
+	}
+	if c.Variant == CoinTopupVariantEscalating || c.Variant == CoinTopupVariantBoth {
+		if c.EscalationStep < 1 {
+			return fmt.Errorf("config: energy.coin_topup.escalation_step must be >= 1, got %d", c.EscalationStep)
 		}
 	}
 	return nil
