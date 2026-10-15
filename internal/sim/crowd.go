@@ -36,6 +36,8 @@ func newCrowd(cfg config.Config, openable []domain.SetCatalogue, counter *domain
 			spec.WishSize = a.WishSize
 			spec.MarginPct = a.MarginPct
 			spec.OfferChancePct = a.OfferChancePct
+			spec.Colors = a.Colors
+			spec.Traits = traitSpecs(a)
 		}
 		archetypes[name] = spec
 	}
@@ -55,4 +57,14 @@ func newCrowd(cfg config.Config, openable []domain.SetCatalogue, counter *domain
 		return nil, fmt.Errorf("sim: npcs: %w", err)
 	}
 	return crowd, nil
+}
+
+// traitSpecs turns the trait names of an archetype, with their numbers, into the specs the domain
+// builds its behaviour from.
+func traitSpecs(a config.ArchetypeConfig) []domain.TraitSpec {
+	specs := make([]domain.TraitSpec, 0, len(a.Traits))
+	for _, name := range a.Traits {
+		specs = append(specs, domain.TraitSpec{Name: name, Params: a.TraitParams[name]})
+	}
+	return specs
 }

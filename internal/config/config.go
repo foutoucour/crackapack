@@ -250,6 +250,18 @@ type ArchetypeConfig struct {
 	// OfferChancePct is the chance, per tick, that an NPC with a match proposes a trade. In
 	// [0, 100].
 	OfferChancePct int `yaml:"offer_chance_pct"`
+
+	// Colors are the Magic colours the archetype wishes for, from domain.ValidColors. Empty
+	// means no restriction.
+	Colors []string `yaml:"colors"`
+
+	// Traits are the trait names that mix on top of Behaviour, see ADR-0021. The order does not
+	// matter.
+	Traits []string `yaml:"traits"`
+
+	// TraitParams holds the numbers each trait reads, by trait name and then by parameter name. A
+	// name must be one of Traits.
+	TraitParams map[string]map[string]int `yaml:"trait_params"`
 }
 
 // NPCConfig holds the NPC crowd parameters.

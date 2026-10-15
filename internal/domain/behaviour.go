@@ -55,6 +55,8 @@ type TradeBehaviour interface {
 type BehaviourParams struct {
 	MarginPct Percent
 	Valuer    Valuer
+	// Traits mix on top of the base behaviour, see ADR-0021. NewBehaviour owns what they do.
+	Traits []TraitSpec
 }
 
 type behaviourConstructor func(BehaviourParams) TradeBehaviour
