@@ -97,6 +97,9 @@ func Compare(a, b Result) (Comparison, error) {
 	if withA.boosterFee != withB.boosterFee {
 		return Comparison{}, fmt.Errorf("results differ in booster fees: only one of them has booster fee metrics")
 	}
+	if withA.coinTopup != withB.coinTopup {
+		return Comparison{}, fmt.Errorf("results differ in coin top-up: only one of them has coin top-up metrics")
+	}
 	if withA.trades != withB.trades {
 		return Comparison{}, fmt.Errorf("results differ in trades: only one of them has trade metrics")
 	}

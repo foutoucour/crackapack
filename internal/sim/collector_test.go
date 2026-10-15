@@ -20,6 +20,9 @@ type fakeSession struct {
 	sellRefused int
 	buyCalls    []domain.CardKey
 	buyErrs     map[domain.CardKey]error
+	// OpenBoosterTopUp tracking
+	openTopUpCalls []string // setCode per OpenBoosterTopUp call
+	openTopUpErrs  []error  // errors to return per call (nil = success)
 }
 
 func (f *fakeSession) View() sim.WorldView {
@@ -31,7 +34,14 @@ func (f *fakeSession) View() sim.WorldView {
 	return f.views[idx]
 }
 
+// maxFakeOpens bounds OpenBooster calls so a policy loop that never sees its energy drop fails
+// the test instead of growing openCalls until memory runs out.
+const maxFakeOpens = 1000
+
 func (f *fakeSession) OpenBooster(setCode string) error {
+	if len(f.openCalls) >= maxFakeOpens {
+		panic("fakeSession: policy opened boosters in an endless loop; end the view sequence on a view with too little energy")
+	}
 	f.openCalls = append(f.openCalls, setCode)
 	if len(f.openErrs) > 0 {
 		err := f.openErrs[0]
@@ -52,6 +62,19 @@ func (f *fakeSession) BuyCard(key domain.CardKey) error {
 		if err, ok := f.buyErrs[key]; ok {
 			return err
 		}
+	}
+	return nil
+}
+
+func (f *fakeSession) OpenBoosterTopUp(setCode string) error {
+	if len(f.openTopUpCalls) >= maxFakeOpens {
+		panic("fakeSession: policy called OpenBoosterTopUp in an endless loop")
+	}
+	f.openTopUpCalls = append(f.openTopUpCalls, setCode)
+	if len(f.openTopUpErrs) > 0 {
+		err := f.openTopUpErrs[0]
+		f.openTopUpErrs = f.openTopUpErrs[1:]
+		return err
 	}
 	return nil
 }

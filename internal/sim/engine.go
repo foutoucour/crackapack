@@ -35,6 +35,13 @@ type Engine struct {
 	maxWait       float64                 // max_booster_wait_minutes of the run
 	ran           bool                    // guards against calling Run more than once
 
+	// coin top-up state (coins substituted for missing energy when opening a booster)
+	coinTopupOn        bool         // energy.coin_topup.enabled and coins_per_energy > 0
+	coinTopupVariant   string       // "min_energy", "escalating", or "both"
+	coinTopupMinEnergy int          // minimum real energy required (all variants)
+	coinTopupStep      domain.Coins // additional coins per successive unit within a day (escalating and both)
+	coinTopupDayUsed   int          // energy units bought with coins so far today (reset each day)
+
 	// per-day session counters; reset at the start of each day
 	dayBoostersOpened int
 	dayCardsSold      int
@@ -47,6 +54,8 @@ type Engine struct {
 	daySupplyFees     domain.Coins
 	dayBrokeRefusals  int
 	dayBoosterFees    domain.Coins
+	dayCoinTopupUnits int
+	dayCoinTopupCoins domain.Coins
 }
 
 type options struct {
@@ -236,7 +245,28 @@ func NewEngine(
 	if err != nil {
 		return nil, err
 	}
-	maxWait, err := maxBoosterWaitMinutes(energyParams, boosterCosts)
+
+	// Determine top-up settings early so the booster-wait check can use the real energy floor.
+	topupOn := cfg.Energy.CoinTopup.Enabled && cfg.Energy.CoinsPerEnergy > 0
+	topupMinEnergy := 1
+	if cfg.Energy.CoinTopup.MinEnergyUnits > 0 {
+		topupMinEnergy = cfg.Energy.CoinTopup.MinEnergyUnits
+	}
+
+	// When coin top-up is enabled the player only needs min_energy_units real energy (coins cover
+	// the shortfall), so the booster-wait check must use that lower floor, not the full cost.
+	waitCosts := boosterCosts
+	if topupOn {
+		waitCosts = make(map[string]int, len(boosterCosts))
+		for k, cost := range boosterCosts {
+			effective := cost
+			if effective > topupMinEnergy {
+				effective = topupMinEnergy
+			}
+			waitCosts[k] = effective
+		}
+	}
+	maxWait, err := maxBoosterWaitMinutes(energyParams, waitCosts)
 	if err != nil {
 		return nil, fmt.Errorf("sim: %w", err)
 	}
@@ -254,24 +284,28 @@ func NewEngine(
 	}
 
 	return &Engine{
-		cfg:           cfg,
-		catalogues:    catalogues,
-		supplementary: supplementary,
-		prices:        prices,
-		journal:       journal,
-		energy:        energy,
-		collection:    collection,
-		counter:       counter,
-		crowd:         crowd,
-		supply:        supply,
-		counterOn:     supply != nil || cfg.CounterBudget.Enabled,
-		exchange:      exchange,
-		opener:        opener,
-		policy:        policy,
-		boosterCosts:  boosterCosts,
-		boosterFees:   boosterFees,
-		feeOn:         cfg.Energy.CoinsPerEnergy > 0,
-		maxWait:       maxWait,
+		cfg:                cfg,
+		catalogues:         catalogues,
+		supplementary:      supplementary,
+		prices:             prices,
+		journal:            journal,
+		energy:             energy,
+		collection:         collection,
+		counter:            counter,
+		crowd:              crowd,
+		supply:             supply,
+		counterOn:          supply != nil || cfg.CounterBudget.Enabled,
+		exchange:           exchange,
+		opener:             opener,
+		policy:             policy,
+		boosterCosts:       boosterCosts,
+		boosterFees:        boosterFees,
+		feeOn:              cfg.Energy.CoinsPerEnergy > 0,
+		maxWait:            maxWait,
+		coinTopupOn:        topupOn,
+		coinTopupVariant:   cfg.Energy.CoinTopup.Variant,
+		coinTopupMinEnergy: topupMinEnergy,
+		coinTopupStep:      cfg.Energy.CoinTopup.EscalationStep,
 	}, nil
 }
 
@@ -329,6 +363,9 @@ func (e *Engine) Run() (Result, error) {
 		e.daySupplyFees = 0
 		e.dayBrokeRefusals = 0
 		e.dayBoosterFees = 0
+		e.dayCoinTopupUnits = 0
+		e.dayCoinTopupCoins = 0
+		e.coinTopupDayUsed = 0
 
 		if err := fundTreasury(e.journal, e.cfg.CounterBudget.DailyFloat, fmt.Sprintf("daily float day %d", day)); err != nil {
 			return Result{}, fmt.Errorf("sim: day %d: %w", day, err)
@@ -395,6 +432,9 @@ func (e *Engine) Run() (Result, error) {
 	}
 	if e.feeOn {
 		addBoosterFeeSummary(summary, days)
+	}
+	if e.coinTopupOn {
+		addCoinTopupSummary(summary, days)
 	}
 
 	return Result{Days: days, Summary: summary}, nil
@@ -476,6 +516,15 @@ func (e *Engine) boosterFeeMetrics() *BoosterFeeDayMetrics {
 	return &BoosterFeeDayMetrics{Coins: e.dayBoosterFees}
 }
 
+// coinTopupMetrics returns the coin top-up metrics for the day just ended, or nil when
+// top-up is not enabled.
+func (e *Engine) coinTopupMetrics() *CoinTopupDayMetrics {
+	if !e.coinTopupOn {
+		return nil
+	}
+	return &CoinTopupDayMetrics{Units: e.dayCoinTopupUnits, Coins: e.dayCoinTopupCoins}
+}
+
 // npcMetrics returns the crowd's metrics for the day just ended, or nil without a crowd.
 func (e *Engine) npcMetrics() *NPCDayMetrics {
 	if e.crowd == nil {
@@ -499,6 +548,9 @@ func (e *Engine) snapshotDay(day int) (DayMetrics, error) {
 	}
 	if e.feeOn {
 		accounts = append(accounts, domain.AccountBoosterFee)
+	}
+	if e.coinTopupOn {
+		accounts = append(accounts, domain.AccountCoinTopup)
 	}
 	if e.exchange != nil {
 		accounts = append(accounts, domain.AccountTradeTopUp)
@@ -542,6 +594,7 @@ func (e *Engine) snapshotDay(day int) (DayMetrics, error) {
 		NPC:             e.npcMetrics(),
 		Counter:         e.counterMetrics(),
 		BoosterFee:      e.boosterFeeMetrics(),
+		CoinTopup:       e.coinTopupMetrics(),
 		Trade:           e.tradeMetrics(),
 		MoneySupply:     supply,
 		StockByRarity:   stock,
@@ -553,6 +606,40 @@ func (e *Engine) snapshotDay(day int) (DayMetrics, error) {
 		CardsBought:     e.dayCardsBought,
 		TradesRefused:   e.dayTradesRefused,
 	}, nil
+}
+
+// coinTopupRateNow returns the coins-per-energy-unit price for the next top-up unit.
+// For the escalating variant the rate rises with each unit bought within the day.
+// Returns 0 when top-up is not enabled.
+func (e *Engine) coinTopupRateNow() domain.Coins {
+	if !e.coinTopupOn {
+		return 0
+	}
+	p := e.cfg.Energy.CoinsPerEnergy
+	if e.coinTopupVariant == config.CoinTopupVariantEscalating || e.coinTopupVariant == config.CoinTopupVariantBoth {
+		return p + domain.Coins(e.coinTopupDayUsed)*e.coinTopupStep
+	}
+	return p
+}
+
+// computeTopUpCost returns the total coins needed to buy units energy units via coin top-up,
+// given the current day state (coinTopupDayUsed). For the escalating variant the k-th unit
+// (0-indexed from coinTopupDayUsed) costs p + (coinTopupDayUsed+k)*step.
+func (e *Engine) computeTopUpCost(units int) domain.Coins {
+	if units <= 0 || !e.coinTopupOn {
+		return 0
+	}
+	p := e.cfg.Energy.CoinsPerEnergy
+	switch e.coinTopupVariant {
+	case config.CoinTopupVariantEscalating, config.CoinTopupVariantBoth:
+		var total domain.Coins
+		for k := range units {
+			total += p + domain.Coins(e.coinTopupDayUsed+k)*e.coinTopupStep
+		}
+		return total
+	default: // min_energy: constant rate p
+		return domain.Coins(units) * p
+	}
 }
 
 // checkReferencePriced returns an error naming the first reference catalogue, other than the

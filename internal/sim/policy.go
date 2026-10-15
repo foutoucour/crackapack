@@ -34,6 +34,14 @@ type Session interface {
 	// BuyCard purchases one copy of key from the Counter and adds it to the collection.
 	// Returns an error if the card is out of stock, unknown, or the player cannot afford it.
 	BuyCard(key domain.CardKey) error
+
+	// OpenBoosterTopUp opens one booster from setCode, spending whatever real energy the player
+	// has (up to the booster's full cost) and paying coins for any shortfall. The player must
+	// have at least the configured minimum real energy (min_energy_units); opening with coins
+	// only is never allowed. Returns ErrInsufficientEnergy when real energy is below the
+	// minimum, and ErrInsufficientBalance when the coin balance cannot cover both the top-up
+	// and the mandatory fee. When top-up is disabled, it behaves identically to OpenBooster.
+	OpenBoosterTopUp(setCode string) error
 }
 
 // PlayerPolicy decides what happens during one session. The engine calls RunSession

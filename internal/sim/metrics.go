@@ -46,6 +46,15 @@ type BoosterFeeDayMetrics struct {
 	Coins domain.Coins
 }
 
+// CoinTopupDayMetrics records how many energy units the player bought with coins on one day,
+// and the coins paid for them.
+type CoinTopupDayMetrics struct {
+	// Units is the energy units bought with coins during the day.
+	Units int
+	// Coins is the coins paid into the coin_topup sink during the day.
+	Coins domain.Coins
+}
+
 // TradeDayMetrics is what happened to the trades with NPCs on one day.
 type TradeDayMetrics struct {
 	// PlayerProposals counts the offers the player made, counters to NPC offers included.
@@ -79,6 +88,10 @@ type DayMetrics struct {
 	// BoosterFee is nil when the player pays no coin fee, which keeps the output of such runs
 	// unchanged.
 	BoosterFee *BoosterFeeDayMetrics `json:",omitempty"`
+
+	// CoinTopup is nil when the coin top-up feature is not enabled, which keeps the output of
+	// such runs unchanged.
+	CoinTopup *CoinTopupDayMetrics `json:",omitempty"`
 
 	// Trade is nil when trades are not enabled, which keeps the output of such runs unchanged.
 	Trade *TradeDayMetrics `json:",omitempty"`
@@ -166,6 +179,10 @@ type DayMetrics struct {
 // A run where the player pays a coin fee for energy adds one, absent from every other run:
 //   - booster_fee_coins: coin fees the player paid to open boosters over the run
 //
+// A run with coin top-up enabled adds two, absent from every other run:
+//   - coin_topup_units: energy units the player bought with coins over the run
+//   - coin_topup_coins: coins paid into the coin_topup sink over the run
+//
 // A run with trades adds eight more, absent from every other run, each summed over the run:
 //   - trade_player_proposals, trade_npc_offers: offers the player and the NPCs made
 //   - trade_accepted, trade_countered, trade_refused, trade_expired: how offers ended
@@ -201,6 +218,20 @@ func addBoosterFeeSummary(s Summary, days []DayMetrics) {
 		fees += d.BoosterFee.Coins
 	}
 	s["booster_fee_coins"] = float64(fees)
+}
+
+// addCoinTopupSummary adds the coin top-up totals to s.
+func addCoinTopupSummary(s Summary, days []DayMetrics) {
+	var units int
+	var coins domain.Coins
+	for _, d := range days {
+		if d.CoinTopup != nil {
+			units += d.CoinTopup.Units
+			coins += d.CoinTopup.Coins
+		}
+	}
+	s["coin_topup_units"] = float64(units)
+	s["coin_topup_coins"] = float64(coins)
 }
 
 // addNPCSummary adds the crowd totals to s. Every entry of days must carry NPC metrics.

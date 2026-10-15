@@ -34,6 +34,127 @@ const demSeed uint64 = 42
 // Note: days_to_100pct_cu.dem = 4 at all rates (the collector's buy-all-cheapest
 // strategy is rate-insensitive on this dataset). That metric is informative but
 // not a calibration target here.
+// DemoCoinTopupMinEnergyYAML is a sweep config that enables the min_energy coin top-up variant.
+// Players pay coins for any energy shortfall when opening a booster; they always need at least
+// min_energy_units real energy (opening with coins only is never allowed).
+// Use with --player=converting-collector so the policy actually uses top-up each session.
+const DemoCoinTopupMinEnergyYAML = `
+run_days: 90
+seed: 42
+sweep_rates: [50, 100, 200, 400]
+npcs:
+  population: 60
+  surplus_hold_days: 2
+trades:
+  enabled: true
+energy:
+  coins_per_energy: 300
+  coin_topup:
+    enabled: true
+    variant: min_energy
+    min_energy_units: 1
+counter_supply:
+  mode: fixed
+  boosters_per_day: 40
+counter_budget:
+  enabled: true
+  initial: 5000000
+  daily_float: 20000
+
+targets:
+  - metric: sub_coin_cards
+    comparison: at_most
+    max: 5.0
+  - metric: daily_reward_commons
+    comparison: between
+    min: 3.0
+    max: 15.0
+  - metric: unsold_duplicate_copies
+    comparison: at_most
+    max: 0.0
+`
+
+// DemoCoinTopupEscalatingYAML is a sweep config that enables the escalating coin top-up variant.
+// The price for the k-th energy unit bought today starts at coins_per_energy and rises by
+// escalation_step per unit; it resets to the base price at the start of each day.
+// Use with --player=converting-collector so the policy actually uses top-up each session.
+const DemoCoinTopupEscalatingYAML = `
+run_days: 90
+seed: 42
+sweep_rates: [50, 100, 200, 400]
+npcs:
+  population: 60
+  surplus_hold_days: 2
+trades:
+  enabled: true
+energy:
+  coins_per_energy: 300
+  coin_topup:
+    enabled: true
+    variant: escalating
+    min_energy_units: 1
+    escalation_step: 30
+counter_supply:
+  mode: fixed
+  boosters_per_day: 40
+counter_budget:
+  enabled: true
+  initial: 5000000
+  daily_float: 20000
+
+targets:
+  - metric: sub_coin_cards
+    comparison: at_most
+    max: 5.0
+  - metric: daily_reward_commons
+    comparison: between
+    min: 3.0
+    max: 15.0
+  - metric: unsold_duplicate_copies
+    comparison: at_most
+    max: 0.0
+`
+
+// DemoCoinTopupBothYAML is a sweep config that enables both coin top-up limits simultaneously:
+// min_energy_units guards the real-energy floor, and the price also escalates within each day.
+// Use with --player=converting-collector so the policy actually uses top-up each session.
+const DemoCoinTopupBothYAML = `
+run_days: 90
+seed: 42
+sweep_rates: [50, 100, 200, 400]
+npcs:
+  population: 60
+  surplus_hold_days: 2
+trades:
+  enabled: true
+energy:
+  coins_per_energy: 300
+  coin_topup:
+    enabled: true
+    variant: both
+    min_energy_units: 1
+    escalation_step: 30
+counter_supply:
+  mode: fixed
+  boosters_per_day: 40
+counter_budget:
+  enabled: true
+  initial: 5000000
+  daily_float: 20000
+
+targets:
+  - metric: sub_coin_cards
+    comparison: at_most
+    max: 5.0
+  - metric: daily_reward_commons
+    comparison: between
+    min: 3.0
+    max: 15.0
+  - metric: unsold_duplicate_copies
+    comparison: at_most
+    max: 0.0
+`
+
 const demoConfigYAML = `
 run_days: 90
 seed: 42

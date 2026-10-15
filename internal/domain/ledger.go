@@ -51,6 +51,12 @@ const (
 	// account, so the coins leave the economy. It is unguarded, and its balance is the total of
 	// top-ups paid.
 	AccountTradeTopUp Account = "trade_topup"
+
+	// AccountCoinTopup is the sink account for the coins the player pays to substitute coins for
+	// missing energy when opening a booster (the optional coin top-up). It posts from
+	// AccountPlayer to AccountCoinTopup, and the coins leave the economy. It is unguarded, and
+	// its balance is the total of top-up payments made.
+	AccountCoinTopup Account = "coin_topup"
 )
 
 var (

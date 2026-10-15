@@ -14,6 +14,7 @@ import (
 
 // csvAccounts returns the fixed order of ledger accounts in CSV output.
 // Returned as a function (not a package-level var) to avoid the global-variable lint rule.
+// coin_topup is excluded here: it is added as part of the coin top-up optional group.
 func csvAccounts() []domain.Account {
 	return []domain.Account{
 		domain.AccountPlayer,
@@ -115,6 +116,16 @@ func dayColumns(d DayMetrics, setCodes []string, with extras) []column {
 		}
 		cols = append(cols, column{name: "booster_fee_coins", value: int64(fee.Coins)})
 	}
+	if with.coinTopup {
+		var topup CoinTopupDayMetrics
+		if d.CoinTopup != nil {
+			topup = *d.CoinTopup
+		}
+		cols = append(cols,
+			column{name: "coin_topup_units", value: int64(topup.Units)},
+			column{name: "coin_topup_coins", value: int64(topup.Coins)},
+		)
+	}
 	if with.trades {
 		var trade TradeDayMetrics
 		if d.Trade != nil {
@@ -136,9 +147,10 @@ func dayColumns(d DayMetrics, setCodes []string, with extras) []column {
 }
 
 // extras says which optional groups of columns a run has: the NPC crowd, the Counter's own
-// openings, the player's booster fee and trades. Every day of a run agrees, so the first one decides.
+// openings, the player's booster fee, coin top-up and trades. Every day of a run agrees, so the
+// first one decides.
 type extras struct {
-	npc, counter, trades, boosterFee bool
+	npc, counter, trades, boosterFee, coinTopup bool
 }
 
 // extrasOf reports which optional groups of columns the run behind days has.
@@ -146,7 +158,13 @@ func extrasOf(days []DayMetrics) extras {
 	if len(days) == 0 {
 		return extras{}
 	}
-	return extras{npc: days[0].NPC != nil, counter: days[0].Counter != nil, trades: days[0].Trade != nil, boosterFee: days[0].BoosterFee != nil}
+	return extras{
+		npc:        days[0].NPC != nil,
+		counter:    days[0].Counter != nil,
+		trades:     days[0].Trade != nil,
+		boosterFee: days[0].BoosterFee != nil,
+		coinTopup:  days[0].CoinTopup != nil,
+	}
 }
 
 // WriteJSON encodes r as JSON and writes it to w.
@@ -176,7 +194,8 @@ func WriteJSON(w io.Writer, r Result) error {
 //  8. counter_boosters_opened, counter_cards_opened, counter_fee_coins, counter_treasury,
 //     counter_broke_refusals, only when the Counter opened boosters or had a treasury
 //  9. booster_fee_coins, only when the run priced energy in coins (energy.coins_per_energy)
-//  10. trade_topup, then the eight trade_* columns, only when the run had trades
+//  10. coin_topup_units, coin_topup_coins, only when energy.coin_topup.enabled is true
+//  11. trade_topup, then the eight trade_* columns, only when the run had trades
 //
 // Set codes and the presence of the optional groups are determined from the first DayMetrics
 // entry if present.

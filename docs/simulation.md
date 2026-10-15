@@ -123,7 +123,7 @@ All config keys and their defaults are listed in
 | Group | Keys | Purpose |
 |-------|------|---------|
 | Economy | `coin_rate`, `counter_sell_pct`, `counter_buy_pct`, `welcome_bonus`, `daily_reward` | Coin flow and Counter pricing |
-| Energy | `energy.*` | Opening pace, and the coin fee on dear boosters; see [Energy](core-features.md#energy) and [The coin fee on dear boosters](#the-coin-fee-on-dear-boosters) |
+| Energy | `energy.*` | Opening pace, coin fee on dear boosters, and optional coin top-up for missing energy; see [Energy](core-features.md#energy), [The coin fee on dear boosters](#the-coin-fee-on-dear-boosters) and [Energy coin top-up](#energy-coin-top-up) |
 | Counter | `initial_stock`, `fallback_price`, `counter_shelf_days`, `counter_supply.*`, `counter_budget.*` | Starting inventory, price floor, how long sold cards stay and how the Counter stocks and pays for itself, see [The Counter's shelf life](#the-counters-shelf-life) and [The Counter as a special player](#the-counter-as-a-special-player) |
 | NPCs | `npcs.population`, `npcs.archetypes.*` | The NPC crowd; see [NPC crowd](#npc-crowd) |
 | Simulation | `sessions_per_day`, `run_days`, `seed` | Run parameters |
@@ -222,6 +222,8 @@ above the run horizon. Config validation keeps it from passing by accident: an `
 | `coins_after_full_binder` | Coins the player gains from the first day every openable set is complete to the end of the run; `0` when that day is never reached. It measures the coins that have nothing left to buy |
 | `max_booster_wait_minutes` | Longest wait, from empty reserve and empty savings, to afford one booster of any openable set. It follows from the energy settings and does not depend on play |
 | `booster_fee_coins` | Coin fees the player paid to open boosters over the run. Present only when `energy.coins_per_energy` is above zero |
+| `coin_topup_units` | Energy units the player bought with coins (top-up) over the run. Present only when `energy.coin_topup.enabled` is true |
+| `coin_topup_coins` | Coins paid into the coin top-up sink over the run. Present only when `energy.coin_topup.enabled` is true |
 | `npc_boosters_opened` | Boosters the NPCs opened over the run. Present only when `npcs.population` is above zero |
 | `npc_cards_sold` | Cards the NPCs sent to the Counter over the run. Present only with a crowd |
 | `npc_cards_held` | Cards all NPC collections hold after the last day. Present only with a crowd |
@@ -241,6 +243,7 @@ so `max_booster_wait_minutes` only changes when a set with a higher cost joins t
 | Name | Behaviour |
 |------|-----------|
 | `collector` | Opens boosters for the set with the lowest C/U progress; sells duplicates above playset; buys missing non-foil cards cheapest-first up to a coin floor |
+| `converting-collector` | Same as `collector` plus coin top-up in Phase 1: when short on energy, pays coins for the shortfall (no-op when `energy.coin_topup.enabled` is false). Raises the coin floor by the minimum booster fee so the fee buffer is never spent on card purchases. See [Energy coin top-up](#energy-coin-top-up) |
 | `cash-out` | Opens boosters, sells everything above one copy and never buys, so the run measures how many coins the Counter creates |
 | `idle` | Does nothing, so only the NPCs act and the run measures the supply they send to the Counter |
 | `trader` | Plays like the `collector` and also trades with NPCs, see [Trades](#trades) |
@@ -277,6 +280,143 @@ money supply in `result.json`. `compare` refuses a run with a fee against one wi
 The Counter has the same rule with its own `p`, see
 [The coin top-up and the treasury](#the-coin-top-up-and-the-treasury). Both read the fee from one
 function, so a set costs the player and the Counter the same at the same `p`.
+
+## Energy coin top-up
+
+`energy.coin_topup.enabled` turns on optional coin top-up when opening a booster. When the player
+has fewer energy units than the booster costs, they may pay coins for the shortfall at the rate
+`energy.coins_per_energy` (p). The player must always provide at least `min_energy_units` real
+energy — opening with coins only is never allowed. It is off by default, and a run without it is
+unchanged. It needs `coins_per_energy > 0` to have any effect.
+
+The top-up is gated by one of three variants:
+
+| Variant | Config key | Behaviour |
+|---------|-----------|-----------|
+| `min_energy` (default) | `min_energy_units` | The player must supply at least `min_energy_units` real energy. Each shortfall unit costs exactly `p` coins. |
+| `escalating` | `escalation_step` | The rate rises by `escalation_step` for each successive unit bought within a day. The k-th unit (0-indexed, counting from the start of the day) costs `p + k × escalation_step` coins. Resets at day start. Each unit costs at least `p`, so net worth never increases. |
+| `both` | both keys | The minimum real-energy floor and the escalating rate both apply. |
+
+```yaml
+energy:
+  coins_per_energy: 300
+  coin_topup:
+    enabled: true
+    variant: min_energy      # "min_energy", "escalating", or "both"
+    min_energy_units: 1      # minimum real energy required (all variants)
+    escalation_step: 30      # rate increment per unit (escalating and both)
+```
+
+The `converting-collector` policy uses coin top-up. The `collector` and other built-in policies
+ignore the top-up config. Run with `--player converting-collector` to observe the effect.
+
+### Composition with the mandatory booster fee
+
+The coin top-up and the mandatory booster fee (ADR-0019) are independent and compose:
+- Top-up pays for missing energy units (shortfall between real energy and booster cost).
+- The mandatory fee applies when the booster's value exceeds the 12-energy cap (`12 × p`); it equals `boosterValue − 12 × p`.
+- The player must have enough coins to cover both in a single atomic open.
+
+A run with coin top-up adds `coin_topup_units` and `coin_topup_coins` to the summary and
+`days.csv`. `compare` refuses a run with top-up against one without, because their columns differ.
+
+The invariant `coin_topup_coins ≥ coin_topup_units × p` holds for all variants (each unit costs at
+least p; the escalating variant charges more for later units).
+
+### Variant comparison on real catalogues
+
+The tables below come from one-off `simulate` runs with `--player collector` and
+`--player converting-collector`, one set per run, against a catalogue directory of 64 MTGJSON files
+fetched with `tools/fetchdata`, so the energy tiers follow the median over the directory
+([ADR-0008](adr/0008-energy-cost-reference-is-the-catalogue-directory.md)). A throwaway script
+drove the runs and is not part of the repository. Configuration: p=100, coin\_rate=100, 90-day cap,
+seeds 42/43/44 averaged, no NPCs, no trades, no Counter budget.
+
+Set selection covers the three tiers of the cost table:
+- **RAV** (782¢, energy=5, no fee at p=100): cheap, representative of 2005–2007 sets
+- **TSP** (1026¢, energy=8, no fee at p=100): mid-tier
+- **STH** (4833¢, energy=12, fee=3633 at p=100): expensive; the mandatory fee blocks the plain collector
+
+The pacing goal from the todo is approximately 2 weeks at 3 sessions/day and 1 week at 6
+sessions/day. Values are averages over 3 seeds.
+
+**RAV — cheap, no fee (energy cost 5):**
+
+| Policy | days\_to\_100pct | boosters | coin\_topup\_coins | final\_bal | coins\_after\_binder |
+|--------|-----------------|----------|--------------------|-----------|----------------------|
+| collector (no top-up), 3/day | 8.3 | 1,221 | 0 | 487,042 | 485,425 |
+| conv-collector min\_energy, 3/day | 8.7 | 1,340 | 59,467 | 484,190 | 482,254 |
+| conv-collector escalating, 3/day | 8.7 | 1,340 | 76,690 | 466,916 | 464,799 |
+| conv-collector both, 3/day | 8.7 | 1,340 | 76,690 | 466,916 | 464,799 |
+| collector (no top-up), 6/day | 6.7 | 1,583 | 0 | 660,131 | 657,144 |
+| conv-collector min\_energy, 6/day | 6.7 | 1,618 | 17,500 | 659,816 | 657,256 |
+| conv-collector escalating, 6/day | 6.7 | 1,618 | 18,383 | 658,932 | 656,423 |
+| conv-collector both, 6/day | 6.7 | 1,618 | 18,383 | 658,932 | 656,423 |
+
+**TSP — mid tier, no fee (energy cost 8):**
+
+| Policy | days\_to\_100pct | boosters | coin\_topup\_coins | final\_bal | coins\_after\_binder |
+|--------|-----------------|----------|--------------------|-----------|----------------------|
+| collector (no top-up), 3/day | 11.0 | 763 | 0 | 331,888 | 329,923 |
+| conv-collector min\_energy, 3/day | 10.7 | 804 | 32,867 | 324,422 | 323,561 |
+| conv-collector escalating, 3/day | 10.7 | 804 | 37,807 | 319,482 | 318,726 |
+| conv-collector both, 3/day | 10.7 | 804 | 37,807 | 319,482 | 318,726 |
+| collector (no top-up), 6/day | 8.7 | 971 | 0 | 459,080 | 456,713 |
+| conv-collector min\_energy, 6/day | 8.7 | 1,072 | 67,100 | 451,916 | 450,721 |
+| conv-collector escalating, 6/day | 8.7 | 1,072 | 90,320 | 428,696 | 427,925 |
+| conv-collector both, 6/day | 8.7 | 1,072 | 90,320 | 428,696 | 427,925 |
+
+**STH — expensive, mandatory fee 3,633 coins at p=100 (energy cost 12):**
+
+| Policy | days\_to\_100pct | boosters | coin\_topup\_coins | final\_bal |
+|--------|-----------------|----------|--------------------|-----------|
+| collector (no top-up), 3/day | >90 | 0 | 0 | 481 |
+| conv-collector min\_energy, 3/day | >90 | 5 | 0 | 705 |
+| collector (no top-up), 6/day | >90 | 0 | 0 | 481 |
+| conv-collector min\_energy, 6/day | >90 | 5 | 0 | 705 |
+
+**What the numbers say:**
+
+1. *Does top-up make coins matter for pace?* Marginally. For RAV the converting-collector opens
+   10% more boosters at 3/day but completes the binder 0.4 days *later* — the coin drain from
+   top-up fees leaves fewer coins for Counter purchases, which are the primary completion mechanism.
+   For TSP at 3/day it saves 0.3 days (10.7 vs 11.0) while opening 5% more boosters. At 6/day
+   energy regenerates fast enough that top-up rarely triggers: both RAV and TSP finish at the same
+   day count as the plain collector. The pacing goal (≈2 weeks at 3/day, ≈1 week at 6/day) is met
+   by both policies for RAV and TSP.
+
+2. *Does top-up shrink the idle coin pile?* Not meaningfully for cheap and mid sets. The
+   converting-collector consumes 59K–90K coins in top-up fees over 90 days, but final balances
+   remain in the 320K–660K range; top-up is at most 20% of total accumulation. The `escalating`
+   variant drains more than `min_energy` (up to 90K vs 67K for TSP at 6/day) but still leaves
+   a large idle pile.
+
+3. *STH: the fee is the binding constraint, not energy.* The plain collector stalls because it
+   never accumulates the 3,633-coin mandatory fee (WelcomeBonus=200, DailyReward=100 — the fee
+   exceeds 30 days of income). The converting-collector's raised coin floor prevents spending the
+   fee buffer on card purchases, so it saves up and opens 5 boosters in 90 days. `coin_topup_coins
+   = 0` for those openings: the player had full real energy; the raised floor was what mattered,
+   not top-up. The STH binder never completes at p=100; a higher `coin_rate` would be needed for
+   the fee to become reachable within 90 days.
+
+The stall fix is confirmed by the unit test `TestConvertingCollector_UnstallsOnRealCatalogues`,
+which uses the real RAV+TSP+TSB catalogues: the `converting-collector` opens at least one booster
+in 30 days at p=10, while the plain `collector` opens none.
+
+### Demo configs for each variant
+
+Three demo YAML snippets are bundled in `demo/config.go`. Each can be passed to `demo --config` or
+used as a template for `simulate` and `sweep`:
+
+| Exported constant | Variant | Extra keys |
+|------------------|---------|-----------|
+| `demo.DemoCoinTopupMinEnergyYAML` | `min_energy` | `min_energy_units: 1` |
+| `demo.DemoCoinTopupEscalatingYAML` | `escalating` | `min_energy_units: 1`, `escalation_step: 30` |
+| `demo.DemoCoinTopupBothYAML` | `both` | `min_energy_units: 1`, `escalation_step: 30` |
+
+All three set `coins_per_energy: 300` and mirror the main demo config (90 days, seed 42, 60 NPCs,
+the fixed Counter supply, and the same calibration targets). Pass `--player converting-collector`
+when running them so the policy actually uses top-up each session.
 
 ## The Counter's shelf life
 

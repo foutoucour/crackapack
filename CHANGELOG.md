@@ -8,6 +8,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `energy.coin_topup`, an optional coin top-up when opening a booster. When the player has fewer
+  energy units than the booster costs, they may pay coins for the shortfall at rate
+  `energy.coins_per_energy` (p). Off by default; needs `coins_per_energy > 0`. The player must
+  always supply at least `min_energy_units` real energy — opening with coins only is never allowed.
+  Three variants control pricing:
+  - `min_energy` (default): each shortfall unit costs exactly `p` coins.
+  - `escalating`: the k-th unit (0-indexed within the day) costs `p + k × escalation_step` coins,
+    resetting at day start. Always costs at least `p` per unit, so net worth never increases.
+  - `both`: the minimum real-energy floor and the escalating price both apply simultaneously.
+  Composes with the mandatory booster fee (ADR-0019): the player pays top-up coins AND the fee in
+  one atomic open. A run with top-up adds `coin_topup_units` and `coin_topup_coins` to the summary
+  and `days.csv`. `compare` refuses a top-up run against one without. See
+  [Energy coin top-up](docs/simulation.md#energy-coin-top-up).
+- `converting-collector` player policy (`--player converting-collector`). Extends the `collector`
+  with coin top-up in Phase 1: when short on energy for the next booster, it pays coins for the
+  shortfall (no-op when `energy.coin_topup.enabled` is false). It also raises the coin floor when
+  buying cards by the minimum booster fee, so the fee buffer is never spent on card purchases. This
+  fixes the stall where the plain collector spends its balance on cheap cards and never accumulates
+  enough for the mandatory fee.
 - `Exchange.Decline` and `Trading.DeclineOffer` let a player policy close an open counter-offer
   without trading. The `exploiter` policy now declines counters whose top-up exceeds its limit
   instead of leaving them open, eliminating the cost cliff at high session rates. Open offer IDs
