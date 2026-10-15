@@ -36,6 +36,8 @@ many parameters at once for a config that meets the goals.
 - [x] Coin top-up for missing energy and the `converting-collector` policy, see
   [Energy coin top-up](simulation.md#energy-coin-top-up).
 - [x] The etched finish loads as a foil.
+- [x] The pre-Mirage sets load: the loader reads `booster.default` when a set has no
+  `booster.draft`, see [ADR-0020](adr/0020-a-set-file-booster-is-its-draft-or-default-definition.md).
 
 ## Economy simulation
 
@@ -181,8 +183,7 @@ are the goals and their bands, the scope, and the remedies that change a rule.
 - [ ] **Remedy for the 12-energy cap.** The priciest old sets create too many coins per energy, see
   [Expensive old sets](specs-review.md#expensive-old-sets-and-the-12-energy-cap). No remedy is
   chosen, so no ADR is written. The leading candidate is the coin fee above the cap, in the energy
-  cost plus coin top-up item. Accepting `booster.default` when `booster.draft` is absent would make
-  pre-Mirage sets loadable.
+  cost plus coin top-up item.
 - [ ] **Reference value of a card with no TCGplayer price.** Today it is `fallback_price`.
 - [ ] **Foil prices.** A foil shares its non-foil's price, a documented simplification pending a
   per-finish source. An `etched` finish loads as a foil, so it shares that price too.
@@ -213,7 +214,9 @@ run today. The other two wait for features that are not built. The
   listed under [Tuning system and metrics](#tuning-system-and-metrics).
 - [ ] **An expensive-set run.** Run sets worth far more per booster than the 2005-2007 ones, to see
   where the economy breaks and to inform the [12-energy remedy](#calibration-and-decisions). The
-  catalogue directory holds only sets from 2002 to 2014, and no pre-Mirage set.
+  pre-Mirage sets load since
+  [ADR-0020](adr/0020-a-set-file-booster-is-its-draft-or-default-definition.md), so a catalogue
+  directory can hold them; no recorded run covers them as loaded.
 
 ### Tuning system and metrics
 

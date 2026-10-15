@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- The loader reads a set's `booster.default` definition when the file has no `booster.draft`, which
+  is how MTGJSON serves the sets before Mirage (Alpha to Alliances). Those sets can now be opened,
+  and they count for the median that sets the energy cost tiers, so a catalogue directory that holds
+  them moves the cost of other sets. `draft` wins when a file has both, and an error inside a
+  `default` definition names `data.booster.default.…`. The demo serves DSP with a `default` booster.
+  See [ADR-0020](docs/adr/0020-a-set-file-booster-is-its-draft-or-default-definition.md).
 - `energy.coin_topup`, an optional coin top-up when opening a booster. When the player has fewer
   energy units than the booster costs, they may pay coins for the shortfall at rate
   `energy.coins_per_energy` (p). Off by default; needs `coins_per_energy > 0`. The player must

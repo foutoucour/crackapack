@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -128,6 +129,17 @@ func TestLoadSetCatalogue_errors(t *testing.T) {
 			},
 			file:      "set.json",
 			wantField: "data.booster.draft",
+		},
+		{
+			name: "defect in a default booster definition names the default path",
+			setupFS: func() fstest.MapFS {
+				return fstest.MapFS{"set.json": &fstest.MapFile{Data: []byte(
+					`{"data":{"code":"SYN","name":"X","cards":[],"booster":{"default":{"boosters":[],"sheets":{` +
+						`"common":{"cards":{"uuid-aa":1},"foil":false,"totalWeight":2}}}}}}`,
+				)}}
+			},
+			file:      "set.json",
+			wantField: "data.booster.default.sheets.common.totalWeight",
 		},
 		{
 			name: "unknown rarity",
@@ -677,6 +689,43 @@ func TestLoad_etchedFinishIsRemappedToFoil(t *testing.T) {
 		}
 		if len(card.Finishes) != 1 || card.Finishes[0] != domain.FinishFoil {
 			t.Errorf("etched finish remapped to %v, want [%s]", card.Finishes, domain.FinishFoil)
+		}
+	})
+}
+
+// TestLoadSetCatalogue_boosterDefinition covers the sets before Mirage: MTGJSON gives them a
+// "default" booster definition and no "draft" one, and the loader reads the one it finds.
+func TestLoadSetCatalogue_boosterDefinition(t *testing.T) {
+	t.Parallel()
+
+	load := func(t *testing.T, data string) domain.SetCatalogue {
+		t.Helper()
+		fsys := fstest.MapFS{"set.json": &fstest.MapFile{Data: []byte(data)}}
+		cat, err := domain.LoadSetCatalogue(fsys, "set.json")
+		if err != nil {
+			t.Fatalf("LoadSetCatalogue: %v", err)
+		}
+		return cat
+	}
+
+	t.Run("default is read when draft is absent", func(t *testing.T) {
+		t.Parallel()
+		fromDraft := load(t, validSetJSON())
+		fromDefault := load(t, strings.Replace(validSetJSON(), `"draft"`, `"default"`, 1))
+		if !reflect.DeepEqual(fromDefault, fromDraft) {
+			t.Errorf("catalogue from default = %+v, want the one from draft %+v", fromDefault, fromDraft)
+		}
+	})
+
+	t.Run("draft wins when both are present", func(t *testing.T) {
+		t.Parallel()
+		withDefault := strings.Replace(validSetJSON(), `"booster": {`,
+			`"booster": {"default": {"boosters": [{"contents": {"rare": 1}, "weight": 7}], `+
+				`"sheets": {"rare": {"cards": {"uuid-cc": 100}, "totalWeight": 100}}},`, 1)
+		got := load(t, withDefault)
+		want := load(t, validSetJSON())
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("catalogue = %+v, want the draft one %+v", got, want)
 		}
 	})
 }
