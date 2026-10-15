@@ -85,6 +85,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   runs on sets without mythics.
 - [ADR-0009](docs/adr/0009-npc-archetypes-are-data.md) is superseded by ADR-0010: an archetype now
   names a trade behaviour, and its supply parameters stay data.
+- [ADR-0010](docs/adr/0010-npc-trade-behaviour-is-a-strategy.md) is superseded by ADR-0021: an
+  archetype names a base behaviour and a list of traits that mix in any order. No trait exists yet,
+  so no run changes.
 - A booster's energy cost is relative to the median booster value of every openable set in the
   catalogue directory, not of the sets in `--sets`. A set costs the same energy alone or with
   others, and `max_booster_wait_minutes` no longer changes with `--sets`. A set file in the

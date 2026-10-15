@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted — 2026-10-13. Supersedes [ADR-0009](0009-npc-archetypes-are-data.md).
+Superseded by [ADR-0021](0021-an-archetype-names-a-base-behaviour-and-traits.md) — 2026-10-15.
+Accepted 2026-10-13. Supersedes [ADR-0009](0009-npc-archetypes-are-data.md).
 
 ## Context
 
