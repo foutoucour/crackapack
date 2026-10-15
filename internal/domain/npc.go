@@ -142,7 +142,7 @@ func GeneratePopulation(p PopulationParams, sets []SetCatalogue, rng *rand.Rand)
 
 	var env TraitEnv
 	if anyTraits(p.Archetypes) {
-		env = newTraitEnv(sets, p.Valuer)
+		env = NewTraitEnv(sets, p.Valuer)
 	}
 	behaviours := make(map[string]TradeBehaviour, len(names))
 	for _, name := range names {

@@ -17,7 +17,7 @@ func archivistEnv(oldDate, newDate string) (env domain.TraitEnv, cardInOld, card
 	newCat.ReleaseDate = newDate
 
 	sets := []domain.SetCatalogue{oldCat, newCat}
-	env = domaintest.NewTraitEnv(sets)
+	env = domain.NewTraitEnv(sets, domain.Valuer{})
 
 	// Pick one card from each catalogue.
 	for id := range oldCat.Cards {
@@ -66,7 +66,7 @@ func TestArchivistTrait_undatedReturnsZero(t *testing.T) {
 	// Build an env where the set has no date.
 	cat := domaintest.NewRavnicaCatalogue()
 	cat.ReleaseDate = "" // explicitly clear the date
-	env := domaintest.NewTraitEnv([]domain.SetCatalogue{cat})
+	env := domain.NewTraitEnv([]domain.SetCatalogue{cat}, domain.Valuer{})
 
 	var card domain.Card
 	for id := range cat.Cards {
@@ -92,7 +92,7 @@ func TestArchivistTrait_unknownCardReturnsZero(t *testing.T) {
 
 	cat := domaintest.NewRavnicaCatalogue()
 	cat.ReleaseDate = "2005-10-07"
-	env := domaintest.NewTraitEnv([]domain.SetCatalogue{cat})
+	env := domain.NewTraitEnv([]domain.SetCatalogue{cat}, domain.Valuer{})
 
 	reg := domain.DefaultTraits()
 	trait, err := reg["archivist"](nil, env)
@@ -139,7 +139,7 @@ func TestArchivistTrait_unknownParameterRejected(t *testing.T) {
 
 	cat := domaintest.NewRavnicaCatalogue()
 	cat.ReleaseDate = "2005-10-07"
-	env := domaintest.NewTraitEnv([]domain.SetCatalogue{cat})
+	env := domain.NewTraitEnv([]domain.SetCatalogue{cat}, domain.Valuer{})
 
 	reg := domain.DefaultTraits()
 	_, err := reg["archivist"](map[string]int{"strength": 10}, env)
@@ -154,7 +154,7 @@ func TestArchivistTrait_nameIsArchivist(t *testing.T) {
 
 	cat := domaintest.NewRavnicaCatalogue()
 	cat.ReleaseDate = "2005-10-07"
-	env := domaintest.NewTraitEnv([]domain.SetCatalogue{cat})
+	env := domain.NewTraitEnv([]domain.SetCatalogue{cat}, domain.Valuer{})
 
 	reg := domain.DefaultTraits()
 	trait, err := reg["archivist"](nil, env)

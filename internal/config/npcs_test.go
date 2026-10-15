@@ -22,7 +22,7 @@ func archetypeNames(cfg config.Config) []string {
 	return names
 }
 
-func TestLoad_npcsDefaultToNoCrowdWithTheFiveArchetypes(t *testing.T) {
+func TestLoad_npcsDefaultToNoCrowdWithTheEmbeddedArchetypes(t *testing.T) {
 	t.Parallel()
 	cfg, err := config.Load(strings.NewReader("{}"))
 	if err != nil {

@@ -1,7 +1,9 @@
 package domain
 
-// newTraitEnv builds the environment the trait constructors get from the sets the crowd opens.
-func newTraitEnv(sets []SetCatalogue, valuer Valuer) TraitEnv {
+// NewTraitEnv builds the environment the trait constructors get from the sets the crowd opens. A
+// set with no release date has no entry in SetReleased. GeneratePopulation uses it, and a test may
+// call it to build a trait with the same view of the cards.
+func NewTraitEnv(sets []SetCatalogue, valuer Valuer) TraitEnv {
 	cards := make(map[CardID]Card)
 	setOf := make(map[CardID]string)
 	released := make(map[string]string, len(sets))
