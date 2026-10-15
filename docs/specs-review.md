@@ -148,18 +148,17 @@ The five V1 sets tested are worth $5 to $13 per booster and get a tier of 5 or 8
 
 ### Which sets can be simulated
 
-- **Before Mirage:** none loads as downloaded. MTGJSON gives these sets a `booster.default`
-  definition and no `booster.draft`, so the loader stops with `data.booster.draft: missing or empty`.
+- **Before Mirage:** MTGJSON gives these sets a `booster.default` definition and no
+  `booster.draft`. They load as downloaded since
+  [ADR-0020](adr/0020-a-set-file-booster-is-its-draft-or-default-definition.md), which reads
+  `default` when there is no `draft`.
   - Checked: LEA, LEB, 2ED, 3ED, 4ED, ARN, ATQ, LEG, DRK, FEM, ICE, HML, ALL.
   - Their cards only use common, uncommon and rare, so the rarity check is not the obstacle.
 - **Mirage to Tenth Edition:** all 33 expansions and core sets checked, from MIR to 10E, load as
   downloaded and ran alone for 90 days. Portal, Chronicles and promo sets were not checked.
-- **Test workaround, no code change:** copy the file and expose `default` as `draft`. The 12
-  pre-Mirage sets other than ALL ran this way, in a directory outside the repository.
-
-```
-jq '.data.booster = {draft: .data.booster.default}' LEA.json > old-sets/LEA.json
-```
+- **How the runs below were made:** the loader did not read `default` yet, so each pre-Mirage file
+  was copied with `default` exposed as `draft`, in a directory outside the repository. The content
+  is the same as what the loader now reads.
 
 ### What was run
 
@@ -236,9 +235,6 @@ missing cards. Days until the five 2005-2007 binders are complete, across 5 seed
   and V1 is limited to 15-card boosters, see [Contradictions to fix](#contradictions-to-fix).
 - **Not covered:** coin rates other than 100, NPC trades (not built), any remedy, sets outside the
   46 checked here, and the V1 sets Planar Chaos and Future Sight, which the 2005-2007 data lacks.
-- **Loader support:** the least invasive way to make pre-Mirage sets loadable is to accept
-  `booster.default` when `booster.draft` is absent. It is not built, and no ADR is written until a
-  remedy for the faucet is chosen.
 
 ## What the NPC crowd and trades change
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"math/rand/v2"
 	"strings"
 	"testing"
@@ -341,6 +342,22 @@ func TestBuild_demoExercisesTheBoosterFee(t *testing.T) {
 
 	if summary["booster_fee_coins"] <= 0 {
 		t.Errorf("booster_fee_coins = %v at rate %d, want the player to pay a fee", summary["booster_fee_coins"], rates[len(rates)-1])
+	}
+}
+
+// TestBuild_servesDSPWithADefaultBooster pins that the demo exercises the loader's fallback: DSP
+// carries its booster as "default", the way MTGJSON serves the sets before Mirage, and every demo
+// test that loads it goes through that path.
+func TestBuild_servesDSPWithADefaultBooster(t *testing.T) {
+	t.Parallel()
+	ds := demo.Build()
+
+	data, err := fs.ReadFile(ds.Files, "DSP.json")
+	if err != nil {
+		t.Fatalf("read DSP.json: %v", err)
+	}
+	if !bytes.Contains(data, []byte(`"default"`)) || bytes.Contains(data, []byte(`"draft"`)) {
+		t.Errorf("DSP.json booster is not served as default only")
 	}
 }
 

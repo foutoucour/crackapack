@@ -1,6 +1,7 @@
 package demo
 
 import (
+	"bytes"
 	"io/fs"
 	"math/rand/v2"
 
@@ -10,7 +11,8 @@ import (
 
 // Dataset holds the demo inputs produced by Build.
 // Files is an fs.FS containing DEM.json, DSP.json, DST.json, and prices.json.
-// These files are generated in-memory; no data is committed to the repository.
+// These files are generated in-memory; no data is committed to the repository. DSP.json holds its
+// booster as "default", like the MTGJSON sets before Mirage.
 type Dataset struct {
 	// Files is a virtual filesystem with DEM.json, DSP.json, DST.json and prices.json.
 	Files fs.FS
@@ -46,6 +48,10 @@ func Build() Dataset {
 		// NewMapFS serialises well-formed synthetic data; failure is a code error.
 		panic("demo.Build: " + err.Error())
 	}
+
+	// MTGJSON serves the sets before Mirage with a "default" booster and no "draft" one. DSP
+	// is served that way, so the demo exercises the loader's fallback.
+	mapFS["DSP.json"].Data = bytes.Replace(mapFS["DSP.json"].Data, []byte(`"draft"`), []byte(`"default"`), 1)
 
 	return Dataset{
 		Files:              mapFS,

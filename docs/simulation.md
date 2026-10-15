@@ -151,23 +151,25 @@ because a supplementary pool such as TSB was not passed, see
 ### Catalogue directory
 
 A directory of MTGJSON v5 set files, one per set code (`RAV.json`, `TSP.json`,
-…). Openable sets (passed via `--sets`) must have a `booster.draft` section.
-Supplementary pools (`--supplementary`) do not require it. An openable set keeps only the cards
+…). Openable sets (passed via `--sets`) must have a `booster.draft` or a `booster.default` section.
+Supplementary pools (`--supplementary`) do not require either. An openable set keeps only the cards
 that a booster sheet contains, see [ADR-0007](adr/0007-catalogues-count-only-obtainable-cards.md).
 
 A card is common, uncommon, rare, mythic or special, see
 [ADR-0013](adr/0013-mythic-is-a-rarity-of-its-own.md). Any other rarity stops the run.
 
-MTGJSON files for sets before Mirage (1996) have no `booster.draft`, so the loader rejects them.
-[Which sets can be simulated](specs-review.md#which-sets-can-be-simulated) lists them and the
-workaround.
+MTGJSON files for sets before Mirage (1996) have a `booster.default` and no `booster.draft`. The
+loader reads the `default` one when there is no `draft`, see
+[ADR-0020](adr/0020-a-set-file-booster-is-its-draft-or-default-definition.md). Whether those
+definitions match the real boosters is unchecked, see
+[Which sets can be simulated](specs-review.md#which-sets-can-be-simulated).
 
 The directory also sets the reference of the energy cost tiers. A booster's cost is its average
 value relative to the median over every openable set in the directory, not only the sets in `--sets`,
 see [ADR-0008](adr/0008-energy-cost-reference-is-the-catalogue-directory.md).
-- A file counts when it is named `<CODE>.json` with an upper-case code and has a `booster.draft`
-  section. Other files, such as `prices.json` or a pool without `booster.draft` like `TSB.json`, are
-  skipped.
+- A file counts when it is named `<CODE>.json` with an upper-case code and has a `booster.draft` or
+  `booster.default` section. Other files, such as `prices.json` or a pool without either like
+  `TSB.json`, are skipped.
 - A set file with any other defect, such as malformed JSON or an unknown rarity, stops the run with
   an error that names the file, even when it is not in `--sets`.
 - Compare runs on the same directory. Adding or removing a set file moves the median, and so every

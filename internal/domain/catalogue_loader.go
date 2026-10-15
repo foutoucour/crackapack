@@ -203,8 +203,29 @@ func parseSetCards(d mtgSetData, name string) (map[CardID]Card, error) {
 	return cards, nil
 }
 
+// Field paths of the two booster definitions MTGJSON uses. A CatalogueError for a file with
+// neither names draftField, which callers match to tell a card pool from a set file.
+const (
+	draftField   = "data.booster.draft"
+	defaultField = "data.booster.default"
+)
+
+// boosterDefinition returns the booster definition of a set and the field path it was read from,
+// which names it in errors. MTGJSON gives most sets a "draft" definition, but the sets before
+// Mirage only a "default" one; "draft" wins when a file has both.
+func boosterDefinition(boosters map[string]mtgBoosterDef) (def mtgBoosterDef, field string, ok bool) {
+	if def, ok = boosters["draft"]; ok {
+		return def, draftField, true
+	}
+	if def, ok = boosters["default"]; ok {
+		return def, defaultField, true
+	}
+	return mtgBoosterDef{}, "", false
+}
+
 // LoadSetCatalogue reads one MTGJSON-shaped set file from fsys and returns the
 // parsed SetCatalogue. name is used in error messages and must be a valid fs.FS path.
+// The booster comes from the file's "draft" definition, or its "default" one when it has no draft.
 // Cards that no booster sheet contains are left out of Cards: they cannot be opened, so the
 // economy and the collection totals only count cards a player can get.
 // Sheet.Cards slices are sorted by ID ascending so that weighted draws over an
@@ -215,9 +236,9 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 		return SetCatalogue{}, err
 	}
 
-	draftDef, ok := d.Booster["draft"]
+	draftDef, boosterField, ok := boosterDefinition(d.Booster)
 	if !ok {
-		return SetCatalogue{}, &CatalogueError{File: name, Field: "data.booster.draft"}
+		return SetCatalogue{}, &CatalogueError{File: name, Field: draftField}
 	}
 
 	cards, err := parseSetCards(d, name)
@@ -236,7 +257,7 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 			if w <= 0 {
 				return SetCatalogue{}, &CatalogueError{
 					File:  name,
-					Field: fmt.Sprintf("data.booster.draft.sheets.%s.cards.%s", sname, uid),
+					Field: fmt.Sprintf("%s.sheets.%s.cards.%s", boosterField, sname, uid),
 					Err:   fmt.Errorf("weight must be strictly positive, got %d", w),
 				}
 			}
@@ -246,7 +267,7 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 		if weightSum != ms.TotalWeight {
 			return SetCatalogue{}, &CatalogueError{
 				File:  name,
-				Field: fmt.Sprintf("data.booster.draft.sheets.%s.totalWeight", sname),
+				Field: fmt.Sprintf("%s.sheets.%s.totalWeight", boosterField, sname),
 				Err: fmt.Errorf("totalWeight %d does not match sum of card weights %d",
 					ms.TotalWeight, weightSum),
 			}
@@ -268,7 +289,7 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 		if bo.Weight <= 0 {
 			return SetCatalogue{}, &CatalogueError{
 				File:  name,
-				Field: fmt.Sprintf("data.booster.draft.boosters[%d].weight", i),
+				Field: fmt.Sprintf("%s.boosters[%d].weight", boosterField, i),
 				Err:   fmt.Errorf("weight must be strictly positive, got %d", bo.Weight),
 			}
 		}
@@ -287,14 +308,14 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 			if count <= 0 {
 				return SetCatalogue{}, &CatalogueError{
 					File:  name,
-					Field: fmt.Sprintf("data.booster.draft.boosters[%d].contents.%s", i, sheetName),
+					Field: fmt.Sprintf("%s.boosters[%d].contents.%s", boosterField, i, sheetName),
 					Err:   fmt.Errorf("count must be strictly positive, got %d", count),
 				}
 			}
 			if _, ok := sheets[sheetName]; !ok {
 				return SetCatalogue{}, &CatalogueError{
 					File:  name,
-					Field: fmt.Sprintf("data.booster.draft.boosters[%d].contents.%s", i, sheetName),
+					Field: fmt.Sprintf("%s.boosters[%d].contents.%s", boosterField, i, sheetName),
 					Err:   fmt.Errorf("references unknown sheet %q", sheetName),
 				}
 			}
