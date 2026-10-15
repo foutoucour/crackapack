@@ -9,6 +9,32 @@ import (
 	"github.com/foutoucour/crackapack/internal/sim"
 )
 
+// BenchmarkExploiterHighSessionRate measures the exploiter policy at 144 sessions/day with 30
+// NPCs over 10 days — the configuration that exposed the cost cliff before the fix. Keep this
+// benchmark so the cliff cannot come back unseen: a slow result here means open counters are
+// accumulating again.
+//
+//	go test ./internal/sim -run '^$' -bench BenchmarkExploiterHighSessionRate -benchmem
+func BenchmarkExploiterHighSessionRate(b *testing.B) {
+	yaml := "run_days: 10\nsessions_per_day: 144\nnpcs: {population: 30}\ntrades: {enabled: true}\n"
+	cfg, err := config.Load(strings.NewReader(yaml))
+	if err != nil {
+		b.Fatalf("Load: %v", err)
+	}
+	cats := testCatalogues()
+	prices := mergedPrices(cats, cfg.Seed)
+
+	for b.Loop() {
+		engine, err := sim.NewEngine(cfg, cats, nil, prices, sim.NewExploiterPolicy(), newRNG(cfg.Seed))
+		if err != nil {
+			b.Fatalf("NewEngine: %v", err)
+		}
+		if _, err := engine.Run(); err != nil {
+			b.Fatalf("Run: %v", err)
+		}
+	}
+}
+
 // BenchmarkRun measures one 90-day run with 500 NPCs, without and with trades, on the synthetic
 // catalogues. It is the reference for the cost of a run in a sweep or a search: run it before
 // and after a change to the crowd or the Exchange.

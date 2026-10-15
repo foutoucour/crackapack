@@ -632,3 +632,51 @@ func TestLoadCardPool_acceptsMythicRarity(t *testing.T) {
 		t.Errorf("rarity = %q, want %q", got, domain.RarityMythic)
 	}
 }
+
+// TestLoad_etchedFinishIsRemappedToFoil verifies that cards with finish "etched" (introduced in
+// 2021 sets like NEO, SNC, VOW) load successfully from both LoadSetCatalogue and LoadCardPool.
+// The loader remaps "etched" to FinishFoil so that collection counting and pricing work without
+// changes: etched foils are economically equivalent to regular foils in the simulation.
+func TestLoad_etchedFinishIsRemappedToFoil(t *testing.T) {
+	t.Parallel()
+
+	const setJSON = `{"data":{"code":"NEO","name":"Kamigawa Neon Dynasty","cards":[` +
+		`{"uuid":"e1","name":"etched card","number":"1","rarity":"rare","finishes":["etched"],"supertypes":[],"identifiers":{}}` +
+		`],"booster":{"draft":{"boosters":[{"contents":{"rare":1},"weight":1}],"sheets":{"rare":{"cards":{"e1":1},"foil":false,"totalWeight":1}}}}}}`
+
+	const poolJSON = `{"data":{"code":"NEO","name":"Kamigawa Neon Dynasty","cards":[` +
+		`{"uuid":"e1","name":"etched card","number":"1","rarity":"rare","finishes":["etched"],"supertypes":[],"identifiers":{}}` +
+		`]}}`
+
+	t.Run("LoadSetCatalogue", func(t *testing.T) {
+		t.Parallel()
+		fsys := fstest.MapFS{"set.json": &fstest.MapFile{Data: []byte(setJSON)}}
+		cat, err := domain.LoadSetCatalogue(fsys, "set.json")
+		if err != nil {
+			t.Fatalf("LoadSetCatalogue with etched finish: %v", err)
+		}
+		card, ok := cat.Cards["e1"]
+		if !ok {
+			t.Fatal("etched card not loaded into catalogue")
+		}
+		if len(card.Finishes) != 1 || card.Finishes[0] != domain.FinishFoil {
+			t.Errorf("etched finish remapped to %v, want [%s]", card.Finishes, domain.FinishFoil)
+		}
+	})
+
+	t.Run("LoadCardPool", func(t *testing.T) {
+		t.Parallel()
+		fsys := fstest.MapFS{"pool.json": &fstest.MapFile{Data: []byte(poolJSON)}}
+		cat, err := domain.LoadCardPool(fsys, "pool.json")
+		if err != nil {
+			t.Fatalf("LoadCardPool with etched finish: %v", err)
+		}
+		card, ok := cat.Cards["e1"]
+		if !ok {
+			t.Fatal("etched card not loaded into pool")
+		}
+		if len(card.Finishes) != 1 || card.Finishes[0] != domain.FinishFoil {
+			t.Errorf("etched finish remapped to %v, want [%s]", card.Finishes, domain.FinishFoil)
+		}
+	})
+}

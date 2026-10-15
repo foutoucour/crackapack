@@ -27,6 +27,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   buying cards by the minimum booster fee, so the fee buffer is never spent on card purchases. This
   fixes the stall where the plain collector spends its balance on cheap cards and never accumulates
   enough for the mandatory fee.
+- `Exchange.Decline` and `Trading.DeclineOffer` let a player policy close an open counter-offer
+  without trading. The `exploiter` policy now declines counters whose top-up exceeds its limit
+  instead of leaving them open, eliminating the cost cliff at high session rates. Open offer IDs
+  are kept in insertion order so `Offers()` and `StartDay()` no longer sort on every call.
+  `BenchmarkExploiterHighSessionRate` covers the formerly-slow configuration so the cliff cannot
+  return unseen.
+
 - `energy.coins_per_energy`, a price in coins for one energy point. A booster worth more than the
   energy cap then costs the cap's energy and a coin fee for the rest, which leaves the economy into
   the `booster_fee` account. It is off by default, and a run without it is unchanged. A run with it
@@ -56,6 +63,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A catalogue holding the MTGJSON `etched` finish, which the sets MAT, NEO, SNC and VOW do, made
+  every run that loaded it fail with `unknown finish "etched"`. The loader now reads `etched` as a
+  foil.
 - The Counter's energy mode no longer panics, with `invalid argument to IntN`, when the energy costs
   of the sets are so varied that the weights of its pick overflow. It returns an error naming the
   costs.

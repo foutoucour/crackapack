@@ -3,7 +3,6 @@ package domain
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"slices"
 )
 
@@ -113,6 +112,7 @@ type Exchange struct {
 	dayOffers int // offers NPCs made today
 	nextID    int
 	open      map[int]Offer
+	openIDs   []int       // open offer IDs in creation order; IDs are monotonically increasing
 	openCount map[int]int // open offers per NPC
 	stats     ExchangeStats
 	history   []HistoryEntry
@@ -152,10 +152,11 @@ func NewExchange(p ExchangeParams, crowd *Crowd, player *Collection, journal *Jo
 	}, nil
 }
 
-// Offers returns the open offers, oldest first.
+// Offers returns the open offers, oldest first. The slice is in creation order because offer IDs
+// are monotonically increasing and openIDs is maintained in insertion order.
 func (x *Exchange) Offers() []Offer {
-	offers := make([]Offer, 0, len(x.open))
-	for _, id := range slices.Sorted(maps.Keys(x.open)) {
+	offers := make([]Offer, 0, len(x.openIDs))
+	for _, id := range x.openIDs {
 		offers = append(offers, x.open[id])
 	}
 	return offers
