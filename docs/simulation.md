@@ -125,7 +125,7 @@ All config keys and their defaults are listed in
 | Economy | `coin_rate`, `counter_sell_pct`, `counter_buy_pct`, `welcome_bonus`, `daily_reward` | Coin flow and Counter pricing |
 | Energy | `energy.*` | Opening pace, coin fee on dear boosters, and optional coin top-up for missing energy; see [Energy](core-features.md#energy), [The coin fee on dear boosters](#the-coin-fee-on-dear-boosters) and [Energy coin top-up](#energy-coin-top-up) |
 | Counter | `initial_stock`, `fallback_price`, `counter_shelf_days`, `counter_supply.*`, `counter_budget.*` | Starting inventory, price floor, how long sold cards stay and how the Counter stocks and pays for itself, see [The Counter's shelf life](#the-counters-shelf-life) and [The Counter as a special player](#the-counter-as-a-special-player) |
-| NPCs | `npcs.population`, `npcs.archetypes.*` | The NPC crowd; see [NPC crowd](#npc-crowd) |
+| NPCs | `npcs.population`, `npcs.max_margin_pct`, `npcs.archetypes.*` | The NPC crowd; see [NPC crowd](#npc-crowd) |
 | Simulation | `sessions_per_day`, `run_days`, `seed` | Run parameters |
 | Sweep | `sweep_rates`, `targets` | Grid and calibration conditions |
 
@@ -552,6 +552,18 @@ An archetype is a named entry under `npcs.archetypes`, see
 the ones in your file by name. An archetype you write replaces the default of the same name as a
 whole, so every key of it must be set.
 
+An archetype can list `colors`, from W, U, B, R and G, with no repeat. An NPC then wishes only for
+cards whose colours are all among its own, and colourless cards are always in scope, see
+[ADR-0022](adr/0022-an-npc-wishes-only-for-cards-in-its-colours.md). An empty list, or all five
+colours, means no restriction.
+
+An archetype can also list `traits`, with the numbers each one reads under `trait_params`, see
+[ADR-0021](adr/0021-an-archetype-names-a-base-behaviour-and-traits.md). `npcs.max_margin_pct`, 1000
+by default, caps the margin an archetype's traits can add on top of its `margin_pct`. The cap never
+lowers `margin_pct`, and a cap of 0 leaves traits no room. No trait is registered yet, so a config
+that lists one is rejected. Colours and traits take effect only when trades are enabled, like the
+other trade keys.
+
 The crowd draws from its own random stream, derived from `seed`. The same seed still reproduces the
 whole run. Adding NPCs to a config does not change what the player opens, so two runs that differ
 only by the crowd stay comparable. The Counter's stock does change, and so can what a policy buys.
@@ -593,8 +605,8 @@ offer falls short, the NPC counters once with the smallest coin top-up that fits
 `trade_topup` account, because NPCs hold no coins.
 
 An archetype names a base trade behaviour, see
-[ADR-0010](adr/0010-npc-trade-behaviour-is-a-strategy.md). Traits that mix on top of it are decided
-in [ADR-0021](adr/0021-an-archetype-names-a-base-behaviour-and-traits.md), and none exists yet:
+[ADR-0010](adr/0010-npc-trade-behaviour-is-a-strategy.md). Traits mix on top of it, see
+[ADR-0021](adr/0021-an-archetype-names-a-base-behaviour-and-traits.md):
 
 | Behaviour | Wishes for |
 |-----------|------------|

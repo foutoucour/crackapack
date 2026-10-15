@@ -230,6 +230,10 @@ Margins are configuration, not code. The starting values are 0% for a casual and
 speculator. The others are set through simulation, see
 [Simulating the economy](specs-review.md#simulating-the-economy).
 
+An archetype can also be tied to Magic colours, so that an NPC wishes only for cards in its colours.
+It can carry traits that mix on top of its behaviour. Both are configuration, see
+[NPC crowd](simulation.md#npc-crowd).
+
 - **Population:** 300 to 1,000 NPCs, adjustable. Each has a name, avatar, archetype, activity
   rhythm and wish list. The activity rhythm sets how many boosters it opens.
 - **Real collections**, stored as quantities (NPC, printing, foil, quantity). NPCs sell surplus
