@@ -230,17 +230,18 @@ engine as the player, so supply follows the real rates.
 | Ego (blue) | Proud: proposes again after a decline, refuses every counter, demands more for cards it held longer |
 | Gambler (red) | Tilts: each decline in a row raises how often it proposes and lowers its extra margin |
 | Archivist (white) | Opens the oldest loaded set and trades fairly |
+| Ego Stingy (U/B) | Miser-plus-ego mix: adds stingy rarity margin and ego endowment margin; vetoes every player counter |
+| Archivist Ego Stingy (W/U/B) | Three-trait mix: archivist wish-scoring (oldest sets first) on top of ego and stingy margin adds |
 
 The five personalities are tied to the five colours and are traits that can mix in one archetype.
-They ship inactive until they are calibrated, see [NPC crowd](simulation.md#npc-crowd).
+Traits mix in any order: their margin adds accumulate on top of the base margin, capped by
+`npcs.max_margin_pct`, and their wish scores add. See [NPC crowd](simulation.md#npc-crowd).
 
 Margins are configuration, not code. The starting values are 0% for a casual and 10 to 20% for a
 speculator. The others are set through simulation, see
 [Simulating the economy](specs-review.md#simulating-the-economy).
 
-An archetype can also be tied to Magic colours, so that an NPC wishes only for cards in its colours.
-It can carry traits that mix on top of its behaviour. Both are configuration, see
-[NPC crowd](simulation.md#npc-crowd).
+An archetype tied to Magic colours wishes only for cards in those colours.
 
 - **Population:** 300 to 1,000 NPCs, adjustable. Each has a name, avatar, archetype, activity
   rhythm and wish list. The activity rhythm sets how many boosters it opens.
