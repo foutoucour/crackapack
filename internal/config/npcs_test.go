@@ -10,7 +10,7 @@ import (
 )
 
 func defaultArchetypeNames() []string {
-	return []string{"archivist", "casual", "ego", "fish", "gambler", "playset_hunter", "speculator", "stingy", "targeted_collector", "whale"}
+	return []string{"archivist", "archivist_ego_stingy", "casual", "ego", "ego_stingy", "fish", "gambler", "playset_hunter", "speculator", "stingy", "targeted_collector", "whale"}
 }
 
 func archetypeNames(cfg config.Config) []string {
@@ -115,14 +115,23 @@ func TestLoad_npcsRejectsInvalidValues(t *testing.T) {
 			wantKey: "npcs.archetypes.casual.keep_copies",
 		},
 		{
+			// Override every embedded archetype (all 12) to share=0. Personality archetypes
+			// now ship with share=4/3/2; they must all be zeroed for the total to be 0.
 			name: "no share above zero with a crowd to build",
 			yaml: `
 npcs:
   population: 10
   archetypes:
+    archivist: {share: 0, min_boosters_per_day: 1, max_boosters_per_day: 1, keep_copies: 1}
+    archivist_ego_stingy: {share: 0, min_boosters_per_day: 1, max_boosters_per_day: 1, keep_copies: 1}
     casual: {share: 0, min_boosters_per_day: 1, max_boosters_per_day: 1, keep_copies: 1}
+    ego: {share: 0, min_boosters_per_day: 1, max_boosters_per_day: 1, keep_copies: 1}
+    ego_stingy: {share: 0, min_boosters_per_day: 1, max_boosters_per_day: 1, keep_copies: 1}
+    fish: {share: 0, min_boosters_per_day: 1, max_boosters_per_day: 1, keep_copies: 1}
+    gambler: {share: 0, min_boosters_per_day: 1, max_boosters_per_day: 1, keep_copies: 1}
     playset_hunter: {share: 0, min_boosters_per_day: 1, max_boosters_per_day: 1, keep_copies: 1}
     speculator: {share: 0, min_boosters_per_day: 1, max_boosters_per_day: 1, keep_copies: 1}
+    stingy: {share: 0, min_boosters_per_day: 1, max_boosters_per_day: 1, keep_copies: 1}
     targeted_collector: {share: 0, min_boosters_per_day: 1, max_boosters_per_day: 1, keep_copies: 1}
     whale: {share: 0, min_boosters_per_day: 1, max_boosters_per_day: 1, keep_copies: 1}
 `,

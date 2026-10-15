@@ -22,8 +22,8 @@ func TestEgoArchetype_embeddedDefaults(t *testing.T) {
 		t.Fatal("archetype 'ego' not found in default config")
 	}
 
-	if ego.Share != 0 {
-		t.Errorf("ego.Share = %d, want 0: share must be 0 until integration story", ego.Share)
+	if ego.Share != 4 {
+		t.Errorf("ego.Share = %d, want 4: share set to 4 in integration story T-009 (assumption to calibrate)", ego.Share)
 	}
 	if len(ego.Colors) != 1 || ego.Colors[0] != "U" {
 		t.Errorf("ego.Colors = %v, want [U]", ego.Colors)
@@ -61,8 +61,8 @@ func TestGamblerArchetype_embeddedDefaults(t *testing.T) {
 		t.Fatal("archetype 'gambler' not found in default config")
 	}
 
-	if gambler.Share != 0 {
-		t.Errorf("gambler.Share = %d, want 0: share must be 0 until integration story", gambler.Share)
+	if gambler.Share != 4 {
+		t.Errorf("gambler.Share = %d, want 4: share set to 4 in integration story T-009 (assumption to calibrate)", gambler.Share)
 	}
 	if len(gambler.Colors) != 1 || gambler.Colors[0] != "R" {
 		t.Errorf("gambler.Colors = %v, want [R]", gambler.Colors)

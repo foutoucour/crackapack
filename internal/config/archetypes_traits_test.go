@@ -19,8 +19,8 @@ func TestLoad_stingyArchetypeHasExpectedValues(t *testing.T) {
 	if !ok {
 		t.Fatal("archetype 'stingy' not found after Load; embedded YAML must be present")
 	}
-	if a.Share != 0 {
-		t.Errorf("stingy.Share = %d, want 0 (ships disabled until integration story)", a.Share)
+	if a.Share != 4 {
+		t.Errorf("stingy.Share = %d, want 4 (set to 4 in integration story T-009, assumption to calibrate)", a.Share)
 	}
 	if len(a.Colors) != 1 || a.Colors[0] != "B" {
 		t.Errorf("stingy.Colors = %v, want [B] (black)", a.Colors)
@@ -59,8 +59,8 @@ func TestLoad_fishArchetypeHasExpectedValues(t *testing.T) {
 	if !ok {
 		t.Fatal("archetype 'fish' not found after Load; embedded YAML must be present")
 	}
-	if a.Share != 0 {
-		t.Errorf("fish.Share = %d, want 0 (ships disabled until integration story)", a.Share)
+	if a.Share != 4 {
+		t.Errorf("fish.Share = %d, want 4 (set to 4 in integration story T-009, assumption to calibrate)", a.Share)
 	}
 	if len(a.Colors) != 1 || a.Colors[0] != "G" {
 		t.Errorf("fish.Colors = %v, want [G] (green)", a.Colors)

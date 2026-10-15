@@ -43,7 +43,7 @@ run_days: 90
 seed: 42
 sweep_rates: [50, 100, 200, 400]
 npcs:
-  population: 60
+  population: 70
   surplus_hold_days: 2
 trades:
   enabled: true
@@ -83,7 +83,7 @@ run_days: 90
 seed: 42
 sweep_rates: [50, 100, 200, 400]
 npcs:
-  population: 60
+  population: 70
   surplus_hold_days: 2
 trades:
   enabled: true
@@ -123,7 +123,7 @@ run_days: 90
 seed: 42
 sweep_rates: [50, 100, 200, 400]
 npcs:
-  population: 60
+  population: 70
   surplus_hold_days: 2
 trades:
   enabled: true
@@ -160,7 +160,7 @@ run_days: 90
 seed: 42
 sweep_rates: [50, 100, 200, 400]
 npcs:
-  population: 60
+  population: 70
   surplus_hold_days: 2
 trades:
   enabled: true
