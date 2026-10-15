@@ -91,6 +91,13 @@ type NPC struct {
 	credit int
 	// declineStreak counts consecutive declines since the last accepted trade. See DeclineStreak.
 	declineStreak int
+	// retry holds the ego trait's follow-up state for this NPC. It is only read and written by
+	// the ego trait's reactor and by ProposeFromNPCs. Zero value means no retry is armed.
+	retry retryState
+	// chanceTilt is the extra offer-chance percentage added by the gambler trait's tilt. It is
+	// read through EffectiveOfferChancePct and written by the gambler's reactor. It is ignored
+	// when declineStreak is zero, so an accept resets it without any hook.
+	chanceTilt int
 }
 
 // Collection returns the cards the NPC holds.
@@ -98,6 +105,17 @@ func (n *NPC) Collection() *Collection { return n.collection }
 
 // DeclineStreak returns the number of consecutive declines since the last accepted trade.
 func (n *NPC) DeclineStreak() int { return n.declineStreak }
+
+// EffectiveOfferChancePct is OfferChancePct plus the decline tilt, in [0,100].
+// The tilt is only applied when the NPC has an active decline streak: an accept resets the streak
+// to zero, which makes this method return OfferChancePct with no tilt, so the gambler trait needs
+// no explicit reset hook.
+func (n *NPC) EffectiveOfferChancePct() int {
+	if n.declineStreak == 0 || n.chanceTilt == 0 {
+		return n.OfferChancePct
+	}
+	return min(100, n.OfferChancePct+n.chanceTilt)
+}
 
 // GeneratePopulation builds p.Size NPCs, numbered from 0, grouped by archetype name. Each
 // archetype gets its share of the population, with leftover NPCs going to the largest

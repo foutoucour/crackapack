@@ -10,7 +10,7 @@ import (
 )
 
 func defaultArchetypeNames() []string {
-	return []string{"archivist", "casual", "fish", "playset_hunter", "speculator", "stingy", "targeted_collector", "whale"}
+	return []string{"archivist", "casual", "ego", "fish", "gambler", "playset_hunter", "speculator", "stingy", "targeted_collector", "whale"}
 }
 
 func archetypeNames(cfg config.Config) []string {

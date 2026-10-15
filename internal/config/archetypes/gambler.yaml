@@ -1,0 +1,22 @@
+# ASSUMPTION: every number here is a starting guess pending calibration, including the
+# trait_params. Share is 0 until the integration story, so no run changes.
+# A gambler is loose and tilts: each decline in a row raises its offer chance by a step up to a
+# cap, and shrinks its extra margin by a step toward margin_pct (0 here, so the margin falls to 0).
+# An accepted trade resets both.
+share: 0
+min_boosters_per_day: 3
+max_boosters_per_day: 6
+keep_copies: 1
+focus_set: false
+behaviour: casual
+wish_size: 5
+margin_pct: 0
+offer_chance_pct: 6
+colors: [R]
+traits: [gambler]
+trait_params:
+  gambler:
+    chance_step_pct: 4
+    max_offer_chance_pct: 30
+    margin_extra_pct: 15
+    margin_step_pct: 5

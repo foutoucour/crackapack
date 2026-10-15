@@ -76,7 +76,9 @@ type TraitRegistry map[string]TraitConstructor
 func DefaultTraits() TraitRegistry {
 	return TraitRegistry{
 		"archivist": newArchivistTrait,
+		"ego":       newEgoTrait,
 		"fish":      newFishTrait,
+		"gambler":   newGamblerTrait,
 		"stingy":    newStingyTrait,
 	}
 }
