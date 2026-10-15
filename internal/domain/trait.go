@@ -72,9 +72,12 @@ type TraitConstructor func(params map[string]int, env TraitEnv) (Trait, error)
 type TraitRegistry map[string]TraitConstructor
 
 // DefaultTraits returns the built-in trait registry. It is a function, not a package-level
-// variable, to avoid the global-variable lint rule. It is empty until personality stories add
-// stingy, ego, gambler, fish and archivist.
-func DefaultTraits() TraitRegistry { return TraitRegistry{} }
+// variable, to avoid the global-variable lint rule.
+func DefaultTraits() TraitRegistry {
+	return TraitRegistry{
+		"archivist": newArchivistTrait,
+	}
+}
 
 // TraitNames returns the sorted names of the traits in DefaultTraits, for config error messages.
 func TraitNames() []string { return slices.Sorted(maps.Keys(DefaultTraits())) }

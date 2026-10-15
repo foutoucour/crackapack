@@ -43,8 +43,8 @@ func TestLoadArchetypes_nameComesFromTheFileName(t *testing.T) {
 	if alpha.Share != 5 {
 		t.Errorf("alpha.Share = %d, want 5", alpha.Share)
 	}
-	if alpha.FocusSet != true {
-		t.Errorf("alpha.FocusSet = %v, want true", alpha.FocusSet)
+	if alpha.FocusSet != config.FocusSetRandom {
+		t.Errorf("alpha.FocusSet = %v, want FocusSetRandom", alpha.FocusSet)
 	}
 	if _, ok := got["beta"]; !ok {
 		t.Error("key 'beta' not found; name must come from file base name")
@@ -250,28 +250,30 @@ func TestLoad_embeddedArchetypesKeepTheirPreviousValues(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	// Exact values from the Go map literal that previously lived in defaults().
-	// Colors, Traits and TraitParams are nil because the embedded files omit those fields.
+	// Exact values from the embedded YAML files.
+	// Traits and TraitParams are nil because the embedded files omit those fields.
+	// Colours: only whale carries [W U B R G]; the others omit colors, leaving it nil.
 	want := map[string]config.ArchetypeConfig{
 		"casual": {
 			Share: 50, MinBoostersPerDay: 4, MaxBoostersPerDay: 8, KeepCopies: 1,
-			FocusSet: false, Behaviour: "casual", WishSize: 5, MarginPct: 0, OfferChancePct: 2,
+			FocusSet: config.FocusSetNone, Behaviour: "casual", WishSize: 5, MarginPct: 0, OfferChancePct: 2,
 		},
 		"playset_hunter": {
 			Share: 15, MinBoostersPerDay: 3, MaxBoostersPerDay: 6, KeepCopies: 4,
-			FocusSet: false, Behaviour: "playset_hunter", WishSize: 5, MarginPct: 5, OfferChancePct: 2,
+			FocusSet: config.FocusSetNone, Behaviour: "playset_hunter", WishSize: 5, MarginPct: 5, OfferChancePct: 2,
 		},
 		"targeted_collector": {
 			Share: 20, MinBoostersPerDay: 2, MaxBoostersPerDay: 5, KeepCopies: 1,
-			FocusSet: true, Behaviour: "targeted_collector", WishSize: 5, MarginPct: 5, OfferChancePct: 2,
+			FocusSet: config.FocusSetRandom, Behaviour: "targeted_collector", WishSize: 5, MarginPct: 5, OfferChancePct: 2,
 		},
 		"speculator": {
 			Share: 10, MinBoostersPerDay: 2, MaxBoostersPerDay: 4, KeepCopies: 2,
-			FocusSet: false, Behaviour: "speculator", WishSize: 5, MarginPct: 15, OfferChancePct: 1,
+			FocusSet: config.FocusSetNone, Behaviour: "speculator", WishSize: 5, MarginPct: 15, OfferChancePct: 1,
 		},
 		"whale": {
 			Share: 5, MinBoostersPerDay: 30, MaxBoostersPerDay: 50, KeepCopies: 1,
-			FocusSet: false, Behaviour: "whale", WishSize: 3, MarginPct: 10, OfferChancePct: 1,
+			FocusSet: config.FocusSetNone, Behaviour: "whale", WishSize: 3, MarginPct: 10, OfferChancePct: 1,
+			Colors: []string{"W", "U", "B", "R", "G"},
 		},
 	}
 

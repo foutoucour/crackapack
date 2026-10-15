@@ -1,5 +1,6 @@
 # ASSUMPTION: shares, rhythms, keep thresholds and trade settings are starting guesses
 # pending calibration. A whale opens far more than the rest.
+# A whale wants the rares of every colour. All five colours mean the same scope as none (ADR-0022).
 share: 5
 min_boosters_per_day: 30
 max_boosters_per_day: 50
@@ -9,3 +10,4 @@ behaviour: whale
 wish_size: 3
 margin_pct: 10
 offer_chance_pct: 1
+colors: [W, U, B, R, G]

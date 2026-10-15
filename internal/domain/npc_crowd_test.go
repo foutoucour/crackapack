@@ -174,7 +174,7 @@ func TestCrowdTickFocusNPCsOpenOnlyTheirSet(t *testing.T) {
 
 	sets := crowdSets()
 	spec := fixedSpec(20, 1)
-	spec.FocusSet = true
+	spec.FocusSet = domain.FocusSetRandom
 	crowd, npcs, _ := newTestCrowd(t, 12, spec, sets, 4)
 
 	runDays(t, crowd, 1)

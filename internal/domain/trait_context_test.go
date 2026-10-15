@@ -70,6 +70,7 @@ func TestTraitConstructorsReceiveTheCrowdEnvironment(t *testing.T) {
 	const released = "2005-10-07"
 	sets := crowdSets()
 	sets[0].ReleaseDate = released
+	sets[1].ReleaseDate = "" // clear any date so sets[1] is the undated fixture
 
 	var env domain.TraitEnv
 	reg := domain.TraitRegistry{

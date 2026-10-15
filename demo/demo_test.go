@@ -247,6 +247,9 @@ func TestBuild_crowd(t *testing.T) {
 		totalShare += a.Share
 	}
 	for name, a := range cfg.NPCs.Archetypes {
+		if a.Share == 0 {
+			continue // share-0 archetypes (e.g. archivist) are loaded but produce no NPCs
+		}
 		if members := cfg.NPCs.Population * a.Share / totalShare; members < 1 {
 			t.Errorf("archetype %q has %d members in the demo crowd of %d, want at least 1", name, members, cfg.NPCs.Population)
 		}

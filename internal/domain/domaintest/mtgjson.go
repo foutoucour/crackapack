@@ -16,10 +16,11 @@ type exportFile struct {
 }
 
 type exportData struct {
-	Code    string                      `json:"code"`
-	Name    string                      `json:"name"`
-	Cards   []exportCard                `json:"cards"`
-	Booster map[string]exportBoosterDef `json:"booster,omitempty"`
+	Code        string                      `json:"code"`
+	Name        string                      `json:"name"`
+	ReleaseDate string                      `json:"releaseDate,omitempty"`
+	Cards       []exportCard                `json:"cards"`
+	Booster     map[string]exportBoosterDef `json:"booster,omitempty"`
 }
 
 type exportCard struct {
@@ -65,9 +66,10 @@ func CatalogueToJSON(cat domain.SetCatalogue) ([]byte, error) {
 
 	f := exportFile{
 		Data: exportData{
-			Code:  cat.Code,
-			Name:  cat.Name,
-			Cards: cards,
+			Code:        cat.Code,
+			Name:        cat.Name,
+			ReleaseDate: cat.ReleaseDate,
+			Cards:       cards,
 			Booster: map[string]exportBoosterDef{
 				"draft": {
 					Boosters: boosters,
@@ -118,6 +120,39 @@ func PriceSnapshotToJSON(snap domain.PriceSnapshot) ([]byte, error) {
 		return nil, fmt.Errorf("domaintest: PriceSnapshotToJSON: %w", err)
 	}
 	return data, nil
+}
+
+// NewTraitEnv builds a domain.TraitEnv from the given set catalogues. It exposes the
+// Cards, CardSet, SetReleased and (a zero) Valuer closures that trait constructors need.
+// Sets with an empty ReleaseDate have no entry in SetReleased, so SetReleased returns
+// false for them — matching the crowd's own behaviour.
+func NewTraitEnv(sets []domain.SetCatalogue) domain.TraitEnv {
+	cards := make(map[domain.CardID]domain.Card)
+	setOf := make(map[domain.CardID]string)
+	released := make(map[string]string, len(sets))
+	for _, cat := range sets {
+		if cat.ReleaseDate != "" {
+			released[cat.Code] = cat.ReleaseDate
+		}
+		for id, card := range cat.Cards {
+			cards[id] = card
+			setOf[id] = cat.Code
+		}
+	}
+	return domain.TraitEnv{
+		Cards: func(id domain.CardID) (domain.Card, bool) {
+			c, ok := cards[id]
+			return c, ok
+		},
+		CardSet: func(id domain.CardID) (string, bool) {
+			code, ok := setOf[id]
+			return code, ok
+		},
+		SetReleased: func(code string) (string, bool) {
+			date, ok := released[code]
+			return date, ok
+		},
+	}
 }
 
 // MergePrices merges multiple PriceSnapshots into one. If a CardID appears in

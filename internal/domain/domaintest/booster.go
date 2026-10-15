@@ -118,10 +118,11 @@ func NewRavnicaCatalogue() domain.SetCatalogue {
 	}
 
 	return domain.SetCatalogue{
-		Code:   "RAV",
-		Name:   "Ravnica: City of Guilds (synthetic)",
-		Cards:  cards,
-		Sheets: sheets,
+		Code:        "RAV",
+		Name:        "Ravnica: City of Guilds (synthetic)",
+		ReleaseDate: "2005-10-07", // real release date
+		Cards:       cards,
+		Sheets:      sheets,
 		BoosterOptions: []domain.BoosterOption{
 			{Contents: map[string]int{"common": 11, "uncommon": 3, "rare": 1}, Weight: 795},
 			{Contents: map[string]int{"common": 10, "uncommon": 3, "rare": 1, "foil": 1}, Weight: 139},
@@ -242,10 +243,11 @@ func NewClassicCatalogue() domain.SetCatalogue {
 	}
 
 	return domain.SetCatalogue{
-		Code:   "CLS",
-		Name:   "Classic Set (synthetic)",
-		Cards:  cards,
-		Sheets: sheets,
+		Code:        "CLS",
+		Name:        "Classic Set (synthetic)",
+		ReleaseDate: "1999-04-21", // ASSUMPTION: synthetic date, older than RAV for archivist tests
+		Cards:       cards,
+		Sheets:      sheets,
 		BoosterOptions: []domain.BoosterOption{
 			{Contents: map[string]int{"common": 11, "uncommon": 3, "rare": 1}, Weight: 775},
 			{Contents: map[string]int{"common": 10, "uncommon": 3, "rare": 1, "foil": 1}, Weight: 225},
