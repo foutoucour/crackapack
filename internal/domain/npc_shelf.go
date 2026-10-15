@@ -175,9 +175,27 @@ func (c *Crowd) fillWishes(npc *NPC) {
 }
 
 // scopeOf returns the cards npc may wish for.
+// When the NPC has a colour restriction, the base scope (scopeBySet or scopeAll) is filtered
+// once and the result is memoised under the (focus set, colour set) key so that all NPCs with
+// the same colours and focus set share one backing array.
 func (c *Crowd) scopeOf(npc *NPC) []Card {
+	var base []Card
 	if npc.FocusSet != "" {
-		return c.scopeBySet[npc.FocusSet]
+		base = c.scopeBySet[npc.FocusSet]
+	} else {
+		base = c.scopeAll
 	}
-	return c.scopeAll
+	colours := colourSetOf(npc.Colors)
+	// An empty list (colours==0) or all five colours (allColours) means no restriction: return
+	// the base scope directly so all such NPCs share the same underlying array.
+	if colours == 0 || colours == allColours {
+		return base
+	}
+	key := scopeKey{focus: npc.FocusSet, colours: colours}
+	if filtered, ok := c.scopes[key]; ok {
+		return filtered
+	}
+	filtered := filterByColours(base, colours)
+	c.scopes[key] = filtered
+	return filtered
 }

@@ -27,6 +27,14 @@ func WithSurplusHold(days int) CrowdOption {
 	return func(c *Crowd) { c.holdTicks = days * TicksPerDay }
 }
 
+// scopeKey is the cache key for a colour-filtered scope view.
+// One entry per distinct (focus set, colour set) pair means all NPCs of the same archetype
+// share one backing array, and order-independent colour lists (e.g. [U,B] and [B,U]) reuse it.
+type scopeKey struct {
+	focus   string
+	colours colourSet
+}
+
 // Crowd is the NPC population and what it needs to act: the sets it opens, the opener that
 // draws the boosters and the Counter that receives its surplus. It is not safe for concurrent
 // use.
@@ -47,6 +55,8 @@ type Crowd struct {
 	// set, or the cards of one set for an NPC with a focus set.
 	scopeAll   []Card
 	scopeBySet map[string][]Card
+	// scopes memoises colour-filtered views of the scope, keyed by (focus set, colour set).
+	scopes map[scopeKey][]Card
 	// wishers and holders index the NPCs by the card they wish for and by the card they hold on
 	// their shelf, so a proposal looks a card up instead of scanning every NPC.
 	wishers map[CardID]map[int]struct{}
@@ -82,6 +92,7 @@ func NewCrowd(npcs []*NPC, sets []SetCatalogue, opener *Opener, counter *Counter
 		npcs: npcs, byID: make(map[int]*NPC, len(npcs)), sets: sets, setByID: setByID,
 		opener: opener, counter: counter, rng: rng,
 		scopeBySet: make(map[string][]Card, len(sets)),
+		scopes:     make(map[scopeKey][]Card),
 		wishers:    make(map[CardID]map[int]struct{}),
 		holders:    make(map[CardKey]map[int]struct{}),
 	}
