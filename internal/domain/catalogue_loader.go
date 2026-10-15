@@ -72,13 +72,20 @@ func isValidColor(c string) bool {
 	}
 }
 
-// isValidFinish reports whether f is a recognised card finish.
-func isValidFinish(f Finish) bool {
-	switch f {
-	case FinishNonFoil, FinishFoil:
-		return true
+// normalizeFinish maps MTGJSON finish strings to the two canonical Finish values used by the
+// simulation. "etched" (introduced ~2021 for etched-foil treatments) is treated as FinishFoil:
+// the two foil variants are economically equivalent in the simulation, and treating etched as foil
+// allows sets like NEO, SNC, and VOW to load without changes to collection counting or pricing.
+func normalizeFinish(raw string) (Finish, bool) {
+	switch raw {
+	case string(FinishNonFoil):
+		return FinishNonFoil, true
+	case string(FinishFoil):
+		return FinishFoil, true
+	case "etched":
+		return FinishFoil, true // etched foil ≈ regular foil for economy purposes
 	default:
-		return false
+		return "", false
 	}
 }
 
@@ -151,8 +158,8 @@ func parseSetCards(d mtgSetData, name string) (map[CardID]Card, error) {
 
 		finishes := make([]Finish, 0, len(mc.Finishes))
 		for j, fin := range mc.Finishes {
-			f := Finish(fin)
-			if !isValidFinish(f) {
+			f, ok := normalizeFinish(fin)
+			if !ok {
 				return nil, &CatalogueError{
 					File:  name,
 					Field: fmt.Sprintf("data.cards[%d].finishes[%d]", i, j),
