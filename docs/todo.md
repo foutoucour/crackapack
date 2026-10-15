@@ -1,6 +1,6 @@
 # TODO
 
-What is left to build, as of 2026-10-13. The economy simulation is the detailed part. This page
+What is left to build, as of 2026-10-15. The economy simulation is the detailed part. This page
 lists work, it does not re-explain it: each item links to the doc that owns the design.
 
 What exists today is described in the [Simulation guide](simulation.md). The scope and the build
@@ -19,7 +19,23 @@ many parameters at once for a config that meets the goals.
 - [x] `simulate`, `sweep` over the coin rate, `compare` and `demo`, and the `fetchdata` downloader.
 - [x] The coin rate settled at 100, see [ADR-0006](adr/0006-coin-rate-is-100-per-dollar.md).
 - [x] The NPC crowd, supply only, see [NPC crowd](simulation.md#npc-crowd).
-- [x] Trades with NPCs in the simulation, see [Trades](simulation.md#trades).
+- [x] Trades with NPCs in the simulation, see [Trades](simulation.md#trades). The `trader` and
+  `exploiter` policies exercise them, and the exploiter can decline counter-offers.
+- [x] Mythic as a rarity of its own, see [ADR-0013](adr/0013-mythic-is-a-rarity-of-its-own.md).
+- [x] Binder pace, idle coin and booster wait metrics, see
+  [Summary metric names](simulation.md#summary-metric-names).
+- [x] The Counter as a special player: a shelf life for what it buys, a daily supply of boosters, its
+  own energy and a finite treasury. See
+  [The Counter as a special player](simulation.md#the-counter-as-a-special-player) and
+  [ADR-0018](adr/0018-cards-sold-to-the-counter-can-vanish.md).
+- [x] Strict config input with upper bounds on numeric keys, see
+  [ADR-0014](adr/0014-numeric-config-keys-have-upper-bounds.md) and
+  [ADR-0017](adr/0017-config-input-is-strict.md).
+- [x] The coin fee on boosters above the 12-energy cap, see
+  [The coin fee on dear boosters](simulation.md#the-coin-fee-on-dear-boosters).
+- [x] Coin top-up for missing energy and the `converting-collector` policy, see
+  [Energy coin top-up](simulation.md#energy-coin-top-up).
+- [x] The etched finish loads as a foil.
 
 ## Economy simulation
 
