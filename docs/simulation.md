@@ -545,12 +545,16 @@ come due for. A day's openings match its rhythm exactly, and an NPC never uses e
 each opening, the NPC sells the copy it just drew when it takes the NPC above its keep threshold.
 The Counter takes it into stock without a ledger entry, because NPCs hold no coins.
 
-An archetype is a named entry under `npcs.archetypes`, see
-[ADR-0009](adr/0009-npc-archetypes-are-data.md) for supply and
-[ADR-0010](adr/0010-npc-trade-behaviour-is-a-strategy.md) for trades. Its keys are in
-[`internal/config/config.go`](../internal/config/config.go). The five default archetypes merge with
-the ones in your file by name. An archetype you write replaces the default of the same name as a
-whole, so every key of it must be set.
+An archetype is one YAML file in [`internal/config/archetypes`](../internal/config/archetypes),
+embedded in the binary and read-only, see
+[ADR-0023](adr/0023-archetypes-are-embedded-and-read-only.md). The file name is the archetype
+name, and its keys are the ones of `ArchetypeConfig` in
+[`internal/config/config.go`](../internal/config/config.go). Its shape is set by
+[ADR-0021](adr/0021-an-archetype-names-a-base-behaviour-and-traits.md).
+
+A config file passed to `simulate` or `sweep` can override an archetype under `npcs.archetypes`,
+for calibration runs. An archetype you write there replaces the embedded one of the same name as a
+whole, so every key of it must be set. A new name adds an archetype, and the others are kept.
 
 An archetype can list `colors`, from W, U, B, R and G, with no repeat. An NPC then wishes only for
 cards whose colours are all among its own, and colourless cards are always in scope, see
@@ -563,6 +567,11 @@ by default, caps the margin an archetype's traits can add on top of its `margin_
 lowers `margin_pct`, and a cap of 0 leaves traits no room. No trait is registered yet, so a config
 that lists one is rejected. Colours and traits take effect only when trades are enabled, like the
 other trade keys.
+
+Each NPC counts the declines it has had in a row: the player declines one of its offers or
+counter-offers, or counters one and is refused on terms. An accepted trade resets the count, and an
+expired offer leaves it alone. Traits that react to declines read it, see
+[ADR-0024](adr/0024-a-decline-is-told-to-the-npcs-traits-and-counted.md). No trait reacts yet.
 
 The crowd draws from its own random stream, derived from `seed`. The same seed still reproduces the
 whole run. Adding NPCs to a config does not change what the player opens, so two runs that differ
@@ -583,7 +592,7 @@ go run ./cmd/crackapack simulate \
 
 `compare` refuses a run with a crowd against a run without one, because their columns differ.
 
-The archetype values in the defaults are starting guesses. Offline catch-up and persistence are not
+The archetype values in the embedded files are starting guesses. Offline catch-up and persistence are not
 built, see [Specs review](specs-review.md#v1-scope-and-build-order).
 
 ## Trades

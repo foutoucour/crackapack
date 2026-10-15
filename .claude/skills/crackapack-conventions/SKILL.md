@@ -64,7 +64,9 @@ style (`collector`, `cash-out`, `idle`, `trader`, `exploiter`), registered by na
 NPC step, see [ADR-0009](../../../docs/adr/0009-npc-archetypes-are-data.md), and trade behaviour is
 a registered `TradeBehaviour` per archetype, see
 [ADR-0010](../../../docs/adr/0010-npc-trade-behaviour-is-a-strategy.md), with traits mixed on top of
-it, see [ADR-0021](../../../docs/adr/0021-an-archetype-names-a-base-behaviour-and-traits.md).
+it, see [ADR-0021](../../../docs/adr/0021-an-archetype-names-a-base-behaviour-and-traits.md). An
+archetype is an embedded, read-only YAML file, see
+[ADR-0023](../../../docs/adr/0023-archetypes-are-embedded-and-read-only.md).
 
 ## Demo Data Ships With the Feature
 
