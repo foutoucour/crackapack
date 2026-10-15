@@ -60,23 +60,36 @@ func (v *VetoTrait) Name() string { return "veto" }
 // VetoCounter always returns true.
 func (v *VetoTrait) VetoCounter(_ domain.Offer) bool { return true }
 
-// DeclineSpy is a test trait that records every declined offer passed to ReactToDecline.
-type DeclineSpy struct {
-	Declined []domain.Offer
+// DeclineCall records one call to ReactToDecline.
+type DeclineCall struct {
+	Context domain.DeclineContext
+	// Streak is ctx.NPC.DeclineStreak() captured at call time, proving increment-then-notify.
+	// It is 0 when ctx.NPC is nil.
+	Streak int
 }
 
-// NewDeclineSpy returns a TraitConstructor that builds a DeclineSpy.
-func NewDeclineSpy() domain.TraitConstructor {
+// DeclineSpy is a test trait that records every DeclineContext passed to ReactToDecline.
+type DeclineSpy struct {
+	Calls []DeclineCall
+}
+
+// NewDeclineSpy returns a TraitConstructor that records calls into spy. The same spy pointer is
+// returned each time, so tests can reach it after the behaviour is built.
+func NewDeclineSpy(spy *DeclineSpy) domain.TraitConstructor {
 	return func(_ map[string]int) (domain.Trait, error) {
-		return &DeclineSpy{}, nil
+		return spy, nil
 	}
 }
 
 func (d *DeclineSpy) Name() string { return "decline_spy" }
 
-// ReactToDecline records the declined offer.
-func (d *DeclineSpy) ReactToDecline(declined domain.Offer) {
-	d.Declined = append(d.Declined, declined)
+// ReactToDecline records the context and the streak captured at call time.
+func (d *DeclineSpy) ReactToDecline(ctx domain.DeclineContext) {
+	var streak int
+	if ctx.NPC != nil {
+		streak = ctx.NPC.DeclineStreak()
+	}
+	d.Calls = append(d.Calls, DeclineCall{Context: ctx, Streak: streak})
 }
 
 // TraitRegistry builds a TraitRegistry from the provided name→constructor pairs.

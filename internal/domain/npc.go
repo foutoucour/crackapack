@@ -87,10 +87,15 @@ type NPC struct {
 	shelf  map[CardKey][]int
 	// credit accumulates BoostersPerDay each tick; a booster is due every TicksPerDay of credit.
 	credit int
+	// declineStreak counts consecutive declines since the last accepted trade. See DeclineStreak.
+	declineStreak int
 }
 
 // Collection returns the cards the NPC holds.
 func (n *NPC) Collection() *Collection { return n.collection }
+
+// DeclineStreak returns the number of consecutive declines since the last accepted trade.
+func (n *NPC) DeclineStreak() int { return n.declineStreak }
 
 // GeneratePopulation builds p.Size NPCs, numbered from 0, grouped by archetype name. Each
 // archetype gets its share of the population, with leftover NPCs going to the largest

@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -138,6 +139,11 @@ func wantedLines(npc *NPC, duplicates []Surplus) []TradeLine {
 // The NPC accepts or refuses and does not counter again, see ADR-0012. The original offer is
 // closed either way.
 //
+// When the NPC refuses on terms (ErrBelowMargin or ErrCounterVetoed), the NPC's decline streak
+// is incremented with the original offer as context, because the player turned down the NPC's
+// final word. A counter refused for any other reason (player error or stale state) leaves the
+// streak unchanged.
+//
 // It returns ErrOfferNotFound for an offer that is not open and ErrNotCounterable for an offer
 // that is not an NPC's own proposal.
 func (x *Exchange) Counter(offerID int, playerGives []TradeLine, topUp Coins) (Decision, error) {
@@ -151,5 +157,12 @@ func (x *Exchange) Counter(offerID int, playerGives []TradeLine, topUp Coins) (D
 	x.close(offerID)
 	x.record(o, OutcomeCountered, nil)
 	x.stats.PlayerProposals++
-	return x.evaluate(o.NPC, playerGives, o.NPCGives, topUp, false)
+	d, err := x.evaluate(o.NPC, playerGives, o.NPCGives, topUp, false)
+	if err == nil && d.Outcome == OutcomeRefused &&
+		(errors.Is(d.Reason, ErrBelowMargin) || errors.Is(d.Reason, ErrCounterVetoed)) {
+		if npc, ok := x.crowd.byID[o.NPC]; ok {
+			x.declined(npc, o)
+		}
+	}
+	return d, err
 }
