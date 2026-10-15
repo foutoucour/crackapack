@@ -52,7 +52,7 @@ func composeTraits(base TradeBehaviour, p BehaviourParams) (TradeBehaviour, erro
 				return nil, fmt.Errorf("trait %q: parameter %q must be >= 0, got %d", spec.Name, pname, v)
 			}
 		}
-		t, err := build(spec.Params)
+		t, err := build(spec.Params, p.Env)
 		if err != nil {
 			return nil, fmt.Errorf("trait %q: %w", spec.Name, err)
 		}
@@ -90,13 +90,19 @@ func (tb *traitBehaviour) Propose(ctx ProposalContext) (want, give []TradeLine, 
 // never lowers the base margin, and a cap at or below it leaves the base margin alone. A negative
 // adder result is clamped at 0. See ADR-0021.
 func (tb *traitBehaviour) Margin(offer Offer) Percent {
-	m := tb.base.Margin(offer)
+	return tb.MarginFor(MarginContext{Offer: offer})
+}
+
+// MarginFor is Margin with the context the Exchange knows: the NPC and the tick. The Exchange
+// prefers it, so the adders can read the NPC's state.
+func (tb *traitBehaviour) MarginFor(ctx MarginContext) Percent {
+	m := tb.base.Margin(ctx.Offer)
 	if len(tb.adders) == 0 {
 		return m
 	}
 	var sum Percent
 	for _, a := range tb.adders {
-		add := a.MarginAdd(offer)
+		add := a.MarginAdd(ctx)
 		if add < 0 {
 			add = 0
 		}

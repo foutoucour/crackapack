@@ -14,9 +14,22 @@ type Trait interface{ Name() string }
 // See ADR-0021.
 type WishScorer interface{ WishScore(card Card) int }
 
-// MarginAdder adds to the NPC's margin based on the offer. The result is clamped at 0 before
-// summing so a single trait never lowers the margin. See ADR-0021.
-type MarginAdder interface{ MarginAdd(offer Offer) Percent }
+// MarginContext is what a MarginAdder sees when the Exchange prices an offer.
+type MarginContext struct {
+	// Offer is the offer being priced.
+	Offer Offer
+	// NPC is the NPC that would give the cards of the offer. It is nil when a margin is asked outside
+	// an Exchange, so an adder that reads NPC state must treat nil as no state.
+	NPC *NPC
+	// Tick is the number of ticks the crowd has run, the clock the NPC shelves are dated with.
+	Tick int
+}
+
+// MarginAdder adds to the NPC's margin. The result is clamped at 0 before summing so a single
+// trait never lowers the margin. See ADR-0021.
+type MarginAdder interface {
+	MarginAdd(ctx MarginContext) Percent
+}
 
 // CounterVeto lets a trait refuse a player's counter-offer to an NPC proposal. One veto from any
 // trait makes the Exchange refuse the counter. See ADR-0021.
@@ -37,9 +50,23 @@ type DeclineContext struct {
 // an archetype. ctx.NPC.DeclineStreak() is the single source of truth for the streak count.
 type DeclineReactor interface{ ReactToDecline(ctx DeclineContext) }
 
-// TraitConstructor builds a Trait from the parameter map in its config block. It must reject a
-// negative parameter value.
-type TraitConstructor func(params map[string]int) (Trait, error)
+// TraitEnv is what a trait constructor may use to look things up. A function is nil only in tests
+// that build no trait needing it, and a trait must check before it calls one.
+type TraitEnv struct {
+	// Cards returns the card with the given ID from any set of the crowd.
+	Cards func(CardID) (Card, bool)
+	// CardSet returns the code of the set the card belongs to.
+	CardSet func(CardID) (string, bool)
+	// SetReleased returns the release date of a set, as an ISO date such as 2005-10-07, and false
+	// when the set has none.
+	SetReleased func(setCode string) (string, bool)
+	// Valuer is the reference value of a card, the same one the Counter and the trades use.
+	Valuer Valuer
+}
+
+// TraitConstructor builds a Trait from the parameter map in its config block and the environment
+// the crowd gives it. It must reject a negative parameter value.
+type TraitConstructor func(params map[string]int, env TraitEnv) (Trait, error)
 
 // TraitRegistry maps a trait name to its constructor.
 type TraitRegistry map[string]TraitConstructor

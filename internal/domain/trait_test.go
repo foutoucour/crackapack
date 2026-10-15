@@ -157,9 +157,11 @@ func TestMarginAdderOrderIndependence(t *testing.T) {
 	t.Parallel()
 	// Three adders with different values; all permutations must give the same total.
 	reg := domain.TraitRegistry{
-		"t3":  func(_ map[string]int) (domain.Trait, error) { return &fixedMarginTrait{add: 3}, nil },
-		"t7":  func(_ map[string]int) (domain.Trait, error) { return &fixedMarginTrait{add: 7}, nil },
-		"t11": func(_ map[string]int) (domain.Trait, error) { return &fixedMarginTrait{add: 11}, nil },
+		"t3": func(_ map[string]int, _ domain.TraitEnv) (domain.Trait, error) { return &fixedMarginTrait{add: 3}, nil },
+		"t7": func(_ map[string]int, _ domain.TraitEnv) (domain.Trait, error) { return &fixedMarginTrait{add: 7}, nil },
+		"t11": func(_ map[string]int, _ domain.TraitEnv) (domain.Trait, error) {
+			return &fixedMarginTrait{add: 11}, nil
+		},
 	}
 
 	names := []string{"t3", "t7", "t11"}
@@ -313,7 +315,7 @@ func TestNegativeAdderIsClamped(t *testing.T) {
 	t.Parallel()
 	// A trait returning a negative MarginAdd result must not lower the margin.
 	reg := domain.TraitRegistry{
-		"negative": func(_ map[string]int) (domain.Trait, error) {
+		"negative": func(_ map[string]int, _ domain.TraitEnv) (domain.Trait, error) {
 			return &fixedMarginTrait{add: -5}, nil
 		},
 	}
@@ -760,8 +762,8 @@ func newExchangeFixtureWithRegistry(t *testing.T, size int, spec domain.Archetyp
 // fixedMarginTrait is a minimal MarginAdder that always returns the same add.
 type fixedMarginTrait struct{ add domain.Percent }
 
-func (f *fixedMarginTrait) Name() string                            { return "fixed" }
-func (f *fixedMarginTrait) MarginAdd(_ domain.Offer) domain.Percent { return f.add }
+func (f *fixedMarginTrait) Name() string                                    { return "fixed" }
+func (f *fixedMarginTrait) MarginAdd(_ domain.MarginContext) domain.Percent { return f.add }
 
 func composedIDs(wishes []domain.Wish) []domain.CardID {
 	ids := make([]domain.CardID, len(wishes))

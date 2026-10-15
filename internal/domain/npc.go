@@ -120,6 +120,10 @@ func GeneratePopulation(p PopulationParams, sets []SetCatalogue, rng *rand.Rand)
 		return nil, err
 	}
 
+	var env TraitEnv
+	if anyTraits(p.Archetypes) {
+		env = newTraitEnv(sets, p.Valuer)
+	}
 	behaviours := make(map[string]TradeBehaviour, len(names))
 	for _, name := range names {
 		spec := p.Archetypes[name]
@@ -131,6 +135,7 @@ func GeneratePopulation(p PopulationParams, sets []SetCatalogue, rng *rand.Rand)
 			Valuer:       p.Valuer,
 			Traits:       spec.Traits,
 			Registry:     p.TraitRegistry,
+			Env:          env,
 			MaxMarginPct: p.MaxMarginPct,
 		})
 		if err != nil {
