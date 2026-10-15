@@ -1,0 +1,20 @@
+# ASSUMPTION: every number below is a starting guess pending calibration. share is 0 until the
+# integration story, so no NPC is built from this file yet.
+# The poker fish: passive and friendly. Margin 0, proposes often, wishes for pricey and shiny cards
+# (trait fish) and asks for the dearest duplicates (speculator base). It supplies duplicates.
+share: 0
+min_boosters_per_day: 3
+max_boosters_per_day: 6
+keep_copies: 1
+focus_set: false
+behaviour: speculator
+wish_size: 8
+margin_pct: 0
+offer_chance_pct: 10
+colors: [G]
+traits: [fish]
+trait_params:
+  fish:
+    price_unit_cents: 100
+    rarity_points: 5
+    foil_points: 3

@@ -21,13 +21,12 @@ func TestLoad_tradesDefaultToOffWithDocumentedValues(t *testing.T) {
 	if cfg.NPCs.SurplusHoldDays != 2 {
 		t.Errorf("NPCs.SurplusHoldDays = %d, want 2", cfg.NPCs.SurplusHoldDays)
 	}
-	for _, name := range defaultArchetypeNames() {
-		a := cfg.NPCs.Archetypes[name]
-		// archivist intentionally reuses the targeted_collector behaviour (share=0 until integration)
-		if a.Behaviour == name || name == "archivist" {
-			continue
+	// The original five archetypes each use a registered behaviour of the same name. The archetypes
+	// added later use another base behaviour for their personality and are not part of this rule.
+	for _, name := range []string{"casual", "playset_hunter", "speculator", "targeted_collector", "whale"} {
+		if got := cfg.NPCs.Archetypes[name].Behaviour; got != name {
+			t.Errorf("archetype %q has behaviour %q, want one of the same name", name, got)
 		}
-		t.Errorf("archetype %q has behaviour %q, want one of the same name", name, a.Behaviour)
 	}
 	if got := cfg.NPCs.Archetypes["casual"].MarginPct; got != 0 {
 		t.Errorf("casual margin = %d, want 0", got)
