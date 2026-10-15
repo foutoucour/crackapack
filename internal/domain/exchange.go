@@ -30,6 +30,9 @@ var (
 	// ErrNotCounterable is returned when the player counters an offer that is not an NPC's own
 	// proposal. An NPC counters once, see ADR-0012.
 	ErrNotCounterable = errors.New("exchange: only an offer proposed by an NPC can be countered")
+	// ErrCounterVetoed is the reason of a refusal when a trait of the NPC vetoes the player's
+	// counter-offer. No offer is stored; the NPC's counter count is unchanged.
+	ErrCounterVetoed = errors.New("exchange: the NPC's trait vetoed the player's counter")
 )
 
 // Outcome is how an offer ended or was answered.

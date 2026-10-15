@@ -274,6 +274,11 @@ type NPCConfig struct {
 	// trades are enabled, and trades need at least 1, see ADR-0011. Default 2.
 	SurplusHoldDays int `yaml:"surplus_hold_days"`
 
+	// MaxMarginPct caps the total margin (base + trait adders) for all NPCs, without ever lowering
+	// an archetype's own margin_pct. A zero value leaves traits no room to add.
+	// ASSUMPTION: default 1000; pending calibration.
+	MaxMarginPct domain.Percent `yaml:"max_margin_pct"`
+
 	// Archetypes maps an archetype name to its behaviour. A partial YAML map merges with the
 	// defaults per name. ASSUMPTION defaults (pending calibration): see defaults.
 	Archetypes map[string]ArchetypeConfig `yaml:"archetypes"`
@@ -436,6 +441,7 @@ func defaults() Config {
 		// more than the rest. The casual and speculator margins come from docs/core-features.md.
 		NPCs: NPCConfig{
 			SurplusHoldDays: 2,
+			MaxMarginPct:    1000, // ASSUMPTION: cap pending calibration
 			Archetypes: map[string]ArchetypeConfig{
 				"casual":             {Share: 50, MinBoostersPerDay: 4, MaxBoostersPerDay: 8, KeepCopies: 1, Behaviour: "casual", WishSize: 5, MarginPct: 0, OfferChancePct: 2},
 				"playset_hunter":     {Share: 15, MinBoostersPerDay: 3, MaxBoostersPerDay: 6, KeepCopies: 4, Behaviour: "playset_hunter", WishSize: 5, MarginPct: 5, OfferChancePct: 2},
@@ -556,6 +562,9 @@ func validate(cfg Config) error {
 		return err
 	}
 	if err := validateCounterSupply(cfg); err != nil {
+		return err
+	}
+	if err := validateMarginCap(cfg.NPCs); err != nil {
 		return err
 	}
 	if err := validateNPCs(cfg.NPCs); err != nil {

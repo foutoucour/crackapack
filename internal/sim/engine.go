@@ -59,7 +59,8 @@ type Engine struct {
 }
 
 type options struct {
-	reference []domain.SetCatalogue
+	reference     []domain.SetCatalogue
+	traitRegistry domain.TraitRegistry
 }
 
 // Option tunes NewEngine.
@@ -71,6 +72,12 @@ type Option func(*options)
 // openable catalogues themselves and a set run alone always lands in the x1 tier.
 func WithReferenceCatalogues(reference []domain.SetCatalogue) Option {
 	return func(o *options) { o.reference = reference }
+}
+
+// WithTraitRegistry sets the trait registry used by the NPC crowd. Without it the
+// domain.DefaultTraits registry is used. Tests use this to inject test traits.
+func WithTraitRegistry(registry domain.TraitRegistry) Option {
+	return func(o *options) { o.traitRegistry = registry }
 }
 
 // NewEngine builds and validates a simulation engine.
@@ -184,7 +191,7 @@ func NewEngine(
 	}
 
 	valuer := domain.NewValuer(prices, cfg.FallbackPrice)
-	crowd, err := newCrowd(cfg, catalogues, counter, valuer)
+	crowd, err := newCrowd(cfg, catalogues, counter, valuer, o.traitRegistry)
 	if err != nil {
 		return nil, err
 	}

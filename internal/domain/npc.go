@@ -56,6 +56,10 @@ type PopulationParams struct {
 	// Valuer values cards for the archetypes that have a behaviour. It may be the zero Valuer
 	// when none does.
 	Valuer Valuer
+	// TraitRegistry is the registry used to build traits for each archetype. Nil means DefaultTraits.
+	TraitRegistry TraitRegistry
+	// MaxMarginPct caps the total margin (base + trait adders) for all NPCs. See ADR-0021.
+	MaxMarginPct Percent
 }
 
 // NPC is one simulated collector. It opens boosters with the player's engine, keeps what its
@@ -117,7 +121,13 @@ func GeneratePopulation(p PopulationParams, sets []SetCatalogue, rng *rand.Rand)
 		if spec.Behaviour == "" {
 			continue
 		}
-		behaviour, err := NewBehaviour(spec.Behaviour, BehaviourParams{MarginPct: spec.MarginPct, Valuer: p.Valuer, Traits: spec.Traits})
+		behaviour, err := NewBehaviour(spec.Behaviour, BehaviourParams{
+			MarginPct:    spec.MarginPct,
+			Valuer:       p.Valuer,
+			Traits:       spec.Traits,
+			Registry:     p.TraitRegistry,
+			MaxMarginPct: p.MaxMarginPct,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("population: archetype %q: %w", name, err)
 		}

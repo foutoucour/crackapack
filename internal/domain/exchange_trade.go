@@ -43,12 +43,27 @@ func (x *Exchange) Accept(offerID int) (Decision, error) {
 	return Decision{}, fmt.Errorf("exchange: accept offer %d: %w", offerID, err)
 }
 
+// counterVetoer is a local interface so that the Exchange can check whether a behaviour vetoes a
+// player counter without adding a method to TradeBehaviour. Only traitBehaviour implements it.
+type counterVetoer interface{ VetoesCounter(Offer) bool }
+
+// vetoesCounter returns true when npc's behaviour implements counterVetoer and vetoes the offer.
+func vetoesCounter(npc *NPC, offer Offer) bool {
+	cv, ok := npc.Behaviour.(counterVetoer)
+	return ok && cv.VetoesCounter(offer)
+}
+
 // evaluate prices an offer and either executes it, counters it or refuses it. When canCounter is
 // false a short offer is refused instead of countered.
 func (x *Exchange) evaluate(npcID int, playerGives, npcGives []TradeLine, topUp Coins, canCounter bool) (Decision, error) {
 	npc, offer, err := x.prepare(npcID, playerGives, npcGives, topUp)
 	if err != nil {
 		return x.refuse(offer, err), nil
+	}
+	// A counter-offer (canCounter == false) is refused when a trait vetoes it, even when the
+	// player's top-up would have satisfied the margin. A player Propose is never vetoed.
+	if !canCounter && vetoesCounter(npc, offer) {
+		return x.refuse(offer, ErrCounterVetoed), nil
 	}
 	need := requiredTopUp(linesValue(x.valuer, offer.PlayerGives), linesValue(x.valuer, offer.NPCGives),
 		npc.Behaviour.Margin(offer), x.params.CoinRate)
