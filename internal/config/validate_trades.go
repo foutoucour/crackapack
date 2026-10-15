@@ -48,21 +48,31 @@ func validateTrades(cfg Config) error {
 	return nil
 }
 
+// validateArchetypeTrade checks the trade settings of one archetype: behaviour, wish_size,
+// margin_pct and offer_chance_pct. key is the dotted config path such as
+// "npcs.archetypes.casual" or "archetypes.casual".
+func validateArchetypeTrade(key string, a ArchetypeConfig) error {
+	switch {
+	case a.Behaviour != "" && !domain.KnownBehaviour(a.Behaviour):
+		return fmt.Errorf("config: %s.behaviour %q is not registered, known behaviours: %v", key, a.Behaviour, domain.BehaviourNames())
+	case a.WishSize < 0:
+		return fmt.Errorf("config: %s.wish_size must be >= 0, got %d", key, a.WishSize)
+	case a.MarginPct < 0:
+		return fmt.Errorf("config: %s.margin_pct must be >= 0, got %d", key, a.MarginPct)
+	case a.OfferChancePct < 0 || a.OfferChancePct > 100:
+		return fmt.Errorf("config: %s.offer_chance_pct must be in [0, 100], got %d", key, a.OfferChancePct)
+	}
+	return nil
+}
+
 // validateTradeArchetypes checks the trade settings of every archetype, in name order so the
 // reported key is stable.
 func validateTradeArchetypes(n NPCConfig) error {
 	for _, name := range slices.Sorted(maps.Keys(n.Archetypes)) {
 		a := n.Archetypes[name]
 		key := "npcs.archetypes." + name
-		switch {
-		case a.Behaviour != "" && !domain.KnownBehaviour(a.Behaviour):
-			return fmt.Errorf("config: %s.behaviour %q is not registered, known behaviours: %v", key, a.Behaviour, domain.BehaviourNames())
-		case a.WishSize < 0:
-			return fmt.Errorf("config: %s.wish_size must be >= 0, got %d", key, a.WishSize)
-		case a.MarginPct < 0:
-			return fmt.Errorf("config: %s.margin_pct must be >= 0, got %d", key, a.MarginPct)
-		case a.OfferChancePct < 0 || a.OfferChancePct > 100:
-			return fmt.Errorf("config: %s.offer_chance_pct must be in [0, 100], got %d", key, a.OfferChancePct)
+		if err := validateArchetypeTrade(key, a); err != nil {
+			return err
 		}
 	}
 	return nil

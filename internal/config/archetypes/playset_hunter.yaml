@@ -1,0 +1,11 @@
+# ASSUMPTION: shares, rhythms, keep thresholds and trade settings are starting guesses
+# pending calibration.
+share: 15
+min_boosters_per_day: 3
+max_boosters_per_day: 6
+keep_copies: 4
+focus_set: false
+behaviour: playset_hunter
+wish_size: 5
+margin_pct: 5
+offer_chance_pct: 2
