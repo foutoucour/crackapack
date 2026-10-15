@@ -172,6 +172,8 @@ see [ADR-0008](adr/0008-energy-cost-reference-is-the-catalogue-directory.md).
   `TSB.json`, are skipped.
 - A set file with any other defect, such as malformed JSON or an unknown rarity, stops the run with
   an error that names the file, even when it is not in `--sets`.
+- `releaseDate` is optional. Only `focus_set: oldest` reads it, see [NPC crowd](#npc-crowd). A value
+  that is not an ISO date such as `2005-10-07` is a defect.
 - Compare runs on the same directory. Adding or removing a set file moves the median, and so every
   cost.
 
@@ -564,14 +566,45 @@ colours, means no restriction.
 An archetype can also list `traits`, with the numbers each one reads under `trait_params`, see
 [ADR-0021](adr/0021-an-archetype-names-a-base-behaviour-and-traits.md). `npcs.max_margin_pct`, 1000
 by default, caps the margin an archetype's traits can add on top of its `margin_pct`. The cap never
-lowers `margin_pct`, and a cap of 0 leaves traits no room. No trait is registered yet, so a config
-that lists one is rejected. Colours and traits take effect only when trades are enabled, like the
-other trade keys.
+lowers `margin_pct`, and a cap of 0 leaves traits no room. A config that lists an unknown trait is
+rejected, with the known names in the error. Colours and traits take effect only when trades are
+enabled, like the other trade keys.
 
 Each NPC counts the declines it has had in a row: the player declines one of its offers or
 counter-offers, or counters one and is refused on terms. An accepted trade resets the count, and an
 expired offer leaves it alone. Traits that react to declines read it, see
-[ADR-0024](adr/0024-a-decline-is-told-to-the-npcs-traits-and-counted.md). No trait reacts yet.
+[ADR-0024](adr/0024-a-decline-is-told-to-the-npcs-traits-and-counted.md).
+
+These traits exist. A missing parameter takes the default in brackets, and an unknown parameter or
+a negative value is rejected.
+
+| Trait | Colour | What it does | `trait_params` |
+|-------|--------|--------------|----------------|
+| `stingy` | B | Adds margin that grows with the rarest card the NPC gives | `common_pct`, `uncommon_pct`, `rare_pct`, `special_pct`, `mythic_pct` (0) |
+| `fish` | G | Ranks wishes by price, rarity and foil | `price_unit_cents` (100), `rarity_points` (0), `foil_points` (0) |
+| `ego` | U | Adds margin for each day the oldest card it gives was held, refuses every player counter and proposes again after a decline | `max_retries` (3), `endowment_pct_per_day` (5) |
+| `gambler` | R | Each decline in a row raises its offer chance and lowers its extra margin | `chance_step_pct` (4), `max_offer_chance_pct` (30), `margin_extra_pct` (15), `margin_step_pct` (5) |
+| `archivist` | W | Ranks wishes toward older sets | none |
+
+The ego proposes again after the player declines one of its own proposals. It makes at most
+`max_retries` follow-ups a day, each a different trade from the declined ones, then holds for the
+rest of the day, see [ADR-0025](adr/0025-an-npc-that-was-declined-proposes-again.md). The gambler's
+offer chance rises by `chance_step_pct` per decline in a row, up to `max_offer_chance_pct`, and its
+extra margin falls by `margin_step_pct` per decline, down to its `margin_pct`.
+
+Trait margins price a player's proposal or counter. An NPC's own proposals use `margin_pct`, so a
+stingy NPC's proposals do not carry the rarity add.
+
+`focus_set` is `false`, `true` or `oldest`. `true` draws one set per NPC at generation, and `oldest`
+gives every NPC the set with the earliest `releaseDate` among the loaded sets, see
+[ADR-0026](adr/0026-focus-set-accepts-oldest.md). Which set that is depends on the sets you load.
+`oldest` fails the run naming every set that has no `releaseDate`, but only when an archetype that
+gets at least one NPC asks for it.
+
+The archetypes `stingy`, `fish`, `ego`, `gambler` and `archivist` ship with `share: 0` until the
+integration of the personalities, so they build no NPC and no run changes. Their numbers are
+assumptions to calibrate. The archivist file does not list its trait: with a focus set every
+candidate card comes from one set.
 
 The crowd draws from its own random stream, derived from `seed`. The same seed still reproduces the
 whole run. Adding NPCs to a config does not change what the player opens, so two runs that differ
