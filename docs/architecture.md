@@ -57,8 +57,8 @@ crowd, `Valuer` gives the Counter and the Exchange the same reference value, and
 per archetype picks wishes, the margin and proposals. `internal/sim` composes them behind
 `trades.enabled` and exposes them to player policies through `Session`.
 
-`demo/` generates two synthetic catalogues (DEM and DSP/DST) from a fixed seed and exposes them
-via `demo.Build()`. The domain never imports demo; the dependency runs one way, from demo into
+`demo/` generates two played synthetic catalogues (DEM and DSP/DST) and an expensive one (DEX) that
+the game leaves out, from a fixed seed, and exposes them via `demo.Build()`. The domain never imports demo; the dependency runs one way, from demo into
 the domain.
 
 All simulation state is held in plain in-memory domain objects for the MVP. No store interface

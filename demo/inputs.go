@@ -10,18 +10,19 @@ import (
 )
 
 // Dataset holds the demo inputs produced by Build.
-// Files is an fs.FS containing DEM.json, DSP.json, DST.json, and prices.json.
+// Files is an fs.FS containing DEM.json, DSP.json, DEX.json, DST.json, and prices.json.
 // These files are generated in-memory; no data is committed to the repository. DSP.json holds its
 // booster as "default", like the MTGJSON sets before Mirage.
 type Dataset struct {
-	// Files is a virtual filesystem with DEM.json, DSP.json, DST.json and prices.json.
+	// Files is a virtual filesystem with DEM.json, DSP.json, DEX.json, DST.json and prices.json.
 	Files fs.FS
 
 	// ConfigYAML is the YAML configuration string for the demo sweep, including
 	// the default sweep grid and calibration targets.
 	ConfigYAML string
 
-	// SetCodes lists the openable set codes in the demo (DEM, DSP).
+	// SetCodes lists the openable set codes in the demo (DEM, DSP). DEX is in the directory but is
+	// an expensive set, so it is not played.
 	SetCodes []string
 
 	// SupplementaryCodes lists the card-pool-only codes (DST).
@@ -40,7 +41,11 @@ func Build() Dataset {
 
 	prices := newDemoPrices([]domain.SetCatalogue{dem, dsp, dst}, rng)
 
-	cats := []domain.SetCatalogue{dem, dsp}
+	// DEX is priced apart from the others, so the draws of the played sets do not move.
+	dex := newDEXCatalogue()
+	prices = domaintest.MergePrices(prices, newDEXPrices(dex))
+
+	cats := []domain.SetCatalogue{dem, dsp, dex}
 	supps := []domain.SetCatalogue{dst}
 
 	mapFS, err := domaintest.NewMapFS(cats, supps, prices)

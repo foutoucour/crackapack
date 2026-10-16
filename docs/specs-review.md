@@ -12,6 +12,7 @@ GitHub.
 | Interactions | The Counter (fixed prices) and trades with a crowd of NPCs (300 to 1,000) that have real collections |
 | Removed | Teams, binder contests, Discord, moderation, multiplayer |
 | V1 catalogue | Ravnica, Guildpact, Dissension, Coldsnap, Time Spiral, Planar Chaos, Future Sight |
+| Expensive sets | A set whose booster is worth $60 or more is not loaded into the game, even though it is in the catalogue. They break the economy and need their own design, see [Expensive old sets and the 12-energy cap](#expensive-old-sets-and-the-12-energy-cap) and [ADR-0029](adr/0029-a-set-with-a-booster-worth-60-or-more-is-not-loaded.md) |
 | Stack | A Go core in a single binary, see [ADR-0001](adr/0001-go-for-the-core.md) |
 | Language | Everything in English |
 | Name | crackapack |
@@ -59,7 +60,7 @@ V1 validates the loop open → sort → sell to the Counter or trade with NPCs.
 - Trades with NPCs.
 
 **Not in V1:** auction house, recycling, mini-games, events, weekly challenge, sets outside the
-catalogue.
+catalogue, and the expensive sets, those whose booster is worth $60 or more.
 
 **Build order**, so that each step is playable and can be tested before the next:
 
@@ -139,6 +140,10 @@ What the sweep leaves open (see [Open questions](#open-questions)):
   higher value slows buying and may change which rates pass.
 
 ## Expensive old sets and the 12-energy cap
+
+The result is a decision: a set whose booster is worth $60 or more is out of V1, and the game does
+not load it, see [ADR-0029](adr/0029-a-set-with-a-booster-worth-60-or-more-is-not-loaded.md). The
+study below is the evidence and the starting point for the design they need.
 
 Once the 12-energy tier binds, the coins a booster pays per unit of energy grow with its value:
 ×1.1 at $19 (The Dark), ×2.7 at $48 (Stronghold), ×3.1 at $70 (Revised), ×8.2 at $162 (Legends)
@@ -611,7 +616,9 @@ The most uncertain item is the NPC simulation's behaviour at scale. Hosting no l
 - [x] Booster energy cost stops at 12 while booster values vary widely. Do very expensive sets create
   too many coins through the Counter? Yes for the priciest sets: ×2.7 per energy at $48 a booster,
   ×65 for Alpha, and negligible below about $20. See
-  [Expensive old sets and the 12-energy cap](#expensive-old-sets-and-the-12-energy-cap).
+  [Expensive old sets and the 12-energy cap](#expensive-old-sets-and-the-12-energy-cap). Those sets
+  are left out of V1 from $60 a booster, see
+  [ADR-0029](adr/0029-a-set-with-a-booster-worth-60-or-more-is-not-loaded.md).
 - [ ] Default number of NPCs and archetype split. Above 50 NPCs the population does not change the
   pace, see [What the NPC crowd and trades change](#what-the-npc-crowd-and-trades-change).
 - [ ] Initial Counter stock: which cards? At 1 copy of every card the crowd no longer matters to a

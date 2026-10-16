@@ -124,6 +124,7 @@ All config keys and their defaults are listed in
 |-------|------|---------|
 | Economy | `coin_rate`, `counter_sell_pct`, `counter_buy_pct`, `counter_foil_pct`, `welcome_bonus`, `daily_reward` | Coin flow and Counter pricing; `counter_foil_pct` is the percentage of a card's price its foil is worth at the Counter, default 500, see [ADR-0027](adr/0027-a-foil-is-a-percentage-of-its-cards-price.md) |
 | Energy | `energy.*` | Opening pace, coin fee on dear boosters, and optional coin top-up for missing energy; see [Energy](core-features.md#energy), [The coin fee on dear boosters](#the-coin-fee-on-dear-boosters) and [Energy coin top-up](#energy-coin-top-up) |
+| Catalogue | `expensive_booster_value` | The booster value, in USD cents, from which a set is left out of the game, default 6000; see [Catalogue directory](#catalogue-directory) |
 | Counter | `initial_stock`, `fallback_price`, `counter_shelf_days`, `counter_supply.*`, `counter_budget.*` | Starting inventory, price floor, how long sold cards stay and how the Counter stocks and pays for itself, see [The Counter's shelf life](#the-counters-shelf-life) and [The Counter as a special player](#the-counter-as-a-special-player) |
 | NPCs | `npcs.population`, `npcs.max_margin_pct`, `npcs.archetypes.*` | The NPC crowd; see [NPC crowd](#npc-crowd) |
 | Simulation | `sessions_per_day`, `run_days`, `seed` | Run parameters |
@@ -166,9 +167,17 @@ loader reads the `default` one when there is no `draft`, see
 definitions match the real boosters is unchecked, see
 [Which sets can be simulated](specs-review.md#which-sets-can-be-simulated).
 
+A set whose booster is worth `expensive_booster_value` or more, $60 by default, is in the expensive
+bundle and is not loaded, see
+[ADR-0029](adr/0029-a-set-with-a-booster-worth-60-or-more-is-not-loaded.md).
+- Naming such a set in `--sets` stops the run with an error that gives its booster value.
+- Such a set that only sits in the directory is left out without a message.
+- The synthetic prices of the tests and the demo run above real ones, so the test configs raise the
+  key. The demo keeps the default and holds an expensive set, `DEX`, that is not played.
+
 The directory also sets the reference of the energy cost tiers. A booster's cost is its average
-value relative to the median over every openable set in the directory, not only the sets in `--sets`,
-see [ADR-0008](adr/0008-energy-cost-reference-is-the-catalogue-directory.md).
+value relative to the median over every openable set of the common bundle in the directory, not
+only the sets in `--sets`, see [ADR-0008](adr/0008-energy-cost-reference-is-the-catalogue-directory.md).
 - A file counts when it is named `<CODE>.json` with an upper-case code and has a `booster.draft` or
   `booster.default` section. Other files, such as `prices.json` or a pool without either like
   `TSB.json`, are skipped.

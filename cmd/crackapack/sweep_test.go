@@ -92,6 +92,7 @@ func buildSweepArgs(
 // Combined: only rate 250 passes both.
 const goldenConfig = `run_days: 5
 seed: 42
+expensive_booster_value: 100000000
 targets:
   - metric: sub_coin_cards
     comparison: at_most
@@ -107,7 +108,7 @@ func TestRunSweep_happyPath(t *testing.T) {
 
 	rav := domaintest.NewRavnicaCatalogue()
 	var stdout strings.Builder
-	a, store := buildSweepArgs(t, []domain.SetCatalogue{rav}, nil, "run_days: 5\nseed: 42\n", []domain.CoinRate{10, 100}, &stdout)
+	a, store := buildSweepArgs(t, []domain.SetCatalogue{rav}, nil, shortConfig, []domain.CoinRate{10, 100}, &stdout)
 
 	if err := runSweep(a); err != nil {
 		t.Fatalf("runSweep: %v", err)
@@ -142,8 +143,8 @@ func TestRunSweep_deterministicOutput(t *testing.T) {
 	rates := []domain.CoinRate{10, 250}
 
 	var stdout1, stdout2 strings.Builder
-	a1, store1 := buildSweepArgs(t, []domain.SetCatalogue{rav}, nil, "run_days: 5\nseed: 42\n", rates, &stdout1)
-	a2, store2 := buildSweepArgs(t, []domain.SetCatalogue{rav}, nil, "run_days: 5\nseed: 42\n", rates, &stdout2)
+	a1, store1 := buildSweepArgs(t, []domain.SetCatalogue{rav}, nil, shortConfig, rates, &stdout1)
+	a2, store2 := buildSweepArgs(t, []domain.SetCatalogue{rav}, nil, shortConfig, rates, &stdout2)
 
 	if err := runSweep(a1); err != nil {
 		t.Fatalf("run 1: %v", err)
@@ -186,6 +187,7 @@ func TestRunSweep_unknownMetric_noReportsWritten(t *testing.T) {
 	var stdout strings.Builder
 	configYAML := `run_days: 5
 seed: 42
+expensive_booster_value: 100000000
 targets:
   - metric: no_such_metric
     comparison: at_most
@@ -212,7 +214,7 @@ func TestRunSweep_noTargets(t *testing.T) {
 
 	rav := domaintest.NewRavnicaCatalogue()
 	var stdout strings.Builder
-	a, store := buildSweepArgs(t, []domain.SetCatalogue{rav}, nil, "run_days: 5\nseed: 42\n", []domain.CoinRate{10, 100}, &stdout)
+	a, store := buildSweepArgs(t, []domain.SetCatalogue{rav}, nil, shortConfig, []domain.CoinRate{10, 100}, &stdout)
 
 	if err := runSweep(a); err != nil {
 		t.Fatalf("runSweep: %v", err)
@@ -249,7 +251,7 @@ func TestRunSweep_ratesFlagOverride(t *testing.T) {
 	rav := domaintest.NewRavnicaCatalogue()
 	var stdout strings.Builder
 	// Override to only rate 250.
-	a, store := buildSweepArgs(t, []domain.SetCatalogue{rav}, nil, "run_days: 5\nseed: 42\n", []domain.CoinRate{250}, &stdout)
+	a, store := buildSweepArgs(t, []domain.SetCatalogue{rav}, nil, shortConfig, []domain.CoinRate{250}, &stdout)
 
 	if err := runSweep(a); err != nil {
 		t.Fatalf("runSweep: %v", err)
@@ -371,7 +373,7 @@ func TestRunSweep_sweepJSONContainsPerRateSummary(t *testing.T) {
 
 	rav := domaintest.NewRavnicaCatalogue()
 	var stdout strings.Builder
-	a, store := buildSweepArgs(t, []domain.SetCatalogue{rav}, nil, "run_days: 5\nseed: 42\n", []domain.CoinRate{100}, &stdout)
+	a, store := buildSweepArgs(t, []domain.SetCatalogue{rav}, nil, shortConfig, []domain.CoinRate{100}, &stdout)
 
 	if err := runSweep(a); err != nil {
 		t.Fatalf("runSweep: %v", err)

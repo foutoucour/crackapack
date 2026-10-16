@@ -20,6 +20,9 @@ import (
 // prices.json.
 var setFilePattern = regexp.MustCompile(`^[A-Z0-9_]+\.json$`)
 
+// centsPerDollar converts USDCents to whole dollars.
+const centsPerDollar = 100
+
 // draftSection is the field of a CatalogueError for a set file without a draft booster.
 const draftSection = "data.booster.draft"
 
@@ -145,6 +148,12 @@ func loadInputs(a simulateArgs) (inputs, error) {
 		return inputs{}, fmt.Errorf("prices %q: %w", a.pricesName, err)
 	}
 
+	// 4b. Leave the expensive bundle out of the game.
+	reference, err = leaveOutExpensiveSets(catalogues, reference, prices, cfg)
+	if err != nil {
+		return inputs{}, err
+	}
+
 	// 5. Pick player policy.
 	policyFn, ok := a.policies[a.player]
 	if !ok {
@@ -165,6 +174,38 @@ func loadInputs(a simulateArgs) (inputs, error) {
 		prices:        prices,
 		policyFn:      policyFn,
 	}, nil
+}
+
+// leaveOutExpensiveSets returns the common bundle of the reference sets: the expensive ones are
+// not loaded into the game and do not feed the energy cost median. It fails when a requested set is
+// in the expensive bundle, naming each with its booster value, so a run never silently drops a set
+// that was asked for. A set that only sits in the catalogue directory is left out quietly:
+// tools/fetchdata puts it there on purpose.
+func leaveOutExpensiveSets(requested, reference []domain.SetCatalogue, prices domain.PriceSnapshot, cfg config.Config) ([]domain.SetCatalogue, error) {
+	_, expensiveRequested, err := domain.SplitByBoosterValue(requested, prices, cfg.FallbackPrice, cfg.ExpensiveBoosterValue)
+	if err != nil {
+		return nil, err
+	}
+	if len(expensiveRequested) > 0 {
+		offenders := make([]string, 0, len(expensiveRequested))
+		for _, cat := range expensiveRequested {
+			value, err := domain.BoosterAverageValue(cat, prices, cfg.FallbackPrice)
+			if err != nil {
+				return nil, err
+			}
+			offenders = append(offenders, fmt.Sprintf("%s (%s)", cat.Code, dollars(value)))
+		}
+		return nil, fmt.Errorf("expensive sets are not in the game: %s at or above the %s booster value limit (expensive_booster_value)",
+			strings.Join(offenders, ", "), dollars(cfg.ExpensiveBoosterValue))
+	}
+
+	common, _, err := domain.SplitByBoosterValue(reference, prices, cfg.FallbackPrice, cfg.ExpensiveBoosterValue)
+	return common, err
+}
+
+// dollars formats an amount of USDCents as dollars, for an error message.
+func dollars(cents domain.USDCents) string {
+	return fmt.Sprintf("$%d.%02d", cents/centsPerDollar, cents%centsPerDollar)
 }
 
 // fileError names the file in a load error. A CatalogueError already does, so it is returned as is.
