@@ -166,6 +166,7 @@ and the rewards.
 | Quests, milestones, mini-games | Source | See [Retention](retention.md) |
 | Coin top-ups in trades | Sink | Difference in reference value |
 | Purchases from the Counter | Sink | 120% of the reference value |
+| Foils from the Counter | Sink | `counter_foil_pct` of the card's reference value, then 120% |
 
 - Coins have **no monetary value**.
 - **Coin ↔ USD rate:** to be set, the whole economy depends on it.

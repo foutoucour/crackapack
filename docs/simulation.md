@@ -122,7 +122,7 @@ All config keys and their defaults are listed in
 
 | Group | Keys | Purpose |
 |-------|------|---------|
-| Economy | `coin_rate`, `counter_sell_pct`, `counter_buy_pct`, `welcome_bonus`, `daily_reward` | Coin flow and Counter pricing |
+| Economy | `coin_rate`, `counter_sell_pct`, `counter_buy_pct`, `counter_foil_pct`, `welcome_bonus`, `daily_reward` | Coin flow and Counter pricing; `counter_foil_pct` is the percentage of a card's price its foil is worth at the Counter, default 500, see [ADR-0027](adr/0027-a-foil-is-a-percentage-of-its-cards-price.md) |
 | Energy | `energy.*` | Opening pace, coin fee on dear boosters, and optional coin top-up for missing energy; see [Energy](core-features.md#energy), [The coin fee on dear boosters](#the-coin-fee-on-dear-boosters) and [Energy coin top-up](#energy-coin-top-up) |
 | Counter | `initial_stock`, `fallback_price`, `counter_shelf_days`, `counter_supply.*`, `counter_budget.*` | Starting inventory, price floor, how long sold cards stay and how the Counter stocks and pays for itself, see [The Counter's shelf life](#the-counters-shelf-life) and [The Counter as a special player](#the-counter-as-a-special-player) |
 | NPCs | `npcs.population`, `npcs.max_margin_pct`, `npcs.archetypes.*` | The NPC crowd; see [NPC crowd](#npc-crowd) |
@@ -248,6 +248,7 @@ so `max_booster_wait_minutes` only changes when a set with a higher cost joins t
 |------|-----------|
 | `collector` | Opens boosters for the set with the lowest C/U progress; sells duplicates above playset; buys missing non-foil cards cheapest-first up to a coin floor |
 | `converting-collector` | Same as `collector` plus coin top-up in Phase 1: when short on energy, pays coins for the shortfall (no-op when `energy.coin_topup.enabled` is false). Raises the coin floor by the minimum booster fee so the fee buffer is never spent on card purchases. See [Energy coin top-up](#energy-coin-top-up) |
+| `master-collector` | Plays like the `collector`, then spends the coins above the coin floor on the foil of every card it owns no foil of, cheapest first, skipping out-of-stock foils. The Counter stocks foils only from sales and from `counter_supply`, so a run needs that supply on. At the default `counter_foil_pct` of 500 foils are a coin sink |
 | `cash-out` | Opens boosters, sells everything above one copy and never buys, so the run measures how many coins the Counter creates |
 | `idle` | Does nothing, so only the NPCs act and the run measures the supply they send to the Counter |
 | `trader` | Plays like the `collector` and also trades with NPCs, see [Trades](#trades) |

@@ -41,6 +41,7 @@ func validateBounds(cfg Config) error {
 		{"coin_rate", int64(cfg.CoinRate), maxCoinRate},
 		{"counter_sell_pct", int64(cfg.CounterSellPct), maxPercent},
 		{"counter_buy_pct", int64(cfg.CounterBuyPct), maxPercent},
+		{"counter_foil_pct", int64(cfg.CounterFoilPct), maxPercent},
 		{"welcome_bonus", int64(cfg.WelcomeBonus), maxCoins},
 		{"daily_reward", int64(cfg.DailyReward), maxCoins},
 		{"counter_budget.initial", int64(cfg.CounterBudget.Initial), maxCoins},

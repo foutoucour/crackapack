@@ -19,6 +19,9 @@ type CounterParams struct {
 	// FallbackPrice is the reference value in USDCents for cards absent from
 	// the price snapshot.
 	FallbackPrice USDCents
+	// FoilPct is the percentage of a card's reference price that its foil is worth, for both the
+	// price the Counter pays and the price it asks. Zero and 100 both price a foil as its non-foil.
+	FoilPct Percent
 	// InitialStock is the number of copies stocked per rarity at construction.
 	// Absent rarities default to zero. Only non-foil, non-basic-land cards are
 	// stocked initially.
@@ -67,8 +70,8 @@ var (
 // PriceSnapshot. All transactions are posted to a shared Journal.
 //
 // Stock is keyed by CardKey (CardID + Finish). Reference prices are looked up
-// by CardID only; a foil and its non-foil counterpart therefore share the same
-// reference price. This is a documented simplification pending a per-finish
+// by CardID only, and a foil is worth CounterParams.FoilPct percent of its
+// non-foil counterpart's reference price. That factor stands in for a per-finish
 // price source.
 //
 // The zero value is not useful; use NewCounter.
@@ -185,7 +188,7 @@ func (c *Counter) BuyFromPlayer(key CardKey) error {
 	if _, err := c.lookupCard(key); err != nil {
 		return err
 	}
-	coins, err := c.tradeCoins(c.referencePrice(key.ID), c.params.SellPct)
+	coins, err := c.tradeCoins(c.referencePrice(key), c.params.SellPct)
 	if err != nil {
 		return err
 	}
@@ -227,7 +230,7 @@ func (c *Counter) SellToPlayer(key CardKey) error {
 	if c.Stock(key) <= 0 {
 		return fmt.Errorf("counter: card %q finish %q: %w", key.ID, key.Finish, ErrOutOfStock)
 	}
-	coins, err := c.tradeCoins(c.referencePrice(key.ID), c.params.BuyPct)
+	coins, err := c.tradeCoins(c.referencePrice(key), c.params.BuyPct)
 	if err != nil {
 		return err
 	}
@@ -359,12 +362,14 @@ func (c *Counter) StockByRarity() map[Rarity]int {
 	return result
 }
 
-// referencePrice returns the reference price for a card by ID. Cards absent
-// from the snapshot fall back to FallbackPrice. A foil and its non-foil share
-// the same CardID and therefore the same price; this is a documented
-// simplification pending a per-finish price source.
-func (c *Counter) referencePrice(id CardID) USDCents {
-	return c.valuer.Price(id)
+// referencePrice returns the reference price for a card. Cards absent from the snapshot fall back
+// to FallbackPrice. A foil is worth FoilPct percent of the price its CardID carries.
+func (c *Counter) referencePrice(key CardKey) USDCents {
+	price := c.valuer.Price(key.ID)
+	if key.Finish == FinishFoil {
+		return FoilPrice(price, c.params.FoilPct)
+	}
+	return price
 }
 
 // tradeCoins converts a reference price to coins at the given percentage.

@@ -46,6 +46,7 @@ func (e *Engine) buildWorldView(day int) WorldView {
 		CoinRate:                e.cfg.CoinRate,
 		CounterBuyPct:           e.cfg.CounterBuyPct,
 		CounterSellPct:          e.cfg.CounterSellPct,
+		CounterFoilPct:          e.cfg.CounterFoilPct,
 		FallbackPrice:           e.cfg.FallbackPrice,
 		CoinTopupEnabled:        e.coinTopupOn,
 		CoinTopupMinEnergyUnits: topupMinEnergy,
