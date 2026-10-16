@@ -25,6 +25,7 @@ func TestLoad_defaults(t *testing.T) {
 		{"CoinRate", cfg.CoinRate, domain.CoinRate(100)},
 		{"CounterSellPct", cfg.CounterSellPct, domain.Percent(60)},
 		{"CounterBuyPct", cfg.CounterBuyPct, domain.Percent(120)},
+		{"CounterFoilPct", cfg.CounterFoilPct, domain.Percent(500)},
 		{"WelcomeBonus", cfg.WelcomeBonus, domain.Coins(200)},
 		{"DailyReward", cfg.DailyReward, domain.Coins(100)},
 		{"Energy.RechargePerTick", cfg.Energy.RechargePerTick, 1},
@@ -242,6 +243,11 @@ func TestLoad_errorCases(t *testing.T) {
 			name:        "counter_buy_pct_zero",
 			yaml:        "counter_buy_pct: 0",
 			wantKeyword: "counter_buy_pct",
+		},
+		{
+			name:        "counter_foil_pct_zero",
+			yaml:        "counter_foil_pct: 0",
+			wantKeyword: "counter_foil_pct",
 		},
 		{
 			name:        "sell_above_buy",

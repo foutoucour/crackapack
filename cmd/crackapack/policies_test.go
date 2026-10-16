@@ -13,7 +13,7 @@ func TestBuildPolicies_registeredPolicies(t *testing.T) {
 
 	policies := buildPolicies()
 
-	for _, name := range []string{"collector", "cash-out", "idle"} {
+	for _, name := range []string{"collector", "cash-out", "idle", "master-collector"} {
 		fn, ok := policies[name]
 		if !ok {
 			t.Errorf("policy %q not registered", name)

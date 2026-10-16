@@ -108,6 +108,11 @@ many parameters at once for a config that meets the goals.
   binder was 330,000 to 1 million coins in the runs. Sinks were deferred until trades or cosmetics
   exist. Choose them, see [Economy: risks and fixes](specs-review.md#economy-risks-and-fixes). The
   leading candidate is the coin top-up in the item below.
+  - [x] Foils as a sink: `counter_foil_pct` and the `master-collector` policy, see
+    [ADR-0027](adr/0027-a-foil-is-a-percentage-of-its-cards-price.md). At 300 the idle pile after 90
+    days fell from 260,000-300,000 to 24,000-55,000 coins on two seeds, and to under 3,000 at 500 on five seeds.
+  - [ ] Calibrate the foil factor on more seeds and sets, replace it with real foil prices in
+    `fetchdata`, and give the master set a progress metric and a reward.
 - [ ] **Energy cost plus coin top-up**, so that coins matter for pace. A booster keeps its energy
   cost and part of that energy can be paid in coins at one rate. Without energy a pack cannot be
   opened. Decided: the design above. To simulate: the limit on converting.

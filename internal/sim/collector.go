@@ -39,21 +39,7 @@ func NewCollectorPolicy() CollectorPolicy {
 // RunSession implements PlayerPolicy.
 func (CollectorPolicy) RunSession(s Session) {
 	// Phase 1: open boosters.
-	// Re-read View() after each booster so progress is always current.
-	for {
-		v := s.View()
-		target, ok := pickTargetSet(v)
-		if !ok {
-			break
-		}
-		cost := v.BoosterCosts[target]
-		if v.EnergyTotal < cost {
-			break
-		}
-		if err := s.OpenBooster(target); err != nil {
-			break
-		}
-	}
+	openBoostersWithEnergy(s)
 
 	// Phase 2: sell duplicates above playset.
 	s.SellDuplicates(domain.PlaysetSize)
@@ -81,6 +67,24 @@ func (CollectorPolicy) RunSession(s Session) {
 		}
 		// Refresh balance after successful purchase.
 		v = s.View()
+	}
+}
+
+// openBoostersWithEnergy opens boosters for the set with the lowest commons+uncommons progress
+// while energy is sufficient. It re-reads View() after each booster so progress is always current.
+func openBoostersWithEnergy(s Session) {
+	for {
+		v := s.View()
+		target, ok := pickTargetSet(v)
+		if !ok {
+			return
+		}
+		if v.EnergyTotal < v.BoosterCosts[target] {
+			return
+		}
+		if err := s.OpenBooster(target); err != nil {
+			return
+		}
 	}
 }
 
@@ -219,10 +223,5 @@ func buildBuyCandidates(v WorldView) []buyCandidate {
 
 // hasNonFoil reports whether FinishNonFoil is in finishes.
 func hasNonFoil(finishes []domain.Finish) bool {
-	for _, f := range finishes {
-		if f == domain.FinishNonFoil {
-			return true
-		}
-	}
-	return false
+	return hasFinish(finishes, domain.FinishNonFoil)
 }

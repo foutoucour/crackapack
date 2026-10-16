@@ -47,6 +47,10 @@ type WorldView struct {
 	// buying a card from the Counter (default 120).
 	CounterBuyPct domain.Percent
 
+	// CounterFoilPct is the percentage of a card's reference price that its foil is worth at the
+	// Counter.
+	CounterFoilPct domain.Percent
+
 	// CounterSellPct is the percentage of reference value the player receives
 	// when selling a card to the Counter (default 60).
 	CounterSellPct domain.Percent

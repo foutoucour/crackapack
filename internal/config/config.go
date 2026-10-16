@@ -330,6 +330,11 @@ type Config struct {
 	// percentage lets the player profit from a round trip through the Counter.
 	CounterBuyPct domain.Percent `yaml:"counter_buy_pct"`
 
+	// CounterFoilPct is the percentage of a card's reference price that its foil is worth at the
+	// Counter, for the price it pays and the price it asks (default 500: a foil costs five
+	// times its non-foil's price). See docs/adr/0027-a-foil-is-a-percentage-of-its-cards-price.md.
+	CounterFoilPct domain.Percent `yaml:"counter_foil_pct"`
+
 	// WelcomeBonus is the coins awarded on first launch (default 200, per core-features.md).
 	WelcomeBonus domain.Coins `yaml:"welcome_bonus"`
 
@@ -402,6 +407,7 @@ func defaults() Config {
 		CoinRate:         100, // see docs/adr/0006-coin-rate-is-100-per-dollar.md
 		CounterSellPct:   60,
 		CounterBuyPct:    120,
+		CounterFoilPct:   500,
 		CounterShelfDays: -1,
 		// ASSUMPTION: the budget values are starting guesses.
 		CounterBudget: CounterBudgetConfig{Initial: 100000},
@@ -467,6 +473,9 @@ func validate(cfg Config) error {
 	}
 	if cfg.CounterBuyPct <= 0 {
 		return fmt.Errorf("config: counter_buy_pct must be > 0, got %d", cfg.CounterBuyPct)
+	}
+	if cfg.CounterFoilPct <= 0 {
+		return fmt.Errorf("config: counter_foil_pct must be > 0, got %d", cfg.CounterFoilPct)
 	}
 	if cfg.CounterSellPct > cfg.CounterBuyPct {
 		return fmt.Errorf("config: counter_sell_pct (%d) must be <= counter_buy_pct (%d); a sell percentage above buy lets the player profit from a round trip",

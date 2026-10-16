@@ -38,3 +38,12 @@ func PriceToCoins(price USDCents, rate CoinRate, pct Percent) (Coins, error) {
 	}
 	return result, nil
 }
+
+// FoilPrice returns the reference price of a foil whose non-foil is worth price, at pct percent
+// of it. A pct of zero prices the foil as its non-foil.
+func FoilPrice(price USDCents, pct Percent) USDCents {
+	if pct <= 0 {
+		return price
+	}
+	return price * USDCents(pct) / 100
+}

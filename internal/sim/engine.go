@@ -177,6 +177,7 @@ func NewEngine(
 	counter, err := domain.NewCounter(allCats, prices, journal, domain.CounterParams{
 		SellPct:       cfg.CounterSellPct,
 		BuyPct:        cfg.CounterBuyPct,
+		FoilPct:       cfg.CounterFoilPct,
 		CoinRate:      cfg.CoinRate,
 		FallbackPrice: cfg.FallbackPrice,
 		InitialStock:  cfg.InitialStock,
