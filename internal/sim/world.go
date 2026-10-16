@@ -30,7 +30,9 @@ type WorldView struct {
 	// energy. A set with no fee is absent, and the map is empty when the run has no fee price.
 	BoosterFees map[string]domain.Coins
 
-	// Catalogues contains the openable set catalogues (not supplementary ones).
+	// Catalogues contains the openable set catalogues, not the supplementary ones as sets of their
+	// own. Each holds, besides the set's cards, the supplementary cards its boosters draw, such as
+	// Time Spiral's timeshifted cards: they are part of its binder, and a policy collects them.
 	Catalogues []domain.SetCatalogue
 
 	// Prices is the fixed price snapshot for the run.

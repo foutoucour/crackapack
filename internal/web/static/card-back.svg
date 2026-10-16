@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680" viewBox="0 0 488 680">
+  <defs>
+    <linearGradient id="field" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2f6b"/>
+      <stop offset="1" stop-color="#14163a"/>
+    </linearGradient>
+    <radialGradient id="aura" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#f2b84b" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#f2b84b" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="lattice" width="30" height="30" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <path d="M0 0H30M0 0V30" stroke="#4a50a8" stroke-width="1.5" fill="none" stroke-opacity="0.55"/>
+    </pattern>
+  </defs>
+
+  <rect width="488" height="680" rx="26" fill="#0b0c18"/>
+  <rect x="22" y="22" width="444" height="636" rx="14" fill="url(#field)"/>
+  <rect x="22" y="22" width="444" height="636" rx="14" fill="url(#lattice)"/>
+  <rect x="22" y="22" width="444" height="636" rx="14" fill="none" stroke="#f2b84b" stroke-width="4"/>
+  <rect x="42" y="42" width="404" height="596" rx="8" fill="none" stroke="#f2b84b" stroke-width="1.5" stroke-opacity="0.7"/>
+
+  <g fill="#f2b84b">
+    <path d="M62 48 L72 62 L62 76 L52 62 Z"/>
+    <path d="M426 48 L436 62 L426 76 L416 62 Z"/>
+    <path d="M62 604 L72 618 L62 632 L52 618 Z"/>
+    <path d="M426 604 L436 618 L426 632 L416 618 Z"/>
+  </g>
+
+  <circle cx="244" cy="340" r="200" fill="url(#aura)"/>
+  <g fill="none" stroke="#f2b84b">
+    <circle cx="244" cy="340" r="140" stroke-width="3"/>
+    <circle cx="244" cy="340" r="122" stroke-width="1.5" stroke-opacity="0.7"/>
+    <circle cx="244" cy="340" r="92" stroke-width="2.5" stroke-opacity="0.9"/>
+  </g>
+
+  <path d="M244 214 L264 318 L370 340 L264 362 L244 466 L224 362 L118 340 L224 318 Z"
+        fill="#f2b84b" fill-opacity="0.16" stroke="#f2b84b" stroke-width="3" stroke-linejoin="round"/>
+
+  <path d="M176 196 L226 292 L198 310 L264 384 L234 400 L306 486"
+        fill="none" stroke="#fff3cf" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M176 196 L226 292 L198 310 L264 384 L234 400 L306 486"
+        fill="none" stroke="#f2b84b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

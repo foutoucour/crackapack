@@ -1,0 +1,38 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{template "title" .}} · crackapack</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/js-flag.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/">crackapack</a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="/">Boosters</a>
+      <a href="/collection">Collection</a>
+    </nav>
+    {{with energy}}
+    <div class="energy" role="status">
+      <span class="energy-label">Energy</span>
+      <meter value="{{.Reserve}}" min="0" max="{{.ReserveCap}}" aria-label="Energy"></meter>
+      <strong>{{.Reserve}} / {{.ReserveCap}}</strong>
+      {{if .Savings}}<span class="energy-note">+{{.Savings}} saved</span>{{end}}
+      {{if .NextIn}}<span class="energy-note">+1 in {{duration .NextIn}}</span>{{end}}
+    </div>
+    {{end}}
+  </header>
+  <main>
+    {{template "content" .}}
+  </main>
+  <footer class="site-footer">
+    <p>crackapack is unofficial Fan Content permitted under the
+      <a href="https://company.wizards.com/en/legal/fancontentpolicy">Fan Content Policy</a>.
+      Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of
+      the Coast. ©Wizards of the Coast LLC. Card pictures come from
+      <a href="https://scryfall.com/">Scryfall</a>.</p>
+  </footer>
+</body>
+</html>{{end}}
