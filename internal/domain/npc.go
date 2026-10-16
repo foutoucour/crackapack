@@ -33,6 +33,18 @@ type ArchetypeSpec struct {
 	// OfferChancePct is the chance, per tick, that an NPC with a match proposes a trade to the
 	// player. It must be in [0, 100].
 	OfferChancePct int
+	// Colors are the Magic colours the archetype wishes for, from ValidColors. Empty means no
+	// restriction. See ADR-0021 for how personalities tie to colours.
+	Colors []string
+	// Traits mix on top of Behaviour, in any order, see ADR-0021.
+	Traits []TraitSpec
+}
+
+// TraitSpec names a trait of an archetype and the numbers it reads. A trait never reads anything
+// else, so a scenario stays a configuration.
+type TraitSpec struct {
+	Name   string
+	Params map[string]int
 }
 
 // PopulationParams describes the NPC crowd to generate.
@@ -44,6 +56,10 @@ type PopulationParams struct {
 	// Valuer values cards for the archetypes that have a behaviour. It may be the zero Valuer
 	// when none does.
 	Valuer Valuer
+	// TraitRegistry is the registry used to build traits for each archetype. Nil means DefaultTraits.
+	TraitRegistry TraitRegistry
+	// MaxMarginPct caps the total margin (base + trait adders) for all NPCs. See ADR-0021.
+	MaxMarginPct Percent
 }
 
 // NPC is one simulated collector. It opens boosters with the player's engine, keeps what its
@@ -61,6 +77,8 @@ type NPC struct {
 	WishSize int
 	// OfferChancePct is the chance, per tick, that the NPC proposes a trade when it has a match.
 	OfferChancePct int
+	// Colors are the colours the NPC wishes for, or nil when it has no restriction.
+	Colors []string
 
 	collection *Collection
 	// wishes is the wish list, and shelf holds the surplus copies the NPC can trade away, per
@@ -103,7 +121,13 @@ func GeneratePopulation(p PopulationParams, sets []SetCatalogue, rng *rand.Rand)
 		if spec.Behaviour == "" {
 			continue
 		}
-		behaviour, err := NewBehaviour(spec.Behaviour, BehaviourParams{MarginPct: spec.MarginPct, Valuer: p.Valuer})
+		behaviour, err := NewBehaviour(spec.Behaviour, BehaviourParams{
+			MarginPct:    spec.MarginPct,
+			Valuer:       p.Valuer,
+			Traits:       spec.Traits,
+			Registry:     p.TraitRegistry,
+			MaxMarginPct: p.MaxMarginPct,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("population: archetype %q: %w", name, err)
 		}
@@ -123,6 +147,7 @@ func GeneratePopulation(p PopulationParams, sets []SetCatalogue, rng *rand.Rand)
 				Behaviour:      behaviours[name],
 				WishSize:       spec.WishSize,
 				OfferChancePct: spec.OfferChancePct,
+				Colors:         slices.Clone(spec.Colors),
 				collection:     NewCollection(),
 				shelf:          make(map[CardKey][]int),
 			}
@@ -157,6 +182,9 @@ func validateArchetypes(names []string, archetypes map[string]ArchetypeSpec) (in
 			return 0, fmt.Errorf("population: archetype %q: margin must be >= 0, got %d", name, spec.MarginPct)
 		case spec.OfferChancePct < 0 || spec.OfferChancePct > 100:
 			return 0, fmt.Errorf("population: archetype %q: offer chance must be in [0, 100], got %d", name, spec.OfferChancePct)
+		}
+		if err := validateColors(spec.Colors); err != nil {
+			return 0, fmt.Errorf("population: archetype %q: %w", name, err)
 		}
 		totalShare += spec.Share
 	}

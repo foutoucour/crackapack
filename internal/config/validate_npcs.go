@@ -28,6 +28,12 @@ func validateNPCs(n NPCConfig) error {
 		case a.KeepCopies < 1 || a.KeepCopies > domain.PlaysetSize:
 			return fmt.Errorf("config: %s.keep_copies must be in [1, %d], got %d", key, domain.PlaysetSize, a.KeepCopies)
 		}
+		if err := validateArchetypeColors(key, a); err != nil {
+			return err
+		}
+		if err := validateArchetypeTraits(key, a); err != nil {
+			return err
+		}
 		totalShare += a.Share
 	}
 	if n.Population > 0 && totalShare == 0 {

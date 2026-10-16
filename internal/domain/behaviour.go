@@ -17,7 +17,8 @@ type Wish struct {
 // WishContext is what a behaviour sees when it picks wishes.
 type WishContext struct {
 	NPC *NPC
-	// Scope is every card the NPC may wish for, sorted by ID.
+	// Scope is every card the NPC may wish for, sorted by ID. Scopes are shared across NPCs; a
+	// behaviour must never mutate Scope.
 	Scope []Card
 	// Wished holds the cards already on the NPC's wish list.
 	Wished map[CardID]struct{}
@@ -38,7 +39,8 @@ type ProposalContext struct {
 }
 
 // TradeBehaviour is how an archetype trades. An archetype names a registered behaviour in the
-// configuration, see ADR-0010. A new personality is a type, one registry entry and a config entry.
+// configuration, with optional traits mixed on top of it, see ADR-0021. A new personality is a
+// trait type, one registry entry and a config entry.
 type TradeBehaviour interface {
 	// PickWishes returns up to n wishes for the NPC, none of them already in ctx.Wished.
 	PickWishes(ctx WishContext, n int, rng *rand.Rand) []Wish
@@ -55,6 +57,13 @@ type TradeBehaviour interface {
 type BehaviourParams struct {
 	MarginPct Percent
 	Valuer    Valuer
+	// Traits mix on top of the base behaviour, see ADR-0021. NewBehaviour owns what they do.
+	Traits []TraitSpec
+	// Registry is the trait registry used to build traits. Nil means DefaultTraits.
+	Registry TraitRegistry
+	// MaxMarginPct caps the total margin (base + trait adders), without ever lowering the base
+	// margin. Zero leaves no room, so traits add nothing.
+	MaxMarginPct Percent
 }
 
 type behaviourConstructor func(BehaviourParams) TradeBehaviour
@@ -85,6 +94,9 @@ func KnownBehaviour(name string) bool {
 // NewBehaviour builds the behaviour registered under name. It rejects an unknown name and a
 // negative margin: a negative margin would let the player gain value by trading through a chain
 // of NPCs and selling the result to the Counter.
+//
+// When p.Traits is non-empty, the base behaviour is wrapped with traits via composeTraits. The
+// wrapped path may error; the unwrapped path (no traits) is byte-identical to the pre-trait code.
 func NewBehaviour(name string, p BehaviourParams) (TradeBehaviour, error) {
 	if p.MarginPct < 0 {
 		return nil, fmt.Errorf("behaviour %q: margin must be >= 0, got %d", name, p.MarginPct)
@@ -93,7 +105,11 @@ func NewBehaviour(name string, p BehaviourParams) (TradeBehaviour, error) {
 	if !ok {
 		return nil, fmt.Errorf("behaviour %q is not registered, known behaviours: %v", name, BehaviourNames())
 	}
-	return build(p), nil
+	base := build(p)
+	if len(p.Traits) == 0 {
+		return base, nil
+	}
+	return composeTraits(base, p)
 }
 
 // base holds what every behaviour shares: the margin is the configured percentage, and the

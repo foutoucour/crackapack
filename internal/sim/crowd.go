@@ -18,7 +18,9 @@ const npcStreamSalt uint64 = 0x9e3779b97f4a7c15
 //
 // The trade settings of the archetypes and the surplus hold apply only when trades are enabled, so
 // a run without trades behaves as it did before they existed.
-func newCrowd(cfg config.Config, openable []domain.SetCatalogue, counter *domain.Counter, valuer domain.Valuer) (*domain.Crowd, error) {
+//
+// registry is the trait registry to inject; nil means domain.DefaultTraits.
+func newCrowd(cfg config.Config, openable []domain.SetCatalogue, counter *domain.Counter, valuer domain.Valuer, registry domain.TraitRegistry) (*domain.Crowd, error) {
 	if cfg.NPCs.Population == 0 {
 		return nil, nil
 	}
@@ -36,12 +38,20 @@ func newCrowd(cfg config.Config, openable []domain.SetCatalogue, counter *domain
 			spec.WishSize = a.WishSize
 			spec.MarginPct = a.MarginPct
 			spec.OfferChancePct = a.OfferChancePct
+			spec.Colors = a.Colors
+			spec.Traits = traitSpecs(a)
 		}
 		archetypes[name] = spec
 	}
 
 	rng := rand.New(rand.NewPCG(cfg.Seed, cfg.Seed^npcStreamSalt))
-	npcs, err := domain.GeneratePopulation(domain.PopulationParams{Size: cfg.NPCs.Population, Archetypes: archetypes, Valuer: valuer}, openable, rng)
+	npcs, err := domain.GeneratePopulation(domain.PopulationParams{
+		Size:          cfg.NPCs.Population,
+		Archetypes:    archetypes,
+		Valuer:        valuer,
+		TraitRegistry: registry,
+		MaxMarginPct:  cfg.NPCs.MaxMarginPct,
+	}, openable, rng)
 	if err != nil {
 		return nil, fmt.Errorf("sim: npcs: %w", err)
 	}
@@ -55,4 +65,14 @@ func newCrowd(cfg config.Config, openable []domain.SetCatalogue, counter *domain
 		return nil, fmt.Errorf("sim: npcs: %w", err)
 	}
 	return crowd, nil
+}
+
+// traitSpecs turns the trait names of an archetype, with their numbers, into the specs the domain
+// builds its behaviour from.
+func traitSpecs(a config.ArchetypeConfig) []domain.TraitSpec {
+	specs := make([]domain.TraitSpec, 0, len(a.Traits))
+	for _, name := range a.Traits {
+		specs = append(specs, domain.TraitSpec{Name: name, Params: a.TraitParams[name]})
+	}
+	return specs
 }

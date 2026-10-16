@@ -1,6 +1,10 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"maps"
+	"slices"
+)
 
 // Upper bounds of the numeric keys. Without them a value near the int64 limit overflows the
 // ledger or a price computation, and an absurd energy or supply makes a run last minutes. They sit
@@ -20,6 +24,10 @@ const (
 	maxEnergyCost     = 10_000
 	// maxBoostersPerDay bounds the Counter's fixed supply.
 	maxBoostersPerDay = 100_000
+	// maxMarginPct bounds the NPC trait margin cap.
+	maxMarginPct = 10_000
+	// maxTraitParam bounds each parameter value of a trait.
+	maxTraitParam = 10_000
 )
 
 // validateBounds checks every key that has an upper bound and returns an error naming the first one
@@ -46,6 +54,7 @@ func validateBounds(cfg Config) error {
 		{"counter_supply.energy.recharge_per_tick", int64(cfg.CounterSupply.Energy.RechargePerTick), maxEnergyRecharge},
 		{"counter_supply.energy.reserve_cap", int64(cfg.CounterSupply.Energy.ReserveCap), maxEnergyReserve},
 		{"counter_supply.energy.savings_cap", int64(cfg.CounterSupply.Energy.SavingsCap), maxEnergySavings},
+		{"npcs.max_margin_pct", int64(cfg.NPCs.MaxMarginPct), maxMarginPct},
 	}
 	for i, entry := range cfg.Energy.CostTable {
 		checks = append(checks, struct {
@@ -53,6 +62,24 @@ func validateBounds(cfg Config) error {
 			value int64
 			max   int64
 		}{fmt.Sprintf("energy.cost_table[%d].cost", i), int64(entry.Cost), maxEnergyCost})
+	}
+	// Trait parameter upper bounds: archetypes in name order, params in sorted order.
+	for _, aname := range slices.Sorted(maps.Keys(cfg.NPCs.Archetypes)) {
+		a := cfg.NPCs.Archetypes[aname]
+		for _, tname := range slices.Sorted(maps.Keys(a.TraitParams)) {
+			params := a.TraitParams[tname]
+			for _, pname := range slices.Sorted(maps.Keys(params)) {
+				checks = append(checks, struct {
+					key   string
+					value int64
+					max   int64
+				}{
+					fmt.Sprintf("npcs.archetypes.%s.trait_params.%s.%s", aname, tname, pname),
+					int64(params[pname]),
+					maxTraitParam,
+				})
+			}
+		}
 	}
 	for _, c := range checks {
 		if c.value > c.max {

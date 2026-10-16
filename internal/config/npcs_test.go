@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -67,7 +68,7 @@ npcs:
 	}
 
 	want := config.ArchetypeConfig{Share: 1, MinBoostersPerDay: 2, MaxBoostersPerDay: 3, KeepCopies: 2}
-	if got := cfg.NPCs.Archetypes["casual"]; got != want {
+	if got := cfg.NPCs.Archetypes["casual"]; !reflect.DeepEqual(got, want) {
 		t.Errorf("casual = %+v, want %+v", got, want)
 	}
 	if got := archetypeNames(cfg); !slices.Equal(got, defaultArchetypeNames()) {

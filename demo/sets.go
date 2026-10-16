@@ -98,7 +98,7 @@ func newDEMCatalogue() domain.SetCatalogue {
 		commonSheet = append(commonSheet, domain.SheetCard{ID: id, Weight: 10})
 	}
 
-	// Uncommons: dem-u-000 to dem-u-029.
+	// Uncommons: dem-u-000 to dem-u-029. Colours cycle through demoColours.
 	uncommonSheet := make([]domain.SheetCard, 0, demUncommonCount)
 	for i := range demUncommonCount {
 		id := domain.CardID(fmt.Sprintf("dem-u-%03d", i))
@@ -108,12 +108,13 @@ func newDEMCatalogue() domain.SetCatalogue {
 			Number:   fmt.Sprintf("%d", demCommonCount+demBasicCount+i+1),
 			Rarity:   domain.RarityUncommon,
 			Finishes: []domain.Finish{domain.FinishNonFoil, domain.FinishFoil},
+			Colors:   demoColours(i),
 		}
 		uncommonSheet = append(uncommonSheet, domain.SheetCard{ID: id, Weight: 10})
 		foilSheet = append(foilSheet, domain.SheetCard{ID: id, Weight: 75})
 	}
 
-	// Rares: dem-r-000 to dem-r-014.
+	// Rares: dem-r-000 to dem-r-014. Colours cycle through demoColours.
 	rareSheet := make([]domain.SheetCard, 0, demRareCount+demMythicCount)
 	for i := range demRareCount {
 		id := domain.CardID(fmt.Sprintf("dem-r-%03d", i))
@@ -123,12 +124,13 @@ func newDEMCatalogue() domain.SetCatalogue {
 			Number:   fmt.Sprintf("%d", demCommonCount+demBasicCount+demUncommonCount+i+1),
 			Rarity:   domain.RarityRare,
 			Finishes: []domain.Finish{domain.FinishNonFoil, domain.FinishFoil},
+			Colors:   demoColours(i),
 		}
 		rareSheet = append(rareSheet, domain.SheetCard{ID: id, Weight: 10})
 		foilSheet = append(foilSheet, domain.SheetCard{ID: id, Weight: 180})
 	}
 
-	// Mythics: dem-m-000 to dem-m-002, in the rare slot.
+	// Mythics: dem-m-000 to dem-m-002, in the rare slot. Colours cycle through demoColours.
 	for i := range demMythicCount {
 		id := domain.CardID(fmt.Sprintf("dem-m-%03d", i))
 		cards[id] = domain.Card{
@@ -137,6 +139,7 @@ func newDEMCatalogue() domain.SetCatalogue {
 			Number:   fmt.Sprintf("%d", demCommonCount+demBasicCount+demUncommonCount+demRareCount+i+1),
 			Rarity:   domain.RarityMythic,
 			Finishes: []domain.Finish{domain.FinishNonFoil, domain.FinishFoil},
+			Colors:   demoColours(i),
 		}
 		rareSheet = append(rareSheet, domain.SheetCard{ID: id, Weight: demMythicWeight})
 		foilSheet = append(foilSheet, domain.SheetCard{ID: id, Weight: demMythicFoilWeight})
@@ -234,7 +237,7 @@ func newDSPCatalogues() (dsp, dst domain.SetCatalogue) {
 		commonSheet = append(commonSheet, domain.SheetCard{ID: id, Weight: 10})
 	}
 
-	// DSP uncommons: dsp-u-000 to dsp-u-019.
+	// DSP uncommons: dsp-u-000 to dsp-u-019. Colours cycle through demoColours.
 	uncommonSheet := make([]domain.SheetCard, 0, dspUncommonCount)
 	for i := range dspUncommonCount {
 		id := domain.CardID(fmt.Sprintf("dsp-u-%03d", i))
@@ -244,12 +247,13 @@ func newDSPCatalogues() (dsp, dst domain.SetCatalogue) {
 			Number:   fmt.Sprintf("%d", dspCommonCount+dspBasicCount+i+1),
 			Rarity:   domain.RarityUncommon,
 			Finishes: []domain.Finish{domain.FinishNonFoil, domain.FinishFoil},
+			Colors:   demoColours(i),
 		}
 		uncommonSheet = append(uncommonSheet, domain.SheetCard{ID: id, Weight: 10})
 		foilSheet = append(foilSheet, domain.SheetCard{ID: id, Weight: 15})
 	}
 
-	// DSP rares: dsp-r-000 to dsp-r-009.
+	// DSP rares: dsp-r-000 to dsp-r-009. Colours cycle through demoColours.
 	rareSheet := make([]domain.SheetCard, 0, dspRareCount)
 	for i := range dspRareCount {
 		id := domain.CardID(fmt.Sprintf("dsp-r-%03d", i))
@@ -259,6 +263,7 @@ func newDSPCatalogues() (dsp, dst domain.SetCatalogue) {
 			Number:   fmt.Sprintf("%d", dspCommonCount+dspBasicCount+dspUncommonCount+i+1),
 			Rarity:   domain.RarityRare,
 			Finishes: []domain.Finish{domain.FinishNonFoil, domain.FinishFoil},
+			Colors:   demoColours(i),
 		}
 		rareSheet = append(rareSheet, domain.SheetCard{ID: id, Weight: 10})
 		foilSheet = append(foilSheet, domain.SheetCard{ID: id, Weight: 30})
@@ -356,6 +361,27 @@ func newDSPCatalogues() (dsp, dst domain.SetCatalogue) {
 	}
 
 	return dsp, dst
+}
+
+// demoColours returns the colour list for the i-th non-basic card, cycling through a fixed
+// table of eleven entries: five mono colours (W U B R G), five two-colour pairs (UB BR RG GW WU)
+// and one nil (colourless). The nil entry ensures every catalogue using this helper has at least
+// one non-basic colourless card.
+func demoColours(i int) []string {
+	table := [][]string{
+		{"W"},      // 0
+		{"U"},      // 1
+		{"B"},      // 2
+		{"R"},      // 3
+		{"G"},      // 4
+		{"U", "B"}, // 5 – UB
+		{"B", "R"}, // 6 – BR
+		{"R", "G"}, // 7 – RG
+		{"G", "W"}, // 8 – GW
+		{"W", "U"}, // 9 – WU
+		nil,        // 10 – colourless
+	}
+	return table[i%len(table)]
 }
 
 // sumWeights returns the total weight of a SheetCard slice.
