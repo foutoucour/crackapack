@@ -146,7 +146,9 @@ It also rejects:
 
 A run fails at the start when a booster sheet holds a card that no loaded catalogue has, usually
 because a supplementary pool such as TSB was not passed, see
-[ADR-0016](adr/0016-a-run-fails-when-a-sheet-card-has-no-catalogue.md).
+[ADR-0016](adr/0016-a-run-fails-when-a-sheet-card-has-no-catalogue.md). A card that a foil sheet
+holds loads with a foil finish even when MTGJSON lists it as non-foil only, see
+[ADR-0028](adr/0028-a-foil-sheet-card-loads-with-a-foil-finish.md).
 
 ### Catalogue directory
 

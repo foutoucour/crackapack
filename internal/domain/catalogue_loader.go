@@ -302,6 +302,7 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 	}
 
 	cards = keepCardsInSheets(cards, sheets)
+	addFoilFinishToFoilSheetCards(cards, sheets)
 
 	opts := make([]BoosterOption, len(draftDef.Boosters))
 	for i, bo := range draftDef.Boosters {
@@ -373,6 +374,26 @@ func keepCardsInSheets(cards map[CardID]Card, sheets map[string]Sheet) map[CardI
 		}
 	}
 	return kept
+}
+
+// addFoilFinishToFoilSheetCards gives FinishFoil to every card of cards that a foil sheet holds
+// and whose finishes lack it. MTGJSON sometimes lists such a card as nonfoil only, for example
+// Tamiyo's Journal in Shadows over Innistrad. The sheet deals it as a foil all the same, so the
+// catalogue has to know the finish or the Counter refuses that copy, see ADR-0028.
+func addFoilFinishToFoilSheetCards(cards map[CardID]Card, sheets map[string]Sheet) {
+	for _, sheet := range sheets {
+		if !sheet.Foil {
+			continue
+		}
+		for _, sc := range sheet.Cards {
+			card, ok := cards[sc.ID]
+			if !ok || hasFinish(card.Finishes, FinishFoil) {
+				continue
+			}
+			card.Finishes = append(card.Finishes, FinishFoil)
+			cards[sc.ID] = card
+		}
+	}
 }
 
 // LoadCardPool reads a MTGJSON-shaped set file from fsys and returns a SetCatalogue

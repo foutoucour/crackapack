@@ -36,6 +36,8 @@ many parameters at once for a config that meets the goals.
 - [x] Coin top-up for missing energy and the `converting-collector` policy, see
   [Energy coin top-up](simulation.md#energy-coin-top-up).
 - [x] The etched finish loads as a foil.
+- [x] A card on a foil sheet loads with a foil finish, which fixes the SOI crash on Tamiyo's
+  Journal, see [ADR-0028](adr/0028-a-foil-sheet-card-loads-with-a-foil-finish.md).
 - [x] The pre-Mirage sets load: the loader reads `booster.default` when a set has no
   `booster.draft`, see [ADR-0020](adr/0020-a-set-file-booster-is-its-draft-or-default-definition.md).
 - [x] The colour personalities: the `stingy`, `fish`, `ego`, `gambler` and `archivist` traits and

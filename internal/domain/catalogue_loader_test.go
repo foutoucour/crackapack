@@ -693,6 +693,36 @@ func TestLoad_etchedFinishIsRemappedToFoil(t *testing.T) {
 	})
 }
 
+// TestLoadSetCatalogue_foilSheetCardsHaveAFoilFinish covers a card that MTGJSON lists as nonfoil
+// only but a foil sheet holds, such as Tamiyo's Journal in Shadows over Innistrad. The sheet can
+// deal it as a foil, so the catalogue must know that finish or the Counter refuses the copy.
+func TestLoadSetCatalogue_foilSheetCardsHaveAFoilFinish(t *testing.T) {
+	t.Parallel()
+
+	const setJSON = `{"data":{"code":"SOI","name":"Shadows over Innistrad","cards":[` +
+		`{"uuid":"on-foil","name":"on the foil sheet","number":"1","rarity":"rare","finishes":["nonfoil"],"supertypes":[],"identifiers":{}},` +
+		`{"uuid":"off-foil","name":"off the foil sheet","number":"2","rarity":"common","finishes":["nonfoil"],"supertypes":[],"identifiers":{}}` +
+		`],"booster":{"draft":{"boosters":[{"contents":{"common":1,"foil":1},"weight":1}],"sheets":{` +
+		`"common":{"cards":{"off-foil":1},"foil":false,"totalWeight":1},` +
+		`"foil":{"cards":{"on-foil":1},"foil":true,"totalWeight":1}}}}}}`
+
+	fsys := fstest.MapFS{"set.json": &fstest.MapFile{Data: []byte(setJSON)}}
+	cat, err := domain.LoadSetCatalogue(fsys, "set.json")
+	if err != nil {
+		t.Fatalf("LoadSetCatalogue: %v", err)
+	}
+
+	wantFinishes := map[domain.CardID][]domain.Finish{
+		"on-foil":  {domain.FinishNonFoil, domain.FinishFoil},
+		"off-foil": {domain.FinishNonFoil},
+	}
+	for id, want := range wantFinishes {
+		if got := cat.Cards[id].Finishes; !reflect.DeepEqual(got, want) {
+			t.Errorf("finishes of %q = %v, want %v", id, got, want)
+		}
+	}
+}
+
 // TestLoadSetCatalogue_boosterDefinition covers the sets before Mirage: MTGJSON gives them a
 // "default" booster definition and no "draft" one, and the loader reads the one it finds.
 func TestLoadSetCatalogue_boosterDefinition(t *testing.T) {
