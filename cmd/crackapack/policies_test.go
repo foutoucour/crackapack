@@ -6,14 +6,14 @@ import (
 	"github.com/foutoucour/crackapack/internal/sim"
 )
 
-// TestBuildPolicies_registeredPolicies verifies that "collector", "cash-out" and "idle" are
-// registered and each constructs a non-nil PlayerPolicy.
+// TestBuildPolicies_registeredPolicies verifies that "collector", "energy-first", "cash-out" and
+// "idle" are registered and each constructs a non-nil PlayerPolicy.
 func TestBuildPolicies_registeredPolicies(t *testing.T) {
 	t.Parallel()
 
 	policies := buildPolicies()
 
-	for _, name := range []string{"collector", "cash-out", "idle", "master-collector"} {
+	for _, name := range []string{"collector", "energy-first", "cash-out", "idle", "master-collector"} {
 		fn, ok := policies[name]
 		if !ok {
 			t.Errorf("policy %q not registered", name)

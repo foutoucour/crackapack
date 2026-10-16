@@ -281,6 +281,7 @@ so `max_booster_wait_minutes` only changes when a set with a higher cost joins t
 | `collector` | Opens boosters for the set with the lowest C/U progress; sells duplicates above playset; buys missing non-foil cards cheapest-first up to a coin floor, the timeshifted cards of a Time Spiral binder included |
 | `converting-collector` | Same as `collector` plus coin top-up in Phase 1: when short on energy, pays coins for the shortfall (no-op when `energy.coin_topup.enabled` is false). Raises the coin floor by the minimum booster fee so the fee buffer is never spent on card purchases. See [Energy coin top-up](#energy-coin-top-up) |
 | `master-collector` | Plays like the `collector`, then spends the coins above the coin floor on the foil of every card it owns no foil of, cheapest first, skipping out-of-stock foils. The Counter stocks foils only from sales and from `counter_supply`, so a run needs that supply on. At the default `counter_foil_pct` of 500 foils are a coin sink |
+| `energy-first` | Same as `converting-collector`, and also keeps the coins of the next top-up out of its card purchases: the card floor rises by the top-up of one whole booster of the set it opens next, plus that set's fee. See [Energy coin top-up](#energy-coin-top-up) |
 | `cash-out` | Opens boosters, sells everything above one copy and never buys, so the run measures how many coins the Counter creates |
 | `idle` | Does nothing, so only the NPCs act and the run measures the supply they send to the Counter |
 | `trader` | Plays like the `collector` and also trades with NPCs, see [Trades](#trades) |
@@ -344,8 +345,14 @@ energy:
     escalation_step: 30      # rate increment per unit (escalating and both)
 ```
 
-The `converting-collector` policy uses coin top-up. The `collector` and other built-in policies
-ignore the top-up config. Run with `--player converting-collector` to observe the effect.
+The `converting-collector` and `energy-first` policies use coin top-up. The `collector` and other
+built-in policies ignore the top-up config. Run with `--player converting-collector` to observe the
+effect.
+
+The two differ in what they do with coins beyond their floor. `converting-collector` spends them on
+cards at the end of every session, so at a low income its balance rarely reaches the price of a
+top-up and the top-up is little used. `energy-first` saves for the next top-up first, so energy and
+cards compete for the same coins.
 
 ### Composition with the mandatory booster fee
 
