@@ -28,8 +28,8 @@ func TestArchivistArchetype_fileLoadsAndValidates(t *testing.T) {
 		t.Fatal("archivist not found in embedded archetypes")
 	}
 
-	if a.Share != 0 {
-		t.Errorf("Share = %d, want 0 (share-0 until integration story)", a.Share)
+	if a.Share != 4 {
+		t.Errorf("Share = %d, want 4 (set to 4 in integration story T-009, assumption to calibrate)", a.Share)
 	}
 	if a.FocusSet != config.FocusSetOldest {
 		t.Errorf("FocusSet = %v, want FocusSetOldest", a.FocusSet)
@@ -54,7 +54,8 @@ func TestArchivistArchetype_validatesWithTradesOn(t *testing.T) {
 	t.Parallel()
 
 	// A population of zero with trades off is the default; use explicit trades-on config.
-	// share=0 means archivist contributes no members; the other archetypes carry the crowd.
+	// Archivist has share=4 from T-009; the targeted_collector behaviour and no traits
+	// must still pass validation with trades enabled.
 	const yaml = `
 npcs:
   population: 10

@@ -418,7 +418,7 @@ used as a template for `simulate` and `sweep`:
 | `demo.DemoCoinTopupEscalatingYAML` | `escalating` | `min_energy_units: 1`, `escalation_step: 30` |
 | `demo.DemoCoinTopupBothYAML` | `both` | `min_energy_units: 1`, `escalation_step: 30` |
 
-All three set `coins_per_energy: 300` and mirror the main demo config (90 days, seed 42, 60 NPCs,
+All three set `coins_per_energy: 300` and mirror the main demo config (90 days, seed 42, 70 NPCs,
 the fixed Counter supply, and the same calibration targets). Pass `--player converting-collector`
 when running them so the policy actually uses top-up each session.
 
@@ -575,8 +575,8 @@ counter-offers, or counters one and is refused on terms. An accepted trade reset
 expired offer leaves it alone. Traits that react to declines read it, see
 [ADR-0024](adr/0024-a-decline-is-told-to-the-npcs-traits-and-counted.md).
 
-These traits exist. A missing parameter takes the default in brackets, and an unknown parameter or
-a negative value is rejected.
+The traits are listed below. A missing parameter takes the default in brackets, and an unknown
+parameter or a negative value is rejected.
 
 | Trait | Colour | What it does | `trait_params` |
 |-------|--------|--------------|----------------|
@@ -601,10 +601,16 @@ gives every NPC the set with the earliest `releaseDate` among the loaded sets, s
 `oldest` fails the run naming every set that has no `releaseDate`, but only when an archetype that
 gets at least one NPC asks for it.
 
-The archetypes `stingy`, `fish`, `ego`, `gambler` and `archivist` ship with `share: 0` until the
-integration of the personalities, so they build no NPC and no run changes. Their numbers are
-assumptions to calibrate. The archivist file does not list its trait: with a focus set every
-candidate card comes from one set.
+The archetypes `stingy`, `fish`, `ego`, `gambler` and `archivist` have a share of 4 each. The two
+mixes, `ego_stingy` (U and B) and `archivist_ego_stingy` (W, U and B), have 3 and 2. All of these
+numbers are assumptions to calibrate, and a run with a crowd includes these archetypes.
+
+`ego_stingy` stacks stingy's rarity add and ego's endowment add on top of the base margin; it
+vetoes every player counter. `archivist_ego_stingy` uses `focus_set: false` so the archivist trait
+can rank wish candidates across all loaded sets by age; ego and stingy add margin only.
+
+The archivist archetype itself has `focus_set: oldest` and no trait: every card in its scope shares
+one release date, so the archivist wish-scorer cannot distinguish between sets there.
 
 The crowd draws from its own random stream, derived from `seed`. The same seed still reproduces the
 whole run. Adding NPCs to a config does not change what the player opens, so two runs that differ

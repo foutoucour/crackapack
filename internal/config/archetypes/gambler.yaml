@@ -3,7 +3,7 @@
 # A gambler is loose and tilts: each decline in a row raises its offer chance by a step up to a
 # cap, and shrinks its extra margin by a step toward margin_pct (0 here, so the margin falls to 0).
 # An accepted trade resets both.
-share: 0
+share: 4
 min_boosters_per_day: 3
 max_boosters_per_day: 6
 keep_copies: 1

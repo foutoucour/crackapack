@@ -4,8 +4,8 @@
 # The base behaviour is targeted_collector: it completes its set, rarest first.
 # The archivist trait is not listed: with a focus set every candidate shares one release date. Mix the
 # trait into an archetype without a focus set to rank its wishes toward older sets.
-# share is 0 until the integration story: the file loads and validates but makes no NPC, so no run changes.
-share: 0
+# Share is 4 as of integration story T-009 (assumption to calibrate).
+share: 4
 min_boosters_per_day: 2
 max_boosters_per_day: 4
 keep_copies: 1

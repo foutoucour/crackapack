@@ -2,7 +2,7 @@
 # integration story, so no NPC is built from this file yet.
 # A miser: random wishes, a margin of 10 on every trade, and an add on top that grows with the
 # rarest card it gives up (trait stingy). It almost never proposes and always answers the player.
-share: 0
+share: 4
 min_boosters_per_day: 1
 max_boosters_per_day: 3
 keep_copies: 2

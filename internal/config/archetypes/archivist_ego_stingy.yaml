@@ -1,0 +1,40 @@
+# ASSUMPTION: every number here is a starting guess pending calibration, including the
+# trait_params. Shares are non-zero from integration story T-009.
+#
+# archivist_ego_stingy is a three-colour (W, U, B) archetype that combines the archivist,
+# ego and stingy traits. focus_set is false so the archivist trait is active: without a
+# focus set, the archivist scores wish candidates by how old their set is, ranking older
+# sets higher (a score in the thousands of points per decade). This dominates small-score
+# traits in the same archetype; we pair it only with margin and veto traits (ego and stingy),
+# which do not compete with wish scoring.
+#
+# What each trait contributes:
+#   archivist: scores wish candidates by set age (thousands of points); older sets rank first.
+#              No parameters. Requires CardSet and SetReleased from the trait environment.
+#   ego:       adds endowment_pct_per_day × days_held to the margin; vetoes player counters;
+#              retries after a decline.
+#   stingy:    adds a rarity-based percent to the margin (same table as ego_stingy).
+#
+# Base behaviour is casual: a straightforward bidder. The archivist's wish scorer already
+# steers toward old sets, so a complex base would add no benefit.
+share: 2
+min_boosters_per_day: 1
+max_boosters_per_day: 3
+keep_copies: 2
+focus_set: false
+behaviour: casual
+wish_size: 6
+margin_pct: 5
+offer_chance_pct: 2
+colors: [W, U, B]
+traits: [archivist, ego, stingy]
+trait_params:
+  ego:
+    max_retries: 2
+    endowment_pct_per_day: 5
+  stingy:
+    common_pct: 0
+    uncommon_pct: 5
+    rare_pct: 20
+    special_pct: 20
+    mythic_pct: 40

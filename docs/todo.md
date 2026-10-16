@@ -38,6 +38,12 @@ many parameters at once for a config that meets the goals.
 - [x] The etched finish loads as a foil.
 - [x] The pre-Mirage sets load: the loader reads `booster.default` when a set has no
   `booster.draft`, see [ADR-0020](adr/0020-a-set-file-booster-is-its-draft-or-default-definition.md).
+- [x] The colour personalities: the `stingy`, `fish`, `ego`, `gambler` and `archivist` traits and
+  archetypes, two mixes (`ego_stingy` UB and `archivist_ego_stingy` WUB), archetype colours,
+  `focus_set: oldest` and the embedded archetype files, see
+  [ADR-0021](adr/0021-an-archetype-names-a-base-behaviour-and-traits.md) to
+  [ADR-0026](adr/0026-focus-set-accepts-oldest.md). Their shares are small starting guesses, and the
+  demo population is 70 so that every archetype gets a member.
 
 ## Economy simulation
 
@@ -167,6 +173,16 @@ are the goals and their bands, the scope, and the remedies that change a rule.
   almost nothing to trade, and a speculator keeping two trades half as much as the others. Decide
   whether they should be trade partners, see
   [Why hunters and speculators trade less](specs-review.md#why-hunters-and-speculators-trade-less).
+- [ ] **The numbers of the colour personalities.** The shares (4 for each single-colour archetype, 3
+  and 2 for the mixes) and every trait parameter are starting guesses. Trait margins price a
+  player's proposal or counter and not an NPC's own proposals, see
+  [NPC crowd](simulation.md#npc-crowd).
+- [ ] **The trader policy in a crowd of many archetypes.** `proposeSwaps` visits the NPCs that hold
+  a wanted card in ascending ID order and stops after 20 proposals a session. An archetype with low
+  IDs and many NPCs can use the whole budget, and the others are never offered a swap. Decide
+  whether the policy should shuffle the holders with the session's random stream, which changes the
+  runs of the `trader` and `exploiter` policies. Until then, a test runs each archetype alone, so a
+  shipped archetype that cannot trade is still caught.
 - [ ] **A lever that keeps the Counter's stock scarce.** With a crowd of that size, "limited stock"
   no longer limits what a player can buy, which weakens the fix for "everything can be bought at the
   Counter". The leading option is the Counter as a special player, see the item under

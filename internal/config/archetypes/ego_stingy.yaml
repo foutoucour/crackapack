@@ -1,0 +1,38 @@
+# ASSUMPTION: every number here is a starting guess pending calibration, including the
+# trait_params. Shares are non-zero from integration story T-009.
+#
+# ego_stingy is the ego-and-stingy mix: a miser who is also proud.
+# Colors: U and B — blue ego with black stinginess.
+#
+# What each trait contributes:
+#   ego:    adds endowment_pct_per_day × whole_days_held to the margin on the oldest given card;
+#           vetoes every player counter; retries after a decline (up to max_retries per day).
+#   stingy: adds a rarity-based percent to the margin: the highest rarity in the NPC's give
+#           side (common=0, uncommon=5, rare=20, special=20, mythic=40).
+#
+# Resulting margin on a given card held N days of rarity R:
+#   margin_pct + N × endowment_pct_per_day + rarity_add(R)
+#
+# The NPC proposes rarely (offer_chance_pct=2) — a miser waits — but ego retries up to
+# max_retries times after a decline, so it stays in the conversation.
+share: 3
+min_boosters_per_day: 1
+max_boosters_per_day: 3
+keep_copies: 2
+focus_set: false
+behaviour: casual
+wish_size: 5
+margin_pct: 10
+offer_chance_pct: 2
+colors: [U, B]
+traits: [ego, stingy]
+trait_params:
+  ego:
+    max_retries: 3
+    endowment_pct_per_day: 5
+  stingy:
+    common_pct: 0
+    uncommon_pct: 5
+    rare_pct: 20
+    special_pct: 20
+    mythic_pct: 40
