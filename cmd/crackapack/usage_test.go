@@ -12,14 +12,15 @@ import (
 //
 // UsageString() includes all flag names, so it covers both the short/long descriptions and
 // every flag the command registers.
+//
+// The subtests run one after another: UsageString merges the persistent flags of the parents into
+// the command, and the commands share their parents, so running them in parallel is a data race.
 func TestUsage_showsNoArchetypeFlagOrDirectory(t *testing.T) {
 	t.Parallel()
 	root := newRootCmd(io.Discard, io.Discard)
 	cmds := append(root.Commands(), root)
 	for _, cmd := range cmds {
-		cmd := cmd
 		t.Run(cmd.Name(), func(t *testing.T) {
-			t.Parallel()
 			for _, text := range []string{
 				cmd.UsageString(),
 				cmd.Short,
