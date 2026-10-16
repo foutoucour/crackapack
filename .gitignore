@@ -40,3 +40,5 @@ go.work.sum
 /prices.json
 .claude/output
 .claude/ralph-prd.json
+.claude/worktrees
+out
