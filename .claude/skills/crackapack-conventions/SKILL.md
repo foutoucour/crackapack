@@ -63,7 +63,8 @@ style (`collector`, `cash-out`, `idle`, `trader`, `exploiter`), registered by na
 `cmd/crackapack/policies.go`. NPC archetypes split in two: supply is config data interpreted by one
 NPC step, see [ADR-0009](../../../docs/adr/0009-npc-archetypes-are-data.md), and trade behaviour is
 a registered `TradeBehaviour` per archetype, see
-[ADR-0010](../../../docs/adr/0010-npc-trade-behaviour-is-a-strategy.md).
+[ADR-0010](../../../docs/adr/0010-npc-trade-behaviour-is-a-strategy.md), with traits mixed on top of
+it, see [ADR-0021](../../../docs/adr/0021-an-archetype-names-a-base-behaviour-and-traits.md).
 
 ## Demo Data Ships With the Feature
 

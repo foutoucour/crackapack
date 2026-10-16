@@ -592,8 +592,9 @@ offer falls short, the NPC counters once with the smallest coin top-up that fits
 [ADR-0012](adr/0012-an-npc-counters-once.md). The coins the player adds go to the
 `trade_topup` account, because NPCs hold no coins.
 
-An archetype names a trade behaviour, see
-[ADR-0010](adr/0010-npc-trade-behaviour-is-a-strategy.md):
+An archetype names a base trade behaviour, see
+[ADR-0010](adr/0010-npc-trade-behaviour-is-a-strategy.md). Traits that mix on top of it are decided
+in [ADR-0021](adr/0021-an-archetype-names-a-base-behaviour-and-traits.md), and none exists yet:
 
 | Behaviour | Wishes for |
 |-----------|------------|
