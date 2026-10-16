@@ -224,7 +224,15 @@ engine as the player, so supply follows the real rates.
 | Playset hunter | Wants commons and uncommons by 4 |
 | Speculator | Demanding in trades: asks for a margin on top of reference value |
 | Casual | Opens boosters, accepts fair-value trades, sells surplus to the Counter; main source of supply |
-| Whale | Opens far more boosters than the others, goes for rares and foils |
+| Whale | Opens far more boosters than the others, goes for rares and foils, of every colour |
+| Stingy (black) | Rarely proposes and always answers; demands more margin for the rarer cards it gives |
+| Fish (green) | Passive and friendly: proposes often at no margin, chases pricey and shiny cards, supplies duplicates |
+| Ego (blue) | Proud: proposes again after a decline, refuses every counter, demands more for cards it held longer |
+| Gambler (red) | Tilts: each decline in a row raises how often it proposes and lowers its extra margin |
+| Archivist (white) | Opens the oldest loaded set and trades fairly |
+
+The five personalities are tied to the five colours and are traits that can mix in one archetype.
+They ship inactive until they are calibrated, see [NPC crowd](simulation.md#npc-crowd).
 
 Margins are configuration, not code. The starting values are 0% for a casual and 10 to 20% for a
 speculator. The others are set through simulation, see

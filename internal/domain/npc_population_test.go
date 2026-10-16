@@ -83,7 +83,7 @@ func TestGeneratePopulationDrawsTraitsFromTheArchetypeSpec(t *testing.T) {
 		Size: 200,
 		Archetypes: map[string]domain.ArchetypeSpec{
 			"hunter": {Share: 1, MinBoostersPerDay: 3, MaxBoostersPerDay: 6, KeepCopies: 4},
-			"fan":    {Share: 1, MinBoostersPerDay: 2, MaxBoostersPerDay: 2, KeepCopies: 1, FocusSet: true},
+			"fan":    {Share: 1, MinBoostersPerDay: 2, MaxBoostersPerDay: 2, KeepCopies: 1, FocusSet: domain.FocusSetRandom},
 		},
 	}
 
@@ -105,10 +105,10 @@ func TestGeneratePopulationDrawsTraitsFromTheArchetypeSpec(t *testing.T) {
 		if n.KeepCopies != spec.KeepCopies {
 			t.Errorf("NPC %d (%s): KeepCopies = %d, want %d", n.ID, n.Archetype, n.KeepCopies, spec.KeepCopies)
 		}
-		if spec.FocusSet && !sets[n.FocusSet] {
+		if spec.FocusSet == domain.FocusSetRandom && !sets[n.FocusSet] {
 			t.Errorf("NPC %d (%s): FocusSet = %q, want one of the sets", n.ID, n.Archetype, n.FocusSet)
 		}
-		if !spec.FocusSet && n.FocusSet != "" {
+		if spec.FocusSet == domain.FocusSetNone && n.FocusSet != "" {
 			t.Errorf("NPC %d (%s): FocusSet = %q, want none", n.ID, n.Archetype, n.FocusSet)
 		}
 		if n.Archetype == "hunter" {
@@ -129,7 +129,7 @@ func TestGeneratePopulationIsReproducibleFromTheSeed(t *testing.T) {
 	params := domain.PopulationParams{
 		Size: 50,
 		Archetypes: map[string]domain.ArchetypeSpec{
-			"fan": {Share: 1, MinBoostersPerDay: 1, MaxBoostersPerDay: 9, KeepCopies: 1, FocusSet: true},
+			"fan": {Share: 1, MinBoostersPerDay: 1, MaxBoostersPerDay: 9, KeepCopies: 1, FocusSet: domain.FocusSetRandom},
 		},
 	}
 	traits := func(seed uint64) [][3]any {

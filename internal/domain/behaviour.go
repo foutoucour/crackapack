@@ -61,6 +61,8 @@ type BehaviourParams struct {
 	Traits []TraitSpec
 	// Registry is the trait registry used to build traits. Nil means DefaultTraits.
 	Registry TraitRegistry
+	// Env is passed to every trait constructor.
+	Env TraitEnv
 	// MaxMarginPct caps the total margin (base + trait adders), without ever lowering the base
 	// margin. Zero leaves no room, so traits add nothing.
 	MaxMarginPct Percent

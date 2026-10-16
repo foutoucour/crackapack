@@ -21,7 +21,9 @@ func TestLoad_tradesDefaultToOffWithDocumentedValues(t *testing.T) {
 	if cfg.NPCs.SurplusHoldDays != 2 {
 		t.Errorf("NPCs.SurplusHoldDays = %d, want 2", cfg.NPCs.SurplusHoldDays)
 	}
-	for _, name := range defaultArchetypeNames() {
+	// The original five archetypes each use a registered behaviour of the same name. The archetypes
+	// added later use another base behaviour for their personality and are not part of this rule.
+	for _, name := range []string{"casual", "playset_hunter", "speculator", "targeted_collector", "whale"} {
 		if got := cfg.NPCs.Archetypes[name].Behaviour; got != name {
 			t.Errorf("archetype %q has behaviour %q, want one of the same name", name, got)
 		}

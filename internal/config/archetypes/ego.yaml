@@ -1,0 +1,19 @@
+# ASSUMPTION: every number here is a starting guess pending calibration, including the
+# trait_params. Share is 0 until the integration story, so no run changes.
+# An ego is proud: it answers a decline with another offer, never concedes a player counter,
+# and demands more for the cards it has held longer.
+share: 0
+min_boosters_per_day: 2
+max_boosters_per_day: 4
+keep_copies: 2
+focus_set: false
+behaviour: casual
+wish_size: 4
+margin_pct: 10
+offer_chance_pct: 3
+colors: [U]
+traits: [ego]
+trait_params:
+  ego:
+    max_retries: 3
+    endowment_pct_per_day: 5

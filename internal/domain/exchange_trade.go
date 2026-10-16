@@ -47,6 +47,19 @@ func (x *Exchange) Accept(offerID int) (Decision, error) {
 // player counter without adding a method to TradeBehaviour. Only traitBehaviour implements it.
 type counterVetoer interface{ VetoesCounter(Offer) bool }
 
+// contextMarginer is a behaviour whose margin depends on the NPC and the tick, not on the offer
+// alone. Only traitBehaviour implements it, so TradeBehaviour needs no new method.
+type contextMarginer interface{ MarginFor(MarginContext) Percent }
+
+// marginOf returns the margin npc demands on offer: the one of its behaviour, with the context a
+// trait may read when the behaviour takes it.
+func (x *Exchange) marginOf(npc *NPC, offer Offer) Percent {
+	if cm, ok := npc.Behaviour.(contextMarginer); ok {
+		return cm.MarginFor(MarginContext{Offer: offer, NPC: npc, Tick: x.crowd.tick})
+	}
+	return npc.Behaviour.Margin(offer)
+}
+
 // vetoesCounter returns true when npc's behaviour implements counterVetoer and vetoes the offer.
 func vetoesCounter(npc *NPC, offer Offer) bool {
 	cv, ok := npc.Behaviour.(counterVetoer)
@@ -66,7 +79,7 @@ func (x *Exchange) evaluate(npcID int, playerGives, npcGives []TradeLine, topUp 
 		return x.refuse(offer, ErrCounterVetoed), nil
 	}
 	need := requiredTopUp(linesValue(x.valuer, offer.PlayerGives), linesValue(x.valuer, offer.NPCGives),
-		npc.Behaviour.Margin(offer), x.params.CoinRate)
+		x.marginOf(npc, offer), x.params.CoinRate)
 	if topUp < need {
 		if !canCounter {
 			return x.refuse(offer, ErrBelowMargin), nil

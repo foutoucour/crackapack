@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"sort"
+	"time"
 )
 
 // mtgSetFile is the top-level MTGJSON v5 set file envelope.
@@ -14,10 +15,21 @@ type mtgSetFile struct {
 }
 
 type mtgSetData struct {
-	Code    string                   `json:"code"`
-	Name    string                   `json:"name"`
-	Cards   []mtgCard                `json:"cards"`
-	Booster map[string]mtgBoosterDef `json:"booster"`
+	Code        string                   `json:"code"`
+	Name        string                   `json:"name"`
+	ReleaseDate string                   `json:"releaseDate"`
+	Cards       []mtgCard                `json:"cards"`
+	Booster     map[string]mtgBoosterDef `json:"booster"`
+}
+
+// parseReleaseDate parses an ISO date string in YYYY-MM-DD format.
+// It returns an error whose message is "release date %q is not an ISO date such as 2005-10-07".
+func parseReleaseDate(s string) (time.Time, error) {
+	t, err := time.Parse(time.DateOnly, s)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("release date %q is not an ISO date such as 2005-10-07", s)
+	}
+	return t, nil
 }
 
 type mtgCard struct {
@@ -236,6 +248,13 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 		return SetCatalogue{}, err
 	}
 
+	// Validate the release date when present; an empty or absent date loads with ReleaseDate "".
+	if d.ReleaseDate != "" {
+		if _, err := parseReleaseDate(d.ReleaseDate); err != nil {
+			return SetCatalogue{}, &CatalogueError{File: name, Field: "data.releaseDate", Err: err}
+		}
+	}
+
 	draftDef, boosterField, ok := boosterDefinition(d.Booster)
 	if !ok {
 		return SetCatalogue{}, &CatalogueError{File: name, Field: draftField}
@@ -331,6 +350,7 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 	return SetCatalogue{
 		Code:           d.Code,
 		Name:           d.Name,
+		ReleaseDate:    d.ReleaseDate,
 		Cards:          cards,
 		Sheets:         sheets,
 		BoosterOptions: opts,

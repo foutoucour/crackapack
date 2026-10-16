@@ -118,9 +118,10 @@ func NewTimeSpiralCatalogues() (tsp, tsb domain.SetCatalogue) {
 	sortSheetByID(foilSheet)
 
 	tsp = domain.SetCatalogue{
-		Code:  "TSP",
-		Name:  "Time Spiral (synthetic)",
-		Cards: tspCards,
+		Code:        "TSP",
+		Name:        "Time Spiral (synthetic)",
+		ReleaseDate: "2006-10-06", // real release date
+		Cards:       tspCards,
 		Sheets: map[string]domain.Sheet{
 			"common": {
 				Name:          "common",

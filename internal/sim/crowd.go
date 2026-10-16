@@ -31,7 +31,7 @@ func newCrowd(cfg config.Config, openable []domain.SetCatalogue, counter *domain
 			MinBoostersPerDay: a.MinBoostersPerDay,
 			MaxBoostersPerDay: a.MaxBoostersPerDay,
 			KeepCopies:        a.KeepCopies,
-			FocusSet:          a.FocusSet,
+			FocusSet:          domain.FocusSetMode(a.FocusSet),
 		}
 		if cfg.Trades.Enabled {
 			spec.Behaviour = a.Behaviour

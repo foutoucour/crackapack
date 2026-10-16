@@ -1,0 +1,17 @@
+# ASSUMPTION: every number is a starting guess pending calibration, as in the other archetype files.
+# The archivist is white and collects old sets. focus_set oldest makes each NPC open the oldest of
+# the loaded sets (ADR-0026). It deals fairly: a margin between the casual's 0 and the collector's 5.
+# The base behaviour is targeted_collector: it completes its set, rarest first.
+# The archivist trait is not listed: with a focus set every candidate shares one release date. Mix the
+# trait into an archetype without a focus set to rank its wishes toward older sets.
+# share is 0 until the integration story: the file loads and validates but makes no NPC, so no run changes.
+share: 0
+min_boosters_per_day: 2
+max_boosters_per_day: 4
+keep_copies: 1
+focus_set: oldest
+behaviour: targeted_collector
+wish_size: 5
+margin_pct: 2
+offer_chance_pct: 2
+colors: [W]

@@ -167,9 +167,10 @@ func NewPlanarChaosCatalogue() domain.SetCatalogue {
 	sortSheetByID(foilSheet)
 
 	return domain.SetCatalogue{
-		Code:  "PLC",
-		Name:  "Planar Chaos (synthetic)",
-		Cards: plcCards,
+		Code:        "PLC",
+		Name:        "Planar Chaos (synthetic)",
+		ReleaseDate: "2007-02-02", // real release date
+		Cards:       plcCards,
 		Sheets: map[string]domain.Sheet{
 			"common": {
 				Name:        "common",

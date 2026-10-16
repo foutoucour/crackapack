@@ -177,10 +177,11 @@ func newDEMCatalogue() domain.SetCatalogue {
 	}
 
 	return domain.SetCatalogue{
-		Code:   "DEM",
-		Name:   "Demo Set (Ravnica-style)",
-		Cards:  cards,
-		Sheets: sheets,
+		Code:        "DEM",
+		Name:        "Demo Set (Ravnica-style)",
+		ReleaseDate: "2005-10-07", // same date as the Ravnica set it is modelled on
+		Cards:       cards,
+		Sheets:      sheets,
 		BoosterOptions: []domain.BoosterOption{
 			{Contents: map[string]int{"common": 11, "uncommon": 3, "rare": 1}, Weight: demOptW1},
 			{Contents: map[string]int{"common": 10, "uncommon": 3, "rare": 1, "foil": 1}, Weight: demOptW2},
@@ -297,9 +298,10 @@ func newDSPCatalogues() (dsp, dst domain.SetCatalogue) {
 	sortSheetByID(foilSheet)
 
 	dsp = domain.SetCatalogue{
-		Code:  "DSP",
-		Name:  "Demo Spiral Set (Time Spiral-style)",
-		Cards: dspCards,
+		Code:        "DSP",
+		Name:        "Demo Spiral Set (Time Spiral-style)",
+		ReleaseDate: "2006-10-06", // same date as the Time Spiral set it is modelled on
+		Cards:       dspCards,
 		Sheets: map[string]domain.Sheet{
 			"common": {
 				Name:          "common",

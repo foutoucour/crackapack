@@ -13,7 +13,7 @@ type ScoreTrait struct {
 
 // NewScoreTrait returns a TraitConstructor that builds a ScoreTrait using the provided scores map.
 func NewScoreTrait(scores map[domain.CardID]int) domain.TraitConstructor {
-	return func(_ map[string]int) (domain.Trait, error) {
+	return func(_ map[string]int, _ domain.TraitEnv) (domain.Trait, error) {
 		return &ScoreTrait{scores: scores}, nil
 	}
 }
@@ -31,7 +31,7 @@ type MarginTrait struct {
 // NewMarginTrait returns a TraitConstructor that builds a MarginTrait reading "add" from params.
 // It rejects a negative "add" value.
 func NewMarginTrait() domain.TraitConstructor {
-	return func(params map[string]int) (domain.Trait, error) {
+	return func(params map[string]int, _ domain.TraitEnv) (domain.Trait, error) {
 		add := params["add"]
 		if add < 0 {
 			return nil, fmt.Errorf("margin trait: add must be >= 0, got %d", add)
@@ -43,14 +43,14 @@ func NewMarginTrait() domain.TraitConstructor {
 func (m *MarginTrait) Name() string { return "margin" }
 
 // MarginAdd returns the fixed add for any offer.
-func (m *MarginTrait) MarginAdd(_ domain.Offer) domain.Percent { return m.add }
+func (m *MarginTrait) MarginAdd(_ domain.MarginContext) domain.Percent { return m.add }
 
 // VetoTrait is a test trait that always vetoes a player counter-offer.
 type VetoTrait struct{}
 
 // NewVetoTrait returns a TraitConstructor that builds a VetoTrait.
 func NewVetoTrait() domain.TraitConstructor {
-	return func(_ map[string]int) (domain.Trait, error) {
+	return func(_ map[string]int, _ domain.TraitEnv) (domain.Trait, error) {
 		return &VetoTrait{}, nil
 	}
 }
@@ -76,7 +76,7 @@ type DeclineSpy struct {
 // NewDeclineSpy returns a TraitConstructor that records calls into spy. The same spy pointer is
 // returned each time, so tests can reach it after the behaviour is built.
 func NewDeclineSpy(spy *DeclineSpy) domain.TraitConstructor {
-	return func(_ map[string]int) (domain.Trait, error) {
+	return func(_ map[string]int, _ domain.TraitEnv) (domain.Trait, error) {
 		return spy, nil
 	}
 }

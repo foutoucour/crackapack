@@ -20,8 +20,10 @@ type ArchetypeSpec struct {
 	// KeepCopies is how many copies of a printing the NPC keeps. It sells the rest to the
 	// Counter. It must be in [1, PlaysetSize].
 	KeepCopies int
-	// FocusSet makes each NPC of the archetype open only one set, drawn at generation.
-	FocusSet bool
+	// FocusSet controls which set each NPC of the archetype opens. FocusSetNone (the zero
+	// value) picks a random set each booster. FocusSetRandom draws one set at generation.
+	// FocusSetOldest resolves to the set with the earliest release date. See ADR-0026.
+	FocusSet FocusSetMode
 	// Behaviour names the registered TradeBehaviour of the archetype, see BehaviourNames. Empty
 	// means the archetype does not trade.
 	Behaviour string
@@ -89,6 +91,13 @@ type NPC struct {
 	credit int
 	// declineStreak counts consecutive declines since the last accepted trade. See DeclineStreak.
 	declineStreak int
+	// retry holds the ego trait's follow-up state for this NPC. It is only read and written by
+	// the ego trait's reactor and by ProposeFromNPCs. Zero value means no retry is armed.
+	retry retryState
+	// chanceTilt is the extra offer-chance percentage added by the gambler trait's tilt. It is
+	// read through EffectiveOfferChancePct and written by the gambler's reactor. It is ignored
+	// when declineStreak is zero, so an accept resets it without any hook.
+	chanceTilt int
 }
 
 // Collection returns the cards the NPC holds.
@@ -96,6 +105,17 @@ func (n *NPC) Collection() *Collection { return n.collection }
 
 // DeclineStreak returns the number of consecutive declines since the last accepted trade.
 func (n *NPC) DeclineStreak() int { return n.declineStreak }
+
+// EffectiveOfferChancePct is OfferChancePct plus the decline tilt, in [0,100].
+// The tilt is only applied when the NPC has an active decline streak: an accept resets the streak
+// to zero, which makes this method return OfferChancePct with no tilt, so the gambler trait needs
+// no explicit reset hook.
+func (n *NPC) EffectiveOfferChancePct() int {
+	if n.declineStreak == 0 || n.chanceTilt == 0 {
+		return n.OfferChancePct
+	}
+	return min(100, n.OfferChancePct+n.chanceTilt)
+}
 
 // GeneratePopulation builds p.Size NPCs, numbered from 0, grouped by archetype name. Each
 // archetype gets its share of the population, with leftover NPCs going to the largest
@@ -120,6 +140,10 @@ func GeneratePopulation(p PopulationParams, sets []SetCatalogue, rng *rand.Rand)
 		return nil, err
 	}
 
+	var env TraitEnv
+	if anyTraits(p.Archetypes) {
+		env = NewTraitEnv(sets, p.Valuer)
+	}
 	behaviours := make(map[string]TradeBehaviour, len(names))
 	for _, name := range names {
 		spec := p.Archetypes[name]
@@ -131,6 +155,7 @@ func GeneratePopulation(p PopulationParams, sets []SetCatalogue, rng *rand.Rand)
 			Valuer:       p.Valuer,
 			Traits:       spec.Traits,
 			Registry:     p.TraitRegistry,
+			Env:          env,
 			MaxMarginPct: p.MaxMarginPct,
 		})
 		if err != nil {
@@ -143,6 +168,18 @@ func GeneratePopulation(p PopulationParams, sets []SetCatalogue, rng *rand.Rand)
 	npcs := make([]*NPC, 0, p.Size)
 	for _, name := range names {
 		spec := p.Archetypes[name]
+
+		// Resolve the oldest set once per archetype before the NPC loop. A share-0 archetype
+		// builds no NPC and must not fail even when the sets carry no dates (ADR-0026).
+		var oldestCode string
+		if spec.FocusSet == FocusSetOldest && counts[name] > 0 {
+			var err error
+			oldestCode, err = oldestSet(sets)
+			if err != nil {
+				return nil, fmt.Errorf("population: archetype %q: %w", name, err)
+			}
+		}
+
 		for range counts[name] {
 			npc := &NPC{
 				ID:             len(npcs),
@@ -156,8 +193,15 @@ func GeneratePopulation(p PopulationParams, sets []SetCatalogue, rng *rand.Rand)
 				collection:     NewCollection(),
 				shelf:          make(map[CardKey][]int),
 			}
-			if spec.FocusSet {
+			switch spec.FocusSet {
+			case FocusSetNone:
+				// No focus set: the crowd picks a random set each time the NPC opens a booster.
+			case FocusSetRandom:
+				// Draw one set at generation; the NPC opens only that set (old bool true behaviour).
 				npc.FocusSet = sets[rng.IntN(len(sets))].Code
+			case FocusSetOldest:
+				// Use the pre-resolved oldest set; no random draw consumed.
+				npc.FocusSet = oldestCode
 			}
 			npcs = append(npcs, npc)
 		}
@@ -187,6 +231,8 @@ func validateArchetypes(names []string, archetypes map[string]ArchetypeSpec) (in
 			return 0, fmt.Errorf("population: archetype %q: margin must be >= 0, got %d", name, spec.MarginPct)
 		case spec.OfferChancePct < 0 || spec.OfferChancePct > 100:
 			return 0, fmt.Errorf("population: archetype %q: offer chance must be in [0, 100], got %d", name, spec.OfferChancePct)
+		case spec.FocusSet < FocusSetNone || spec.FocusSet > FocusSetOldest:
+			return 0, fmt.Errorf("population: archetype %q: focus set mode %d is not known", name, spec.FocusSet)
 		}
 		if err := validateColors(spec.Colors); err != nil {
 			return 0, fmt.Errorf("population: archetype %q: %w", name, err)

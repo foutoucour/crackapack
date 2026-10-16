@@ -10,7 +10,7 @@ import (
 )
 
 func defaultArchetypeNames() []string {
-	return []string{"casual", "playset_hunter", "speculator", "targeted_collector", "whale"}
+	return []string{"archivist", "casual", "ego", "fish", "gambler", "playset_hunter", "speculator", "stingy", "targeted_collector", "whale"}
 }
 
 func archetypeNames(cfg config.Config) []string {
@@ -22,7 +22,7 @@ func archetypeNames(cfg config.Config) []string {
 	return names
 }
 
-func TestLoad_npcsDefaultToNoCrowdWithTheFiveArchetypes(t *testing.T) {
+func TestLoad_npcsDefaultToNoCrowdWithTheEmbeddedArchetypes(t *testing.T) {
 	t.Parallel()
 	cfg, err := config.Load(strings.NewReader("{}"))
 	if err != nil {
@@ -35,7 +35,7 @@ func TestLoad_npcsDefaultToNoCrowdWithTheFiveArchetypes(t *testing.T) {
 	if got := archetypeNames(cfg); !slices.Equal(got, defaultArchetypeNames()) {
 		t.Errorf("archetypes = %v, want %v", got, defaultArchetypeNames())
 	}
-	if !cfg.NPCs.Archetypes["targeted_collector"].FocusSet {
+	if cfg.NPCs.Archetypes["targeted_collector"].FocusSet != config.FocusSetRandom {
 		t.Error("targeted_collector has no focus set by default")
 	}
 }

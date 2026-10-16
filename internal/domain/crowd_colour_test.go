@@ -354,7 +354,7 @@ func TestCrowdScope_FocusSetNarrowsBeforeColourFilter(t *testing.T) {
 
 	spec := domain.ArchetypeSpec{
 		Share: 1, MinBoostersPerDay: 1, MaxBoostersPerDay: 1, KeepCopies: 1,
-		Colors: []string{"B"}, WishSize: 10, FocusSet: true,
+		Colors: []string{"B"}, WishSize: 10, FocusSet: domain.FocusSetRandom,
 	}
 	npcs, err := domain.GeneratePopulation(
 		domain.PopulationParams{Size: 10, Archetypes: map[string]domain.ArchetypeSpec{"a": spec}},

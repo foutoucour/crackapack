@@ -230,8 +230,10 @@ type ArchetypeConfig struct {
 	// Counter. Must be in [1, 4].
 	KeepCopies int `yaml:"keep_copies"`
 
-	// FocusSet makes each NPC of the archetype open only one set, drawn at generation.
-	FocusSet bool `yaml:"focus_set"`
+	// FocusSet controls which set each NPC of the archetype opens. The zero value FocusSetNone
+	// picks a random set each booster. FocusSetRandom (old bool true) draws one set at generation.
+	// FocusSetOldest uses the set with the earliest release date. See ADR-0026.
+	FocusSet FocusSet `yaml:"focus_set"`
 
 	// Behaviour names the registered trade behaviour of the archetype, see
 	// domain.BehaviourNames. It may be empty while trades are off, and is required for an

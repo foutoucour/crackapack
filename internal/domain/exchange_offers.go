@@ -68,10 +68,27 @@ func (x *Exchange) ProposeFromNPCs() error {
 			continue
 		}
 		npc := x.crowd.byID[id]
-		if x.crowd.rng.IntN(100) >= npc.OfferChancePct {
+		followUp := false
+		if npc.retry.limit > 0 { // one int compare for every NPC without an ego trait
+			switch npc.retry.step(npc.declineStreak, x.day) {
+			case retryHold:
+				continue
+			case retryFollowUp:
+				followUp = true // skip the roll; the budget is not yet exhausted
+			case retryRoll:
+				// no retry state: proceed with the normal offer-chance roll below
+			}
+		}
+		if !followUp && x.crowd.rng.IntN(100) >= npc.EffectiveOfferChancePct() {
 			continue
 		}
-		if offer, ok := x.offerFrom(npc, duplicates); ok {
+		var avoid []CardKey
+		if followUp {
+			avoid = npc.retry.avoid
+		}
+		offer, ok := x.offerFrom(npc, duplicates, avoid)
+		npc.retry.settle(followUp, ok)
+		if ok {
 			duplicates = reserve(duplicates, offer.PlayerGives)
 		}
 	}
@@ -91,10 +108,15 @@ func reserve(duplicates []Surplus, lines []TradeLine) []Surplus {
 }
 
 // offerFrom asks npc's behaviour for an offer to the player and stores it when there is one.
-func (x *Exchange) offerFrom(npc *NPC, duplicates []Surplus) (Offer, bool) {
+// avoid is the list of card keys the follow-up must not give (the declined gives of the chain);
+// callers that are not a follow-up pass nil.
+func (x *Exchange) offerFrom(npc *NPC, duplicates []Surplus, avoid []CardKey) (Offer, bool) {
 	shelf := npc.Shelf()
 	if len(shelf) == 0 {
 		return Offer{}, false
+	}
+	if len(avoid) > 0 {
+		shelf = slices.DeleteFunc(shelf, func(l TradeLine) bool { return slices.Contains(avoid, l.Key) })
 	}
 	want, give, ok := npc.Behaviour.Propose(ProposalContext{
 		NPC: npc, Wanted: wantedLines(npc, duplicates), Shelf: shelf,

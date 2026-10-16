@@ -151,7 +151,7 @@ npcs:
 
 func TestLoad_unknownTraitFromRegistryIsRejected(t *testing.T) {
 	t.Parallel()
-	// The real registry is empty (DefaultTraits returns no traits), so any trait name is unknown.
+	// A name that no story will ever register, so the test does not depend on which traits exist.
 	const yaml = `
 npcs:
   archetypes:
@@ -160,13 +160,13 @@ npcs:
       min_boosters_per_day: 1
       max_boosters_per_day: 1
       keep_copies: 1
-      traits: [gambler]
+      traits: [not_a_real_trait]
 `
 	_, err := config.Load(strings.NewReader(yaml))
 	if err == nil {
 		t.Fatal("unknown trait name must be rejected")
 	}
-	if !strings.Contains(err.Error(), "gambler") {
+	if !strings.Contains(err.Error(), "not_a_real_trait") {
 		t.Errorf("error %q does not name the unknown trait", err)
 	}
 	if !strings.Contains(err.Error(), "known traits") {

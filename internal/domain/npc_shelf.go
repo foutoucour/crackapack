@@ -20,6 +20,18 @@ func (n *NPC) Shelf() []TradeLine {
 // ShelfQuantity returns how many copies of key the NPC holds on its shelf.
 func (n *NPC) ShelfQuantity(key CardKey) int { return len(n.shelf[key]) }
 
+// oldestShelfTick returns the tick at which the oldest copy of key arrived on the shelf.
+// Arrival ticks are oldest first (shelfTake removes the oldest copies first), so ticks[0] is
+// always the oldest copy — and always the one an NPC offer gives, because proposeSwap calls
+// shelfTake on the first-listed copies. Returns false when the NPC holds no copy of key.
+func (n *NPC) oldestShelfTick(key CardKey) (int, bool) {
+	ticks := n.shelf[key]
+	if len(ticks) == 0 {
+		return 0, false
+	}
+	return ticks[0], true
+}
+
 // Wishes returns a copy of the NPC's wish list.
 func (n *NPC) Wishes() []Wish { return slices.Clone(n.wishes) }
 

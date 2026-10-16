@@ -16,10 +16,11 @@ type exportFile struct {
 }
 
 type exportData struct {
-	Code    string                      `json:"code"`
-	Name    string                      `json:"name"`
-	Cards   []exportCard                `json:"cards"`
-	Booster map[string]exportBoosterDef `json:"booster,omitempty"`
+	Code        string                      `json:"code"`
+	Name        string                      `json:"name"`
+	ReleaseDate string                      `json:"releaseDate,omitempty"`
+	Cards       []exportCard                `json:"cards"`
+	Booster     map[string]exportBoosterDef `json:"booster,omitempty"`
 }
 
 type exportCard struct {
@@ -65,9 +66,10 @@ func CatalogueToJSON(cat domain.SetCatalogue) ([]byte, error) {
 
 	f := exportFile{
 		Data: exportData{
-			Code:  cat.Code,
-			Name:  cat.Name,
-			Cards: cards,
+			Code:        cat.Code,
+			Name:        cat.Name,
+			ReleaseDate: cat.ReleaseDate,
+			Cards:       cards,
 			Booster: map[string]exportBoosterDef{
 				"draft": {
 					Boosters: boosters,
