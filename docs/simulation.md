@@ -233,7 +233,7 @@ above the run horizon. Config validation keeps it from passing by accident: an `
 | `unsold_duplicate_copies` | Copies above a playset (4) still held at the end of the run, whatever the policy's own keep count; non-zero when sub-coin cards cannot be sold |
 | `days_to_50pct_cu.<setcode>` | First day (1-based) where the commons and uncommons owned reach 50% of the set's commons and uncommons |
 | `days_to_100pct_cu.<setcode>` | First day (1-based) where every common and uncommon of the set is owned |
-| `days_to_100pct.<setcode>` | First day (1-based) where every card of the set is owned: its whole binder |
+| `days_to_100pct.<setcode>` | First day (1-based) where every card of the set is owned: its whole binder. A set whose boosters draw from a supplementary pool counts those cards too: Time Spiral's binder is 402 cards, 281 of the set and 121 timeshifted, see [ADR-0037](adr/0037-a-binder-counts-the-pool-cards-its-boosters-draw.md) |
 | `coins_after_full_binder` | Coins the player gains from the first day every openable set is complete to the end of the run; `0` when that day is never reached. It measures the coins that have nothing left to buy |
 | `max_booster_wait_minutes` | Longest wait, from empty reserve and empty savings, to afford one booster of any openable set. It follows from the energy settings and does not depend on play |
 | `booster_fee_coins` | Coin fees the player paid to open boosters over the run. Present only when `energy.coins_per_energy` is above zero |
@@ -257,7 +257,7 @@ so `max_booster_wait_minutes` only changes when a set with a higher cost joins t
 
 | Name | Behaviour |
 |------|-----------|
-| `collector` | Opens boosters for the set with the lowest C/U progress; sells duplicates above playset; buys missing non-foil cards cheapest-first up to a coin floor |
+| `collector` | Opens boosters for the set with the lowest C/U progress; sells duplicates above playset; buys missing non-foil cards cheapest-first up to a coin floor, the timeshifted cards of a Time Spiral binder included |
 | `converting-collector` | Same as `collector` plus coin top-up in Phase 1: when short on energy, pays coins for the shortfall (no-op when `energy.coin_topup.enabled` is false). Raises the coin floor by the minimum booster fee so the fee buffer is never spent on card purchases. See [Energy coin top-up](#energy-coin-top-up) |
 | `master-collector` | Plays like the `collector`, then spends the coins above the coin floor on the foil of every card it owns no foil of, cheapest first, skipping out-of-stock foils. The Counter stocks foils only from sales and from `counter_supply`, so a run needs that supply on. At the default `counter_foil_pct` of 500 foils are a coin sink |
 | `cash-out` | Opens boosters, sells everything above one copy and never buys, so the run measures how many coins the Counter creates |

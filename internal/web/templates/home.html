@@ -1,0 +1,23 @@
+{{define "title"}}Your boosters{{end}}
+{{define "content"}}
+<h1>Your boosters</h1>
+<p class="lead">Pick a set and crack a booster open.</p>
+<ul class="packs">
+  {{range .Packs}}
+  <li class="pack-tile">
+    <h2>{{.SetName}}</h2>
+    {{if .Count}}
+    <p class="count">{{.Count}} {{if eq .Count 1}}booster{{else}}boosters{{end}}</p>
+    <p class="hint">Welcome gift: free.</p>
+    {{else}}
+    <p class="count">{{.Cost}} energy</p>
+    {{if .Wait}}<p class="hint wait">Ready in {{duration .Wait}}</p>{{end}}
+    {{end}}
+    <form method="post" action="/open">
+      <input type="hidden" name="set" value="{{.SetCode}}">
+      <button type="submit" class="primary"{{if .Wait}} disabled{{end}}>Open a booster{{if not .Count}} ({{.Cost}} energy){{end}}</button>
+    </form>
+  </li>
+  {{end}}
+</ul>
+{{end}}

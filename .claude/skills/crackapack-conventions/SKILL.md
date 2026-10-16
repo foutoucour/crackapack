@@ -83,8 +83,9 @@ exercises it.
 
 ## Frontend
 
-The frontend stack (htmx + `html/template`, or Svelte) is not decided yet. These rules hold either
-way.
+The web client is server-rendered `html/template` pages in `internal/web`, with one small script for
+the reveal, see [ADR-0034](../../../docs/adr/0034-the-web-client-is-server-rendered.md). These rules
+hold for any client.
 
 - KISS. No abstraction until a second use exists.
 - The frontend holds no business rules. Prices, drop rates and the ledger live in the Go core; the

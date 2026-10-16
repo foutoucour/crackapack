@@ -17,7 +17,8 @@ import (
 type Engine struct {
 	cfg           config.Config
 	catalogues    []domain.SetCatalogue // openable sets only
-	supplementary []domain.SetCatalogue // supplementary pools (Counter-only, no binder progress)
+	supplementary []domain.SetCatalogue // supplementary pools: the Counter knows their cards
+	binderCats    []domain.SetCatalogue // catalogues plus the pool cards their boosters draw: the binders
 	prices        domain.PriceSnapshot
 	journal       *domain.Journal
 	energy        *domain.Energy
@@ -152,12 +153,7 @@ func NewEngine(
 	}
 
 	// Build energy.
-	energyParams := domain.EnergyParams{
-		RechargePerTick:      cfg.Energy.RechargePerTick,
-		ReserveCap:           cfg.Energy.ReserveCap,
-		SavingsIntervalTicks: cfg.Energy.SavingsIntervalTicks,
-		SavingsCap:           cfg.Energy.SavingsCap,
-	}
+	energyParams := cfg.Energy.Params()
 	energy, err := domain.NewEnergy(energyParams)
 	if err != nil {
 		return nil, fmt.Errorf("sim: energy: %w", err)
@@ -216,30 +212,11 @@ func NewEngine(
 	if err != nil {
 		return nil, err
 	}
-	// 2. median across the reference catalogues, by default the openable ones
-	referenceValues := avgValues
-	if len(o.reference) > 0 {
-		referenceValues, err = boosterAverageValues(o.reference, prices, cfg.FallbackPrice)
-		if err != nil {
-			return nil, err
-		}
-	}
-	median, err := domain.MedianValue(referenceValues)
+	// 2. cost tier per catalogue, against the median of the reference catalogues, by default the
+	// openable ones
+	boosterCosts, err := domain.BoosterEnergyCosts(catalogues, o.reference, prices, cfg.FallbackPrice, cfg.Energy.CostTiers())
 	if err != nil {
-		return nil, fmt.Errorf("sim: median booster value: %w", err)
-	}
-	// 3. cost tier per catalogue
-	tiers := make([]domain.CostTier, len(cfg.Energy.CostTable))
-	for i, e := range cfg.Energy.CostTable {
-		tiers[i] = domain.CostTier{Threshold: e.Threshold, Cost: e.Cost}
-	}
-	boosterCosts := make(map[string]int, len(catalogues))
-	for i, cat := range catalogues {
-		cost, err := domain.EnergyCost(avgValues[i], median, tiers)
-		if err != nil {
-			return nil, fmt.Errorf("sim: energy cost for %q: %w", cat.Code, err)
-		}
-		boosterCosts[cat.Code] = cost
+		return nil, fmt.Errorf("sim: %w", err)
 	}
 	fees, err := counterCoinFees(cfg, catalogues, avgValues)
 	if err != nil {
@@ -294,6 +271,7 @@ func NewEngine(
 	return &Engine{
 		cfg:                cfg,
 		catalogues:         catalogues,
+		binderCats:         binderCatalogues(catalogues, supplementary),
 		supplementary:      supplementary,
 		prices:             prices,
 		journal:            journal,
@@ -584,7 +562,7 @@ func (e *Engine) snapshotDay(day int) (DayMetrics, error) {
 
 	// Per-set binder progress (openable sets only).
 	setProgress := make(map[string]SetDayProgress, len(e.catalogues))
-	for _, cat := range e.catalogues {
+	for _, cat := range e.binderCats {
 		p := e.collection.BinderProgress(cat)
 		cuOwned := p.ByRarity[domain.RarityCommon].Owned + p.ByRarity[domain.RarityUncommon].Owned
 		cuTotal := p.ByRarity[domain.RarityCommon].Total + p.ByRarity[domain.RarityUncommon].Total

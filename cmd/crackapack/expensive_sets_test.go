@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"slices"
 	"strings"
 	"testing"
@@ -86,6 +87,18 @@ func TestLoadInputs_theDemoLeavesItsExpensiveSetOut(t *testing.T) {
 
 	if got, want := referenceCodes(in), []string{"DEM", "DSP"}; !slices.Equal(got, want) {
 		t.Errorf("reference = %v, want %v", got, want)
+	}
+}
+
+func TestRunPlay_aRequestedExpensiveSetFailsBeforeServing(t *testing.T) {
+	t.Parallel()
+	a := demoPlayArgs(t)
+	a.setCodes = append([]string{"DEX"}, a.setCodes...)
+
+	err := runPlay(context.Background(), a)
+
+	if err == nil || !strings.Contains(err.Error(), "DEX ($120.00)") {
+		t.Errorf("error = %v, want one naming DEX at $120.00", err)
 	}
 }
 

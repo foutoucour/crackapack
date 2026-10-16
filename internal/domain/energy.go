@@ -162,6 +162,26 @@ func (e *Energy) Spend(amount int) error {
 	return nil
 }
 
+// TicksUntil returns how many ticks must pass before cost can be spent, 0 when it can be now. It
+// asks a copy, so the energy is left as it was. It returns an error when cost is not positive or
+// exceeds ReserveCap plus SavingsCap, since such a cost can never be paid.
+func (e *Energy) TicksUntil(cost int) (int, error) {
+	// From an empty state the wait is the longest, so it bounds the search from any other.
+	bound, err := e.params.TicksToAfford(cost)
+	if err != nil {
+		return 0, err
+	}
+	probe := *e
+	for n := 0; n <= bound; n++ {
+		if probe.reserve+probe.savings >= cost {
+			return n, nil
+		}
+		probe.applyTick()
+	}
+	// Unreachable: cost is within the caps, so the energy fills up to it within bound ticks.
+	return 0, fmt.Errorf("energy: cost %d is not reachable within %d ticks", cost, bound)
+}
+
 // Reserve returns the current reserve energy level.
 func (e *Energy) Reserve() int { return e.reserve }
 

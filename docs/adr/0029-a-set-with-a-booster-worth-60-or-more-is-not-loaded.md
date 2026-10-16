@@ -43,7 +43,8 @@ expensive bundle back.
 - Moving the limit changes the median of the energy cost tiers, so compare runs at the same limit.
 - The key is bounded above by 100,000,000 cents, following
   [ADR-0014](0014-numeric-config-keys-have-upper-bounds.md).
-- The split reads prices, so it runs after the snapshot loads.
+- The split reads prices, so it runs after the snapshot loads. `simulate`, `sweep`, `demo` and
+  `play` all apply it. `play` without a price snapshot cannot tell, so it leaves nothing out.
 - A card with no price is valued at `fallback_price`, so a set with many unpriced cards looks
   cheaper than it is. The study's values for Alpha, Beta and Unlimited are already lower bounds
   for that reason, and they sit far above the limit.

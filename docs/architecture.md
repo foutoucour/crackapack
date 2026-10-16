@@ -57,9 +57,19 @@ crowd, `Valuer` gives the Counter and the Exchange the same reference value, and
 per archetype picks wishes, the margin and proposals. `internal/sim` composes them behind
 `trades.enabled` and exposes them to player policies through `Session`.
 
+`internal/images` fetches card pictures from Scryfall, one at a time, and keeps them in the image
+cache, see [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md).
+
+`internal/play` is the player's interactive session: the boosters the player holds, the energy that
+opening them costs, which recharges from an injected clock, and the collection they fill. It sits beside `internal/sim`, which runs batch policies, and holds the
+rules a client must not hold. `internal/web` renders it as server-rendered pages embedded in the
+binary, see [ADR-0034](adr/0034-the-web-client-is-server-rendered.md). Its handlers call `play` in
+process, so until a JSON API exists they are both the API adapter and the client of the diagram
+above. `cmd/crackapack play` wires them.
+
 `demo/` generates two played synthetic catalogues (DEM and DSP/DST) and an expensive one (DEX) that
-the game leaves out, from a fixed seed, and exposes them via `demo.Build()`. The domain never imports demo; the dependency runs one way, from demo into
-the domain.
+the game leaves out, from a fixed seed, and exposes them via `demo.Build()`. The domain never
+imports demo; the dependency runs one way, from demo into the domain.
 
 All simulation state is held in plain in-memory domain objects for the MVP. No store interface
 exists yet: it will be introduced with the SQLite adapter, together with the shared contract suite

@@ -12,7 +12,7 @@ import (
 // always see state that is current after their most recent action.
 func (e *Engine) buildWorldView(day int) WorldView {
 	setProgress := make(map[string]domain.Progress, len(e.catalogues))
-	for _, cat := range e.catalogues {
+	for _, cat := range e.binderCats {
 		setProgress[cat.Code] = e.collection.BinderProgress(cat)
 	}
 	fees := make(map[string]domain.Coins, len(e.boosterFees))
@@ -40,7 +40,7 @@ func (e *Engine) buildWorldView(day int) WorldView {
 		SetProgress:             setProgress,
 		BoosterCosts:            costs,
 		BoosterFees:             fees,
-		Catalogues:              e.catalogues,
+		Catalogues:              e.binderCats,
 		Prices:                  e.prices,
 		OwnedCards:              e.collection.Snapshot(),
 		CoinRate:                e.cfg.CoinRate,

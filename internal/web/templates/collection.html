@@ -1,0 +1,54 @@
+{{define "title"}}Your collection{{end}}
+{{define "content"}}
+<nav class="binders" aria-label="Binders">
+  <ul>
+    {{range .Tabs}}
+    <li><a href="/collection?set={{.SetCode}}"{{if .Current}} aria-current="page"{{end}}>{{.SetName}} <span class="tab-count">{{.Owned}} / {{.Total}}</span></a></li>
+    {{end}}
+  </ul>
+</nav>
+
+<h1>{{.SetName}}</h1>
+<div class="progress-line">
+  <progress value="{{.Owned}}" max="{{.Total}}" aria-label="Cards collected">{{.Owned}} / {{.Total}}</progress>
+  <p class="lead">{{.Owned}} / {{.Total}} cards</p>
+</div>
+<nav class="rarities" aria-label="Filter by rarity">
+  <ul>
+    {{range .Filters}}
+    <li><a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}{{if .Counted}} <strong>{{.Owned}} / {{.Total}}</strong>{{end}}</a></li>
+    {{end}}
+    <li class="playsets">Complete playsets <strong>{{.Playsets}}</strong></li>
+  </ul>
+</nav>
+
+{{if .Slots}}{{template "slots" .Slots}}{{end}}
+
+{{range .Pools}}
+<h2>{{.Name}}</h2>
+{{template "slots" .Slots}}
+{{end}}
+
+<script type="module" src="/static/collection.js"></script>
+{{end}}
+
+{{define "slots"}}
+<ol class="binder" data-binder>
+  {{range .}}
+  {{if .Held}}
+  <li class="card {{.Colour}} {{.Rarity}}{{if .ImageID}} has-image{{end}}" data-card data-rarity="{{.Rarity}}">
+    {{if .ImageID}}<img src="/card-image/{{.ImageID}}" class="art" alt="{{.Name}}" width="488" height="680" loading="lazy">{{end}}
+    <div class="face">
+      <span class="name">{{.Name}}</span>
+      <span class="meta">{{.Rarity}}</span>
+      <span class="tag count">×{{.Regular}}</span>
+      {{if .Foil}}<span class="tag foil-tag">Foil ×{{.Foil}}</span>{{end}}
+    </div>
+    <button type="button" class="view" aria-label="View {{.Name}}"></button>
+  </li>
+  {{else}}
+  <li class="slot empty"><span class="sr-only">Empty slot, card number </span><span class="number">#{{.Number}}</span></li>
+  {{end}}
+  {{end}}
+</ol>
+{{end}}

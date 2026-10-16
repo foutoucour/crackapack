@@ -159,6 +159,25 @@ type EnergyConfig struct {
 	CostTable []EnergyCost `yaml:"cost_table"`
 }
 
+// Params returns the recharge settings in the form the domain's Energy takes.
+func (e EnergyConfig) Params() domain.EnergyParams {
+	return domain.EnergyParams{
+		RechargePerTick:      e.RechargePerTick,
+		ReserveCap:           e.ReserveCap,
+		SavingsIntervalTicks: e.SavingsIntervalTicks,
+		SavingsCap:           e.SavingsCap,
+	}
+}
+
+// CostTiers returns the cost table in the form domain.EnergyCost takes, in the order of the table.
+func (e EnergyConfig) CostTiers() []domain.CostTier {
+	tiers := make([]domain.CostTier, len(e.CostTable))
+	for i, entry := range e.CostTable {
+		tiers[i] = domain.CostTier{Threshold: entry.Threshold, Cost: entry.Cost}
+	}
+	return tiers
+}
+
 // Modes of the Counter's own supply of boosters.
 const (
 	// CounterSupplyNone is the default: the Counter opens nothing.
