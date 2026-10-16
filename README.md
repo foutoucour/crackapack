@@ -9,7 +9,25 @@ solo, local game. It is a personal project, published for anyone who wants to ru
 ## Status
 
 Pre-alpha. The simulation MVP exists, with NPCs that open boosters and supply the Counter. The
-following are not built yet: the UI, trades with NPCs, catalogue sync, and data persistence.
+first UI lets you open the ten welcome boosters, then more for energy that recharges by itself, and
+browse your collection, one binder per set. The following are not built yet: the Counter and
+trades in the UI, coins in the game, catalogue sync, and data persistence.
+
+## Open your first boosters
+
+The play command serves the web client on localhost, on the built-in synthetic sets, with no
+files or network required. The demo cards are drawn as placeholders:
+
+```
+go run ./cmd/crackapack play --demo
+```
+
+Then open the address it prints. With real catalogues from `fetchdata`, pass
+`--catalogue-dir ./catalogues --sets RAV,TSP --supplementary TSB --prices ./prices.json` instead of
+`--demo`; the prices set what a booster costs in energy, and without them every booster costs the
+same. The card
+pictures are then downloaded from Scryfall the first time a card shows, and kept in your user cache
+directory, see [ADR-0035](docs/adr/0035-card-pictures-are-served-from-a-local-cache.md).
 
 ## Try the simulation
 

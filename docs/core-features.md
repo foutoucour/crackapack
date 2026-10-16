@@ -30,8 +30,10 @@ Law 25 or terms of service.
 
 - **Mandatory notice** in the README and the app footer: "crackapack is unofficial Fan Content
   permitted under the Fan Content Policy. Not approved/endorsed by Wizards…".
-- **No Wizards trademarks:** no Magic logo, no packaging visuals. Packs are drawn in-house, and the
-  project name contains neither "Magic" nor "Holopocket".
+- **No Wizards trademarks in the project's own design:** no Magic logo, no packaging visuals. Packs
+  are drawn in-house, and the project name contains neither "Magic" nor "Holopocket". The card
+  pictures and the card back are Wizards' content, downloaded at run time and never stored in the
+  repository, see [ADR-0036](adr/0036-the-card-back-is-downloaded-with-an-in-house-fallback.md).
 - **Repository:** code only. No images, no Scryfall data and no MTGJSON data in the repository.
 - **Data sources:** MTGJSON provides set contents, card identities and booster definitions, one
   file per set. Each card carries its Scryfall ID in `identifiers.scryfallId`, which links it to its
@@ -39,7 +41,7 @@ Law 25 or terms of service.
   publishes a prices file, not checked for the V1 sets.
 - **Code licence:** to be chosen.
 - **Images:** downloaded from Scryfall into a local cache and shown as they are (no cropping,
-  watermark or filter).
+  watermark or filter), except that the white corners outside the card's rounded border are masked.
 - **Scryfall rate limit:** 50 to 100 ms between requests. Requests are made one image at a time.
 - **Offline:** the network is required for the first sync and for catalogue updates. The game runs
   without a connection afterwards.
@@ -51,7 +53,8 @@ hurts yourself.
 
 - **Installation:** download the binary for your OS and run it. It opens the game in your browser.
 - **First launch:** downloads the catalogue, then generates the NPC population.
-- **Welcome bonus:** 200 coins and 10 boosters.
+- **Welcome bonus:** 200 coins and 10 boosters, split evenly across the sets, the first sets taking
+  the remainder.
 - **Saves:** copy the SQLite file, or export/import from the app.
 - **Seed:** the random seed is stored, to replay a simulation and debug it.
 - **Prices:** a snapshot that comes with the catalogue. Prices stay fixed until a new snapshot is
@@ -130,13 +133,22 @@ rhythm of sessions.
 
 Starting values, to be calibrated against the real average value of each set.
 
+In the interactive game the energy recharges with the real clock, even while the page is closed,
+and the ten welcome boosters are free and opened first, see
+[ADR-0038](adr/0038-the-games-energy-recharges-by-the-clock.md). The game has no coin fee and no
+coin top-up yet.
+
 ## Collection and binders
 
 The collection is the player's goal: one binder per set, filled card by card. Cards are collected by
 printing: the same card in two sets counts as two cards.
 
 - **Set binder:** all cards of the set except basic lands, in collector number order, empty slots
-  greyed out.
+  greyed out. The collection page filters it by rarity.
+- **Cards from another list:** the cards that a set's boosters draw from another catalogue count in
+  its binder, in a section of their own. Time Spiral's binder holds the 121 timeshifted cards that
+  boosters can draw, and leaves out the one that no booster holds, since nobody could complete the
+  binder with it.
 - **Progress shown:** cards owned / total, by rarity and for the whole set, plus complete playsets
   (4 copies of a card, the reference unit in Magic).
 - **Basic lands** are excluded from totals, progress and milestones. The Ravnica and Time Spiral

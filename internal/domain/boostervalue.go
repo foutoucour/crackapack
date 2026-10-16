@@ -135,6 +135,50 @@ func MedianValue(values []USDCents) (USDCents, error) {
 	return sorted[(len(sorted)-1)/2], nil
 }
 
+// BoosterEnergyCosts returns the energy a booster of each of sets costs, by set code. A booster's
+// cost follows its average value against the median of the reference catalogues, so that it does
+// not depend on which sets are played: a set that is its own reference always lands in the x1
+// tier, which is what happens when reference is empty.
+//
+// Errors name the set that cannot be valued.
+func BoosterEnergyCosts(sets, reference []SetCatalogue, prices PriceSnapshot, fallback USDCents, tiers []CostTier) (map[string]int, error) {
+	values, err := boosterAverageValues(sets, prices, fallback)
+	if err != nil {
+		return nil, err
+	}
+	referenceValues := values
+	if len(reference) > 0 {
+		if referenceValues, err = boosterAverageValues(reference, prices, fallback); err != nil {
+			return nil, err
+		}
+	}
+	median, err := MedianValue(referenceValues)
+	if err != nil {
+		return nil, fmt.Errorf("median booster value: %w", err)
+	}
+	costs := make(map[string]int, len(sets))
+	for i, cat := range sets {
+		cost, err := EnergyCost(values[i], median, tiers)
+		if err != nil {
+			return nil, fmt.Errorf("energy cost for %q: %w", cat.Code, err)
+		}
+		costs[cat.Code] = cost
+	}
+	return costs, nil
+}
+
+func boosterAverageValues(cats []SetCatalogue, prices PriceSnapshot, fallback USDCents) ([]USDCents, error) {
+	values := make([]USDCents, 0, len(cats))
+	for _, cat := range cats {
+		avg, err := BoosterAverageValue(cat, prices, fallback)
+		if err != nil {
+			return nil, fmt.Errorf("booster average value for %q: %w", cat.Code, err)
+		}
+		values = append(values, avg)
+	}
+	return values, nil
+}
+
 // EnergyCost maps boosterValue relative to median through tiers using integer percent
 // arithmetic:
 //

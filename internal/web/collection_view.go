@@ -1,0 +1,146 @@
+package web
+
+import (
+	"net/url"
+
+	"github.com/foutoucour/crackapack/internal/domain"
+	"github.com/foutoucour/crackapack/internal/play"
+)
+
+type collectionView struct {
+	Tabs     []tabView
+	SetName  string
+	Owned    int
+	Total    int
+	Playsets int
+	Filters  []filterView
+	Slots    []slotView
+	Pools    []poolView
+}
+
+// tabView is one entry of the switcher between binders.
+type tabView struct {
+	SetCode string
+	SetName string
+	Owned   int
+	Total   int
+	Current bool
+}
+
+// filterView is one entry of the filter on rarity: a link, with what the player holds of that
+// rarity. The first is "All", which has no count since the progress bar says it.
+type filterView struct {
+	Label   string
+	Href    string
+	Owned   int
+	Total   int
+	Counted bool
+	Current bool
+}
+
+// poolView is a section of the binder that comes from another catalogue, such as the timeshifted
+// cards of Time Spiral.
+type poolView struct {
+	Name  string
+	Slots []slotView
+}
+
+// slotView is one slot of a binder: a card with its copies, or an empty slot when it has none.
+type slotView struct {
+	Name    string
+	Number  string
+	Rarity  string
+	Colour  string
+	ImageID string
+	// Regular and Foil are the copies held, by finish.
+	Regular int
+	Foil    int
+}
+
+// Held reports whether the player holds a copy of the card, in either finish.
+func (s slotView) Held() bool { return s.Regular+s.Foil > 0 }
+
+// binderRarities lists the rarities of a binder in the order they are shown.
+func binderRarities() []domain.Rarity {
+	return []domain.Rarity{domain.RarityCommon, domain.RarityUncommon, domain.RarityRare, domain.RarityMythic, domain.RaritySpecial}
+}
+
+// newCollectionView builds the page of binder. rarity, when not empty, keeps only the slots of that
+// rarity, while the progress stays the whole binder's.
+func newCollectionView(binder play.Binder, binders []play.BinderSummary, rarity string) collectionView {
+	view := collectionView{
+		SetName:  binder.SetName,
+		Owned:    binder.Progress.Owned,
+		Total:    binder.Progress.Total,
+		Playsets: binder.Progress.Playsets,
+		Slots:    newSlotViews(binder.Slots, rarity),
+	}
+	for _, pool := range binder.Pools {
+		if slots := newSlotViews(pool.Slots, rarity); len(slots) > 0 {
+			view.Pools = append(view.Pools, poolView{Name: pool.Name, Slots: slots})
+		}
+	}
+	for _, b := range binders {
+		view.Tabs = append(view.Tabs, tabView{
+			SetCode: b.SetCode, SetName: b.SetName,
+			Owned: b.Progress.Owned, Total: b.Progress.Total,
+			Current: b.SetCode == binder.SetCode,
+		})
+	}
+
+	view.Filters = []filterView{{Label: "All", Href: collectionHref(binder.SetCode, ""), Current: rarity == ""}}
+	for _, r := range binderRarities() {
+		if p, ok := binder.Progress.ByRarity[r]; ok && p.Total > 0 {
+			view.Filters = append(view.Filters, filterView{
+				Label: rarityLabel(r), Href: collectionHref(binder.SetCode, string(r)),
+				Owned: p.Owned, Total: p.Total, Counted: true, Current: string(r) == rarity,
+			})
+		}
+	}
+	return view
+}
+
+// collectionHref is the address of a binder, filtered on rarity when it is not empty.
+func collectionHref(setCode, rarity string) string {
+	q := url.Values{"set": {setCode}}
+	if rarity != "" {
+		q.Set("rarity", rarity)
+	}
+	return "/collection?" + q.Encode()
+}
+
+func newSlotViews(cards []play.BinderCard, rarity string) []slotView {
+	out := make([]slotView, 0, len(cards))
+	for _, c := range cards {
+		if rarity != "" && string(c.Card.Rarity) != rarity {
+			continue
+		}
+		out = append(out, slotView{
+			Name:    c.Card.Name,
+			Number:  c.Card.Number,
+			Rarity:  string(c.Card.Rarity),
+			Colour:  colourClass(c.Card.Colors),
+			ImageID: c.Card.ScryfallID,
+			Regular: c.Regular,
+			Foil:    c.Foil,
+		})
+	}
+	return out
+}
+
+func rarityLabel(r domain.Rarity) string {
+	switch r {
+	case domain.RarityCommon:
+		return "Common"
+	case domain.RarityUncommon:
+		return "Uncommon"
+	case domain.RarityRare:
+		return "Rare"
+	case domain.RarityMythic:
+		return "Mythic"
+	case domain.RaritySpecial:
+		return "Special"
+	default:
+		return string(r)
+	}
+}

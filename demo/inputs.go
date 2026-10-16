@@ -7,6 +7,7 @@ import (
 
 	"github.com/foutoucour/crackapack/internal/domain"
 	"github.com/foutoucour/crackapack/internal/domain/domaintest"
+	"github.com/foutoucour/crackapack/internal/images"
 )
 
 // Dataset holds the demo inputs produced by Build.
@@ -26,6 +27,10 @@ type Dataset struct {
 
 	// SupplementaryCodes lists the card-pool-only codes (DST).
 	SupplementaryCodes []string
+
+	// Images draws a picture for each demo card, by its Scryfall ID, so the demo shows card
+	// pictures without the network.
+	Images images.Source
 }
 
 // Build constructs the demo dataset from a fixed seed. The result is
@@ -43,6 +48,8 @@ func Build() Dataset {
 	cats := []domain.SetCatalogue{dem, dsp}
 	supps := []domain.SetCatalogue{dst}
 
+	assignScryfallIDs(dem, dsp, dst)
+
 	mapFS, err := domaintest.NewMapFS(cats, supps, prices)
 	if err != nil {
 		// NewMapFS serialises well-formed synthetic data; failure is a code error.
@@ -58,5 +65,6 @@ func Build() Dataset {
 		ConfigYAML:         demoConfigYAML,
 		SetCodes:           []string{"DEM", "DSP"},
 		SupplementaryCodes: []string{"DST"},
+		Images:             newCardArt(dem, dsp, dst),
 	}
 }

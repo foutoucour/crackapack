@@ -38,6 +38,9 @@ many parameters at once for a config that meets the goals.
 - [x] The etched finish loads as a foil.
 - [x] A card on a foil sheet loads with a foil finish, which fixes the SOI crash on Tamiyo's
   Journal, see [ADR-0028](adr/0028-a-foil-sheet-card-loads-with-a-foil-finish.md).
+- [x] A binder counts the pool cards its boosters can draw: Time Spiral is 402 cards, in the
+  simulation, the player policies and the collection page, see
+  [ADR-0037](adr/0037-a-binder-counts-the-pool-cards-its-boosters-draw.md).
 - [x] The pre-Mirage sets load: the loader reads `booster.default` when a set has no
   `booster.draft`, see [ADR-0020](adr/0020-a-set-file-booster-is-its-draft-or-default-definition.md).
 - [x] The colour personalities: the `stingy`, `fish`, `ego`, `gambler` and `archivist` traits and
@@ -104,8 +107,8 @@ many parameters at once for a config that meets the goals.
   - [ ] Ledger source accounts for these rewards. The existing metrics only report the days to
     reach a milestone.
 - [ ] **Welcome boosters.** The welcome bonus is 200 coins and 10 boosters, see
-  [Installation and saves](core-features.md#installation-and-saves). The engine grants only the
-  coins.
+  [Installation and saves](core-features.md#installation-and-saves). The play session grants the
+  boosters, see the GUI section below. The simulation engine still grants only the coins.
 - [ ] **Coin sinks.** Coins have nothing to buy once the binder is done, and the pile after a full
   binder was 330,000 to 1 million coins in the runs. Sinks were deferred until trades or cosmetics
   exist. Choose them, see [Economy: risks and fixes](specs-review.md#economy-risks-and-fixes). The
@@ -207,6 +210,12 @@ are the goals and their bands, the scope, and the remedies that change a rule.
   [Expensive old sets](specs-review.md#expensive-old-sets-and-the-12-energy-cap). No remedy is
   chosen, so no ADR is written. The leading candidate is the coin fee above the cap, in the energy
   cost plus coin top-up item.
+- [ ] **Re-run the Time Spiral figures that count the whole binder.** Time Spiral's binder is now 402
+  cards, the simulation included, see
+  [ADR-0037](adr/0037-a-binder-counts-the-pool-cards-its-boosters-draw.md). A recorded
+  `days_to_100pct.tsp` or `coins_after_full_binder` for a run with TSP is stale, and so may be the
+  11.0 days quoted under the pacing target above if it was the whole binder. The common-and-uncommon
+  figures are not. The runs need real catalogues and a price snapshot, so they were not redone.
 - [ ] **Reference value of a card with no TCGplayer price.** Today it is `fallback_price`.
 - [ ] **Foil prices.** A foil shares its non-foil's price, a documented simplification pending a
   per-finish source. An `etched` finish loads as a foil, so it shares that price too.
@@ -305,17 +314,43 @@ These need the SQLite store, which does not exist yet.
 - [ ] Recycling of duplicates, if it comes back.
 - [ ] Sets outside the catalogue.
 
-## GUI (rough)
+## GUI
 
-- [ ] The web client, embedded in the binary and served on localhost: opening a booster, binders,
-  the Counter, trades, quests and the profile. The stack, htmx with `html/template` or Svelte, is
-  not decided. It needs the API adapter first, see [Architecture](architecture.md).
+The stack is server-rendered `html/template`, see
+[ADR-0034](adr/0034-the-web-client-is-server-rendered.md). Run it with
+`crackapack play --demo`.
+
+- [x] Open the ten welcome boosters and reveal the cards one big card at a time, with the rare held
+  back for the end, and the new cards flagged. A card already seen opens big again from its
+  miniature on the shelf. The session is in memory: it starts over when the
+  server restarts. The card back is the Magic back, downloaded once and cached, with an in-house
+  drawing (`card-back.svg`) as the fallback, see
+  [ADR-0036](adr/0036-the-card-back-is-downloaded-with-an-in-house-fallback.md). The reveal script
+  has no automated test, since CI has no browser: it was checked
+  by driving headless Chrome by hand.
+- [x] Energy: a gauge in the header, a cost per set that follows the booster's value, a recharge
+  by the clock, the free welcome boosters spent first, and a refusal that says how long to wait,
+  see [ADR-0038](adr/0038-the-games-energy-recharges-by-the-clock.md). Costs need `--prices`, or
+  every booster costs the middle tier. Left: coins, so the coin fee above the cap and the coin
+  top-up, the energy saved with the session, a gauge that updates without a reload, and the
+  bonuses that add to the savings, such as the chest and the milestones.
+- [x] The collection: one binder per set at `/collection`, every card but the basic lands in
+  collector number order with the empty slots greyed, progress overall and by rarity, complete
+  playsets, the copies held by finish, a filter on rarity, a click to see a card big, and the
+  timeshifted cards in Time Spiral's binder, counted in its progress. Left: the collection's value, the card page, filters, selling the
+  duplicates, and the master set (foil as slots of their own).
+- [ ] The Counter, trades with NPCs, quests and the profile.
+- [x] Card pictures, downloaded from Scryfall on demand and cached, see
+  [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md). The demo draws its own.
+  Left: a cache that can be refreshed, and the two faces of a double-faced card.
+- [ ] Open the browser on launch.
+- [ ] A JSON API adapter, when a second client needs one, see [Architecture](architecture.md).
 
 ## Other layers (rough)
 
 - [ ] SQLite store, behind the interface that comes with its second implementation.
 - [ ] API adapter: HTTP and JSON.
-- [ ] Catalogue sync and the local image cache.
+- [ ] Catalogue sync. The local image cache exists, see the GUI section.
 - [ ] Packaging: one binary per OS.
 - [ ] Legal items still open: Scryfall terms, MTGJSON licence, code licence, README notice. See
   [Legal and data](specs-review.md#legal-and-data).

@@ -37,6 +37,7 @@ accepted ADR needs a new ADR first, one that supersedes the old one.
 - `go run ./cmd/crackapack sweep --catalogue-dir ./catalogues --sets RAV,CLS --prices prices.json --out ./sweep-out` — sweep the coin-per-USD rate over a grid and report calibration results
 - `go run ./cmd/crackapack compare [--days-csv delta.csv] <a.json> <b.json>` — compare two simulation results
 - `go run ./cmd/crackapack demo` — run a sweep on the built-in synthetic demo dataset
+- `go run ./cmd/crackapack play --demo` — serve the web client on `127.0.0.1:8080` with the demo sets
 
 Every pull request runs lint, tests, the tidy check and `govulncheck` through
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml); the `vuln` job there shows how to run

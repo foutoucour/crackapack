@@ -6,6 +6,16 @@ import (
 	"github.com/foutoucour/crackapack/internal/domain"
 )
 
+// binderCatalogues returns each openable set with the supplementary cards its boosters draw, which
+// are part of its binder, see domain.WithPools. The order of openable is kept.
+func binderCatalogues(openable, supplementary []domain.SetCatalogue) []domain.SetCatalogue {
+	out := make([]domain.SetCatalogue, len(openable))
+	for i, cat := range openable {
+		out[i] = domain.WithPools(cat, supplementary)
+	}
+	return out
+}
+
 // checkSheetCards returns an error when a booster sheet of an openable set holds a card that no
 // loaded catalogue has, see ADR-0016. Time Spiral's sheets, for instance, reference the timeshifted
 // cards of TSB: without that pool the Counter does not know them, and a run with a supply or a
