@@ -22,9 +22,20 @@ type MarginAdder interface{ MarginAdd(offer Offer) Percent }
 // trait makes the Exchange refuse the counter. See ADR-0021.
 type CounterVeto interface{ VetoCounter(counter Offer) bool }
 
-// DeclineReactor is notified when the player declines one of the NPC's offers. The Exchange does
-// not call it yet.
-type DeclineReactor interface{ ReactToDecline(declined Offer) }
+// DeclineContext is what a DeclineReactor sees when the player turns down an NPC's offer.
+type DeclineContext struct {
+	// NPC is the NPC whose offer was turned down. Its DeclineStreak already counts this decline.
+	NPC *NPC
+	// Offer is the NPC's offer the player turned down, never a player offer. For a counter the
+	// NPC refused, it is the original offer the player countered.
+	Offer Offer
+}
+
+// DeclineReactor is notified when the player turns down one of the NPC's offers. It runs after
+// the offer is closed and recorded. A reactor must not call back into the Exchange (not
+// reentrant) and must not hold per-NPC state because behaviours are shared across the NPCs of
+// an archetype. ctx.NPC.DeclineStreak() is the single source of truth for the streak count.
+type DeclineReactor interface{ ReactToDecline(ctx DeclineContext) }
 
 // TraitConstructor builds a Trait from the parameter map in its config block. It must reject a
 // negative parameter value.

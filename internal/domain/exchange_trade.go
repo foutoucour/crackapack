@@ -159,8 +159,11 @@ func (x *Exchange) execute(npc *NPC, o Offer) error {
 	return x.crowd.applyTrade(npc, o.NPCGives, o.PlayerGives)
 }
 
-// accepted books an executed offer and returns the Decision.
+// accepted books an executed offer, resets the NPC's decline streak and returns the Decision.
 func (x *Exchange) accepted(o Offer) Decision {
+	if npc, ok := x.crowd.byID[o.NPC]; ok {
+		npc.declineStreak = 0
+	}
 	if o.ID == 0 {
 		o.ID = x.newID()
 	}
@@ -169,6 +172,14 @@ func (x *Exchange) accepted(o Offer) Decision {
 	x.stats.VolumeCoins += x.coinsOf(linesValue(x.valuer, o.PlayerGives) + linesValue(x.valuer, o.NPCGives))
 	x.record(o, OutcomeAccepted, nil)
 	return Decision{Outcome: OutcomeAccepted, Offer: o}
+}
+
+// declined increments the NPC's consecutive decline streak and notifies its traits.
+func (x *Exchange) declined(npc *NPC, offer Offer) {
+	npc.declineStreak++
+	if r, ok := npc.Behaviour.(DeclineReactor); ok {
+		r.ReactToDecline(DeclineContext{NPC: npc, Offer: offer})
+	}
 }
 
 // refuse books a refusal and returns the Decision.
@@ -196,8 +207,9 @@ func (x *Exchange) newID() int {
 	return x.nextID
 }
 
-// Decline closes the open offer offerID without trading: the player rejects a counter it will
-// not take. No cards or coins move. It records the offer as refused in the history.
+// Decline closes the open offer offerID without trading: the player rejects an NPC offer or
+// counter it will not take. No cards or coins move. It records the offer as refused in the
+// history and increments the NPC's decline streak for NPC-origin offers.
 //
 // It returns ErrOfferNotFound for an offer that is not open.
 func (x *Exchange) Decline(offerID int) error {
@@ -207,6 +219,9 @@ func (x *Exchange) Decline(offerID int) error {
 	}
 	x.close(offerID)
 	x.record(o, OutcomeRefused, nil)
+	if npc, ok := x.crowd.byID[o.NPC]; ok && (o.Origin == OriginNPC || o.Origin == OriginNPCCounter) {
+		x.declined(npc, o)
+	}
 	return nil
 }
 

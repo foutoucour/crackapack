@@ -45,7 +45,9 @@ the deterministic demo dataset. `tools/` holds Go programs run by CI.
 
 `internal/config` loads and validates the YAML configuration, translating it into a typed
 `Config` that `cmd/crackapack` passes to the engine. It reads from an `io.Reader` and never opens
-files itself.
+files itself. The NPC archetypes are the one exception to "the configuration comes from the
+caller": they ship inside the binary as embedded files, read through an `fs.FS`, so the player
+cannot change them, see [ADR-0023](adr/0023-archetypes-are-embedded-and-read-only.md).
 
 `internal/sim` is the composition layer: it wires `internal/domain` objects with `internal/config`
 values and records per-day metrics. The domain never imports sim.

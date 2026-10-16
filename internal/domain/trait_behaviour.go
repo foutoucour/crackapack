@@ -174,11 +174,10 @@ func (tb *traitBehaviour) VetoesCounter(offer Offer) bool {
 	return false
 }
 
-// ReactToDecline fans the declined offer out to every DeclineReactor. Wired into the Exchange in
-// T-005; declared here so T-002 tests can verify the fan-out.
-func (tb *traitBehaviour) ReactToDecline(offer Offer) {
+// ReactToDecline fans the decline context out to every DeclineReactor.
+func (tb *traitBehaviour) ReactToDecline(ctx DeclineContext) {
 	for _, r := range tb.reactors {
-		r.ReactToDecline(offer)
+		r.ReactToDecline(ctx)
 	}
 }
 

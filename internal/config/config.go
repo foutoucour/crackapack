@@ -7,10 +7,7 @@
 package config
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
-	"io"
 
 	yaml "go.yaml.in/yaml/v3"
 
@@ -216,9 +213,10 @@ type CounterBudgetConfig struct {
 	DailyFloat domain.Coins `yaml:"daily_float"`
 }
 
-// ArchetypeConfig is the supply behaviour of one NPC archetype, see docs/core-features.md.
-// An archetype given in YAML replaces the default of the same name as a whole: every field
-// must be set.
+// ArchetypeConfig is the supply and trade behaviour of one NPC archetype, see docs/core-features.md.
+// The five default archetypes are loaded from embedded YAML files by [Load]. An archetype entry
+// in the simulation config's npcs.archetypes replaces the embedded entry of the same name as a
+// whole, so every field must be set when overriding.
 type ArchetypeConfig struct {
 	// Share is the archetype's weight in the population; only the ratio between shares matters.
 	Share int `yaml:"share"`
@@ -279,8 +277,9 @@ type NPCConfig struct {
 	// ASSUMPTION: default 1000; pending calibration.
 	MaxMarginPct domain.Percent `yaml:"max_margin_pct"`
 
-	// Archetypes maps an archetype name to its behaviour. A partial YAML map merges with the
-	// defaults per name. ASSUMPTION defaults (pending calibration): see defaults.
+	// Archetypes maps an archetype name to its behaviour. The five default archetypes are loaded
+	// from embedded YAML files by [Load]; see [LoadArchetypes]. The simulation config may override
+	// an archetype by name, replacing the embedded entry as a whole.
 	Archetypes map[string]ArchetypeConfig `yaml:"archetypes"`
 }
 
@@ -394,7 +393,8 @@ func isKnownRarity(r domain.Rarity) bool {
 }
 
 // defaults returns a Config pre-populated with the documented starting values.
-// [Load] overlays the YAML file on top, leaving absent fields at their defaults.
+// [LoadWithArchetypes] overlays the YAML file on top, leaving absent fields at their defaults.
+// Archetypes are not included here; [LoadArchetypes] loads them from embedded YAML files.
 func defaults() Config {
 	return Config{
 		CoinRate:         100, // see docs/adr/0006-coin-rate-is-100-per-dollar.md
@@ -436,72 +436,16 @@ func defaults() Config {
 			domain.RarityMythic:   2,
 		},
 		FallbackPrice: 1, // ASSUMPTION
-		// ASSUMPTION: archetype shares, rhythms, keep thresholds and the trade settings are starting
-		// guesses pending calibration. A casual is the main source of supply, a whale opens far
-		// more than the rest. The casual and speculator margins come from docs/core-features.md.
 		NPCs: NPCConfig{
 			SurplusHoldDays: 2,
 			MaxMarginPct:    1000, // ASSUMPTION: cap pending calibration
-			Archetypes: map[string]ArchetypeConfig{
-				"casual":             {Share: 50, MinBoostersPerDay: 4, MaxBoostersPerDay: 8, KeepCopies: 1, Behaviour: "casual", WishSize: 5, MarginPct: 0, OfferChancePct: 2},
-				"playset_hunter":     {Share: 15, MinBoostersPerDay: 3, MaxBoostersPerDay: 6, KeepCopies: 4, Behaviour: "playset_hunter", WishSize: 5, MarginPct: 5, OfferChancePct: 2},
-				"targeted_collector": {Share: 20, MinBoostersPerDay: 2, MaxBoostersPerDay: 5, KeepCopies: 1, FocusSet: true, Behaviour: "targeted_collector", WishSize: 5, MarginPct: 5, OfferChancePct: 2},
-				"speculator":         {Share: 10, MinBoostersPerDay: 2, MaxBoostersPerDay: 4, KeepCopies: 2, Behaviour: "speculator", WishSize: 5, MarginPct: 15, OfferChancePct: 1},
-				"whale":              {Share: 5, MinBoostersPerDay: 30, MaxBoostersPerDay: 50, KeepCopies: 1, Behaviour: "whale", WishSize: 3, MarginPct: 10, OfferChancePct: 1},
-			},
+			// Archetypes are populated by LoadArchetypes from embedded YAML files.
 		},
 		Trades:         TradesConfig{OfferExpiryDays: 3, MaxCardsPerSide: 10, DuplicateKeep: 1, MaxOpenOffersPerDay: 20},
 		SessionsPerDay: 3, // ASSUMPTION
 		RunDays:        90,
 		SweepRates:     []domain.CoinRate{10, 25, 50, 100, 250, 500},
 	}
-}
-
-// Load reads a YAML configuration from r, overlays it on the defaults, and
-// validates the result. It returns an error naming the offending key for
-// unknown keys, type mismatches, and invalid values.
-//
-// A mapping key whose YAML value is null is treated as absent: the
-// pre-populated default applies. This covers every key including nested ones
-// (energy and its sub-keys, cost_table, sweep_rates, targets, initial_stock
-// and each rarity). A null item inside a sequence is rejected with a path-named
-// error, see ADR-0017.
-//
-// The caller is responsible for opening the file; Load accepts an [io.Reader]
-// so tests can use [strings.NewReader] without touching the filesystem.
-func Load(r io.Reader) (Config, error) {
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return Config{}, fmt.Errorf("load config: read: %w", err)
-	}
-
-	if err := checkStrictInput(data); err != nil {
-		return Config{}, err
-	}
-
-	// Prune null-valued mapping entries so they are treated as absent.
-	// nullPruneAndEncode returns nil when the document is empty/null or has a
-	// syntax error; in both cases we fall through to the original bytes.
-	if pruned, pruneErr := nullPruneAndEncode(data); pruneErr != nil {
-		return Config{}, fmt.Errorf("load config: %w", pruneErr)
-	} else if pruned != nil {
-		data = pruned
-	}
-
-	lineKey := buildLineKeyMap(data)
-
-	// Completely empty file is valid: the pre-populated defaults are kept as-is.
-	cfg := defaults()
-	dec := yaml.NewDecoder(bytes.NewReader(data))
-	dec.KnownFields(true)
-	if err := dec.Decode(&cfg); err != nil && !errors.Is(err, io.EOF) {
-		return Config{}, enrichYAMLError(err, lineKey)
-	}
-
-	if err := validate(cfg); err != nil {
-		return Config{}, err
-	}
-	return cfg, nil
 }
 
 // validate checks semantic constraints on cfg and returns an error naming the

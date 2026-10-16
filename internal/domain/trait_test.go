@@ -95,37 +95,36 @@ func TestTraitInterfacesAreOptional(t *testing.T) {
 
 func TestDeclineReactorFansOutToEveryTrait(t *testing.T) {
 	t.Parallel()
-	// Build two DeclineSpies and verify both receive the decline.
+	// Build two DeclineSpies and verify both receive the decline context.
 	spy1 := &domaintest.DeclineSpy{}
 	spy2 := &domaintest.DeclineSpy{}
-	reg := domain.TraitRegistry{
-		"spy1": func(_ map[string]int) (domain.Trait, error) { return spy1, nil },
-		"spy2": func(_ map[string]int) (domain.Trait, error) { return spy2, nil },
-	}
 	b, err := domain.NewBehaviour("casual", domain.BehaviourParams{
 		Traits: []domain.TraitSpec{
 			{Name: "spy1"},
 			{Name: "spy2"},
 		},
-		Registry:     reg,
+		Registry: domain.TraitRegistry{
+			"spy1": domaintest.NewDeclineSpy(spy1),
+			"spy2": domaintest.NewDeclineSpy(spy2),
+		},
 		MaxMarginPct: 1000,
 	})
 	if err != nil {
 		t.Fatalf("NewBehaviour: %v", err)
 	}
-	type declineReactor interface{ ReactToDecline(domain.Offer) }
+	type declineReactor interface{ ReactToDecline(domain.DeclineContext) }
 	reactor, ok := b.(declineReactor)
 	if !ok {
 		t.Fatal("composed behaviour must implement ReactToDecline")
 	}
-	offer := domain.Offer{ID: 42, NPC: 0}
-	reactor.ReactToDecline(offer)
+	ctx := domain.DeclineContext{Offer: domain.Offer{ID: 42, NPC: 0}}
+	reactor.ReactToDecline(ctx)
 
-	if len(spy1.Declined) != 1 || spy1.Declined[0].ID != offer.ID {
-		t.Errorf("spy1: got %v, want offer with ID %d", spy1.Declined, offer.ID)
+	if len(spy1.Calls) != 1 || spy1.Calls[0].Context.Offer.ID != ctx.Offer.ID {
+		t.Errorf("spy1: got %v, want one call with offer ID %d", spy1.Calls, ctx.Offer.ID)
 	}
-	if len(spy2.Declined) != 1 || spy2.Declined[0].ID != offer.ID {
-		t.Errorf("spy2: got %v, want offer with ID %d", spy2.Declined, offer.ID)
+	if len(spy2.Calls) != 1 || spy2.Calls[0].Context.Offer.ID != ctx.Offer.ID {
+		t.Errorf("spy2: got %v, want one call with offer ID %d", spy2.Calls, ctx.Offer.ID)
 	}
 }
 

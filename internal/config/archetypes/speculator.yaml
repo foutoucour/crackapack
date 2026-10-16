@@ -1,0 +1,11 @@
+# ASSUMPTION: shares, rhythms, keep thresholds and trade settings are starting guesses
+# pending calibration. The speculator margin of 15 comes from docs/core-features.md.
+share: 10
+min_boosters_per_day: 2
+max_boosters_per_day: 4
+keep_copies: 2
+focus_set: false
+behaviour: speculator
+wish_size: 5
+margin_pct: 15
+offer_chance_pct: 1
