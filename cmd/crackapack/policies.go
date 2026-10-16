@@ -7,6 +7,7 @@ func buildPolicies() map[string]func() sim.PlayerPolicy {
 	return map[string]func() sim.PlayerPolicy{
 		"collector":            func() sim.PlayerPolicy { return sim.NewCollectorPolicy() },
 		"converting-collector": func() sim.PlayerPolicy { return sim.NewConvertingCollectorPolicy() },
+		"energy-first":         func() sim.PlayerPolicy { return sim.NewEnergyFirstPolicy() },
 		"cash-out":             func() sim.PlayerPolicy { return sim.NewCashOutPolicy() },
 		"idle":                 func() sim.PlayerPolicy { return sim.NewIdlePolicy() },
 		"trader":               func() sim.PlayerPolicy { return sim.NewTraderPolicy() },
