@@ -130,7 +130,7 @@ to override it on the command line.`,
 
 	f := cmd.Flags()
 	f.StringVar(&configPath, "config", "", "YAML config file (optional; omit for defaults)")
-	f.StringVar(&catDir, "catalogue-dir", "", "catalogue directory of <CODE>.json files; every openable set in it is the energy cost reference (required)")
+	f.StringVar(&catDir, "catalogue-dir", "", "catalogue directory of <CODE>.json files; every openable set in it, expensive ones apart, is the energy cost reference (required)")
 	f.StringVar(&setsRaw, "sets", "", "comma-separated openable set codes, e.g. RAV,CLS (required)")
 	f.StringVar(&suppRaw, "supplementary", "", "comma-separated card-pool-only codes, e.g. TSB (optional)")
 	f.StringVar(&pricesPath, "prices", "", "JSON price snapshot file (required)")

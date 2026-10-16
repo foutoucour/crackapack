@@ -67,9 +67,9 @@ binary, see [ADR-0034](adr/0034-the-web-client-is-server-rendered.md). Its handl
 process, so until a JSON API exists they are both the API adapter and the client of the diagram
 above. `cmd/crackapack play` wires them.
 
-`demo/` generates two synthetic catalogues (DEM and DSP/DST) from a fixed seed and exposes them
-via `demo.Build()`. The domain never imports demo; the dependency runs one way, from demo into
-the domain.
+`demo/` generates two played synthetic catalogues (DEM and DSP/DST) and an expensive one (DEX) that
+the game leaves out, from a fixed seed, and exposes them via `demo.Build()`. The domain never
+imports demo; the dependency runs one way, from demo into the domain.
 
 All simulation state is held in plain in-memory domain objects for the MVP. No store interface
 exists yet: it will be introduced with the SQLite adapter, together with the shared contract suite

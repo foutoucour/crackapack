@@ -24,6 +24,7 @@ func TestLoad_upperBounds(t *testing.T) {
 		{key: "counter_sell_pct", yaml: "counter_sell_pct: %d\ncounter_buy_pct: 10000\n", bound: 10_000},
 		{key: "counter_buy_pct", yaml: "counter_buy_pct: %d\n", bound: 10_000},
 		{key: "counter_foil_pct", yaml: "counter_foil_pct: %d\n", bound: 10_000},
+		{key: "expensive_booster_value", yaml: "expensive_booster_value: %d\n", bound: 100_000_000},
 		{key: "welcome_bonus", yaml: "welcome_bonus: %d\n", bound: 1_000_000_000_000},
 		{key: "daily_reward", yaml: "daily_reward: %d\n", bound: 1_000_000_000_000},
 		{key: "counter_budget.initial", yaml: "counter_budget:\n  enabled: true\n  initial: %d\n", bound: 1_000_000_000_000},

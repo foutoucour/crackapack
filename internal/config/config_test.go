@@ -34,6 +34,7 @@ func TestLoad_defaults(t *testing.T) {
 		{"Energy.SavingsCap", cfg.Energy.SavingsCap, 200},
 		{"Energy.CoinsPerEnergy", cfg.Energy.CoinsPerEnergy, domain.Coins(0)},
 		{"FallbackPrice", cfg.FallbackPrice, domain.USDCents(1)},
+		{"ExpensiveBoosterValue", cfg.ExpensiveBoosterValue, domain.USDCents(6000)},
 		{"SessionsPerDay", cfg.SessionsPerDay, 3},
 		{"RunDays", cfg.RunDays, 90},
 	}
@@ -107,6 +108,7 @@ initial_stock:
   rare: 5
   special: 3
 fallback_price: 5
+expensive_booster_value: 12000
 sessions_per_day: 5
 run_days: 30
 seed: 42
@@ -155,6 +157,9 @@ targets:
 	}
 	if cfg.FallbackPrice != 5 {
 		t.Errorf("FallbackPrice: got %d, want 5", cfg.FallbackPrice)
+	}
+	if cfg.ExpensiveBoosterValue != 12000 {
+		t.Errorf("ExpensiveBoosterValue: got %d, want 12000", cfg.ExpensiveBoosterValue)
 	}
 	if cfg.SessionsPerDay != 5 {
 		t.Errorf("SessionsPerDay: got %d, want 5", cfg.SessionsPerDay)
@@ -270,6 +275,17 @@ func TestLoad_errorCases(t *testing.T) {
 			name:        "negative_fallback_price",
 			yaml:        "fallback_price: -1",
 			wantKeyword: "fallback_price",
+		},
+		// Semantic validation: expensive_booster_value.
+		{
+			name:        "zero_expensive_booster_value",
+			yaml:        "expensive_booster_value: 0",
+			wantKeyword: "expensive_booster_value",
+		},
+		{
+			name:        "negative_expensive_booster_value",
+			yaml:        "expensive_booster_value: -1",
+			wantKeyword: "expensive_booster_value",
 		},
 		// Semantic validation: sessions_per_day.
 		{

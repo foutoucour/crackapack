@@ -12,6 +12,9 @@ import (
 const (
 	// maxCoinRate is the documented realistic bound of the price-to-coins conversion.
 	maxCoinRate = 1_000
+	// maxBoosterValue bounds the booster value that makes a set expensive, in USDCents: $1,000,000,
+	// a thousand times the dearest booster there is.
+	maxBoosterValue = 100_000_000
 	// maxPercent bounds the Counter's sell and buy percentages, as the price conversion documents.
 	maxPercent = 10_000
 	// maxCoins bounds every amount of coins a key sets. A year of it still sits far below int64.
@@ -39,6 +42,7 @@ func validateBounds(cfg Config) error {
 		max   int64
 	}{
 		{"coin_rate", int64(cfg.CoinRate), maxCoinRate},
+		{"expensive_booster_value", int64(cfg.ExpensiveBoosterValue), maxBoosterValue},
 		{"counter_sell_pct", int64(cfg.CounterSellPct), maxPercent},
 		{"counter_buy_pct", int64(cfg.CounterBuyPct), maxPercent},
 		{"counter_foil_pct", int64(cfg.CounterFoilPct), maxPercent},

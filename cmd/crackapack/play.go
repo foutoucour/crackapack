@@ -233,8 +233,10 @@ func runPlay(ctx context.Context, a playArgs) error {
 }
 
 // playRules builds the rules of the session: the recharge of the energy, and what a booster of each
-// set costs. The cost follows the booster's value against the median of every set in the catalogue
-// directory, as in the simulation, so it does not depend on which sets are played.
+// set costs. The cost follows the booster's value against the median of every set of the common
+// bundle in the catalogue directory, as in the simulation, so it does not depend on which sets are
+// played. A requested set of the expensive bundle fails the session, see
+// [leaveOutExpensiveSets].
 func playRules(a playArgs, sets []domain.SetCatalogue) (play.Rules, error) {
 	reference, err := loadReferenceCatalogues(a.catFS, a.setCodes, sets)
 	if err != nil {
@@ -245,6 +247,9 @@ func playRules(a playArgs, sets []domain.SetCatalogue) (play.Rules, error) {
 		if prices, err = domain.LoadPriceSnapshot(a.pricesFS, a.pricesName); err != nil {
 			return play.Rules{}, fmt.Errorf("prices %q: %w", a.pricesName, err)
 		}
+	}
+	if reference, err = leaveOutExpensiveSets(sets, reference, prices, a.cfg); err != nil {
+		return play.Rules{}, err
 	}
 	costs, err := domain.BoosterEnergyCosts(sets, reference, prices, a.cfg.FallbackPrice, a.cfg.Energy.CostTiers())
 	if err != nil {

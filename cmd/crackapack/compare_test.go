@@ -21,7 +21,7 @@ func buildResultJSON(t *testing.T, coinRate int) []byte {
 	var stdout strings.Builder
 	a, store := buildTestArgs(t, []domain.SetCatalogue{cat}, nil, &stdout)
 	a.configReader = strings.NewReader(
-		fmt.Sprintf("run_days: 5\nseed: 42\ncoin_rate: %d\n", coinRate),
+		fmt.Sprintf(shortConfig+"coin_rate: %d\n", coinRate),
 	)
 	if err := runSimulate(a); err != nil {
 		t.Fatalf("runSimulate(coin_rate=%d): %v", coinRate, err)
@@ -215,7 +215,7 @@ func TestCmdCompare_trailingFlagHonoured(t *testing.T) {
 	runSim := func(outDir, coinRate string) {
 		t.Helper()
 		cfgPath := filepath.Join(dir, "cfg_"+coinRate+".yaml")
-		if err := os.WriteFile(cfgPath, []byte("run_days: 5\nseed: 42\ncoin_rate: "+coinRate+"\n"), 0o644); err != nil {
+		if err := os.WriteFile(cfgPath, []byte(shortConfig+"coin_rate: "+coinRate+"\n"), 0o644); err != nil {
 			t.Fatalf("write config: %v", err)
 		}
 		if err := cmdSimulate([]string{
@@ -291,7 +291,7 @@ func TestCmdCompare_endToEnd(t *testing.T) {
 	runSim := func(outDir, coinRate string) {
 		t.Helper()
 		cfgPath := filepath.Join(dir, "config_"+coinRate+".yaml")
-		cfgYAML := "run_days: 5\nseed: 42\ncoin_rate: " + coinRate + "\n"
+		cfgYAML := shortConfig + "coin_rate: " + coinRate + "\n"
 		if err := os.WriteFile(cfgPath, []byte(cfgYAML), 0o644); err != nil {
 			t.Fatalf("write config: %v", err)
 		}

@@ -32,9 +32,16 @@ func newMemOutput() (func(string) (io.WriteCloser, error), map[string]*bytes.Buf
 	return fn, store
 }
 
+// syntheticPricesConfig lifts the expensive-set limit. The synthetic test prices run far above
+// real ones, so the default of $60 would leave out every set the tests load.
+const syntheticPricesConfig = "expensive_booster_value: 100000000\n"
+
+// shortConfig is a five-day run on synthetic prices, to keep the tests fast.
+const shortConfig = "run_days: 5\nseed: 42\n" + syntheticPricesConfig
+
 // smallConfigReader returns a reader for a minimal config that keeps tests fast.
 func smallConfigReader() io.Reader {
-	return strings.NewReader("run_days: 5\nseed: 42\n")
+	return strings.NewReader(shortConfig)
 }
 
 // buildTestArgs builds a simulateArgs backed by an fstest.MapFS for the given
@@ -180,7 +187,7 @@ func TestSimulate_configDefaultsWhenAbsent(t *testing.T) {
 	// behaviour in runSimulate) and a short run_days config in the FS via the
 	// config key — but config is not read from the FS. So use a strings.Reader
 	// with only run_days=5 to keep the test fast while still testing the flow.
-	a.configReader = strings.NewReader("run_days: 5\nseed: 42\n")
+	a.configReader = strings.NewReader(shortConfig)
 
 	if err := runSimulate(a); err != nil {
 		t.Fatalf("runSimulate with defaults: %v", err)
@@ -289,7 +296,7 @@ func TestSimulate_badCardInCatalogue(t *testing.T) {
 	newOutput, _ := newMemOutput()
 	var stdout strings.Builder
 	a := simulateArgs{
-		configReader: strings.NewReader("run_days: 5\nseed: 42\n"),
+		configReader: strings.NewReader(shortConfig),
 		catFS:        mapFS,
 		setCodes:     []string{"RAV"},
 		pricesFS:     mapFS,
@@ -414,7 +421,7 @@ func TestCmdSimulate_endToEnd(t *testing.T) {
 
 	// Write a short config to keep the test fast.
 	configPath := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(configPath, []byte("run_days: 5\nseed: 42\n"), 0o644); err != nil {
+	if err := os.WriteFile(configPath, []byte(shortConfig), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 
@@ -497,7 +504,7 @@ func TestCmdSimulate_endToEndWithSupplementary(t *testing.T) {
 	}
 
 	configPath := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(configPath, []byte("run_days: 5\nseed: 42\n"), 0o644); err != nil {
+	if err := os.WriteFile(configPath, []byte(shortConfig), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 

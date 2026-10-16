@@ -384,6 +384,11 @@ type Config struct {
 	// ASSUMPTION: default 1 cent; pending calibration.
 	FallbackPrice domain.USDCents `yaml:"fallback_price"`
 
+	// ExpensiveBoosterValue is the booster value in USDCents from which a set belongs to the
+	// expensive bundle, which is left out of the game. The default is $60. The synthetic test and
+	// demo prices run far above real ones, so they raise it.
+	ExpensiveBoosterValue domain.USDCents `yaml:"expensive_booster_value"`
+
 	// NPCs holds the NPC crowd parameters.
 	NPCs NPCConfig `yaml:"npcs"`
 
@@ -462,7 +467,8 @@ func defaults() Config {
 			domain.RaritySpecial:  2,
 			domain.RarityMythic:   2,
 		},
-		FallbackPrice: 1, // ASSUMPTION
+		FallbackPrice:         1, // ASSUMPTION
+		ExpensiveBoosterValue: domain.ExpensiveBoosterValue,
 		NPCs: NPCConfig{
 			SurplusHoldDays: 2,
 			MaxMarginPct:    1000, // ASSUMPTION: cap pending calibration
@@ -508,6 +514,9 @@ func validate(cfg Config) error {
 	}
 	if cfg.FallbackPrice < 0 {
 		return fmt.Errorf("config: fallback_price must be >= 0, got %d", cfg.FallbackPrice)
+	}
+	if cfg.ExpensiveBoosterValue <= 0 {
+		return fmt.Errorf("config: expensive_booster_value must be > 0, got %d", cfg.ExpensiveBoosterValue)
 	}
 	if cfg.SessionsPerDay <= 0 {
 		return fmt.Errorf("config: sessions_per_day must be > 0, got %d", cfg.SessionsPerDay)
