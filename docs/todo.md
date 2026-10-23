@@ -169,7 +169,7 @@ many parameters at once for a config that meets the goals.
   - [x] An ADR for vanishing sales, see
     [ADR-0018](adr/0018-cards-sold-to-the-counter-can-vanish.md).
   - [x] The game plays the supply and the crowd on the days it catches up, see
-    [ADR-0055](adr/0055-the-game-catches-the-counter-up-on-whole-days-at-most-thirty.md). Left: the
+    [ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md). Left: the
     Counter's coin fee in the game, which it refuses for now.
 
 ### Calibration and decisions
@@ -336,7 +336,7 @@ These need the SQLite store, which does not exist yet.
   [Technical](specs-review.md#technical).
 - [ ] Offline catch-up in batches with grouped writes. The game replays the missed days in memory, up
   to `catch_up_days`, and saves the crowd in its one JSON file, see
-  [ADR-0055](adr/0055-the-game-catches-the-counter-up-on-whole-days-at-most-thirty.md). That file
+  [ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md). That file
   reaches 4.8 MB after 30 days with 9 NPCs on the 107 sets, and every save rewrites it.
 - [ ] NPC names and avatars. The simulation has no use for them.
 

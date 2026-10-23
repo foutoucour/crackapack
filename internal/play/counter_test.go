@@ -167,28 +167,34 @@ func TestBuy_aMissingCardThenTheCounterIsOutOfStock(t *testing.T) {
 	}
 }
 
-func TestBuy_refusalsChangeNothing(t *testing.T) {
+func TestBuy_refusalsChangeNothingAndAreNotSaved(t *testing.T) {
 	t.Parallel()
-	rules := counterRules()
-	rules.Params.InitialStock = map[domain.Rarity]int{domain.RarityCommon: 1}
+	stocked := counterRules()
+	empty := counterRules()
+	empty.Params.InitialStock = map[domain.Rarity]int{}
+	unpriced := counterRules()
+	unpriced.Prices = domain.PriceSnapshot{"S-00": 0}
 	tests := []struct {
 		name    string
+		rules   play.CounterRules
 		key     domain.CardKey
 		bonus   domain.Coins
 		wantErr error
 	}{
-		{name: "not enough coins", key: dear(), bonus: 299, wantErr: play.ErrNotEnoughCoins},
-		{name: "an unknown card", key: domain.CardKey{ID: "nope", Finish: domain.FinishNonFoil}, bonus: 1000, wantErr: play.ErrUnknownCard},
-		{name: "a finish the card lacks", key: domain.CardKey{ID: "S-00", Finish: domain.FinishFoil}, bonus: 1000, wantErr: play.ErrUnknownCard},
+		{name: "not enough coins", rules: stocked, key: dear(), bonus: 299, wantErr: play.ErrNotEnoughCoins},
+		{name: "out of stock", rules: empty, key: cheap(), bonus: 1000, wantErr: play.ErrOutOfStock},
+		{name: "a card the Counter does not trade", rules: unpriced, key: cheap(), bonus: 1000, wantErr: play.ErrNotTraded},
+		{name: "an unknown card", rules: stocked, key: domain.CardKey{ID: "nope", Finish: domain.FinishNonFoil}, bonus: 1000, wantErr: play.ErrUnknownCard},
+		{name: "a finish the card lacks", rules: stocked, key: domain.CardKey{ID: "S-00", Finish: domain.FinishFoil}, bonus: 1000, wantErr: play.ErrUnknownCard},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			r := rules
+			r := tt.rules
 			r.WelcomeBonus = tt.bonus
-			store := &memStore{}
+			store := &playtest.FlakyStore{}
 			g := counterGame(t, store, playtest.NewClock(), r, counterSet())
-			before := store.last(t)
+			saved := store.Saved()
 
 			if _, err := g.Buy(tt.key.ID, tt.key.Finish); !errors.Is(err, tt.wantErr) {
 				t.Fatalf("Buy error = %v, want %v", err, tt.wantErr)
@@ -196,8 +202,8 @@ func TestBuy_refusalsChangeNothing(t *testing.T) {
 			if g.Balance() != tt.bonus || held(g, "S", tt.key) > 0 {
 				t.Errorf("a refused purchase left a balance of %d and %d copies", g.Balance(), held(g, "S", tt.key))
 			}
-			if got := store.last(t); got.Counter.Balances[domain.AccountPlayer] != before.Counter.Balances[domain.AccountPlayer] {
-				t.Errorf("a refused purchase was saved")
+			if store.Saved() != saved {
+				t.Error("a refused purchase was saved")
 			}
 		})
 	}
@@ -223,31 +229,60 @@ func TestSell_theOnlyCopy(t *testing.T) {
 	}
 }
 
-func TestSell_refusalsChangeNothing(t *testing.T) {
+func TestSell_refusalsChangeNothingAndAreNotSaved(t *testing.T) {
 	t.Parallel()
+	unpriced := counterRules()
+	unpriced.Prices = domain.PriceSnapshot{"S-00": 0}
 	tests := []struct {
 		name    string
+		rules   play.CounterRules
 		key     domain.CardKey
 		qty     int
 		wantErr error
 	}{
-		{name: "a finish the card lacks", key: domain.CardKey{ID: "S-00", Finish: domain.FinishFoil}, qty: 1, wantErr: play.ErrUnknownCard},
-		{name: "more copies than held", key: cheap(), qty: 2, wantErr: play.ErrNothingToSell},
-		{name: "no copy", key: cheap(), qty: 0, wantErr: play.ErrNothingToSell},
-		{name: "an unknown card", key: domain.CardKey{ID: "nope", Finish: domain.FinishNonFoil}, qty: 1, wantErr: play.ErrUnknownCard},
+		{name: "a finish the card lacks", rules: counterRules(), key: domain.CardKey{ID: "S-00", Finish: domain.FinishFoil}, qty: 1, wantErr: play.ErrUnknownCard},
+		{name: "more copies than held", rules: counterRules(), key: cheap(), qty: 2, wantErr: play.ErrNothingToSell},
+		{name: "no copy", rules: counterRules(), key: cheap(), qty: 0, wantErr: play.ErrNothingToSell},
+		{name: "an unknown card", rules: counterRules(), key: domain.CardKey{ID: "nope", Finish: domain.FinishNonFoil}, qty: 1, wantErr: play.ErrUnknownCard},
+		{name: "a card the Counter does not trade", rules: unpriced, key: cheap(), qty: 1, wantErr: play.ErrNotTraded},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			g := counterGame(t, &memStore{}, playtest.NewClock(), counterRules(), counterSet())
+			store := &playtest.FlakyStore{}
+			g := counterGame(t, store, playtest.NewClock(), tt.rules, counterSet())
 			mustOpen(t, g, "S")
+			saved := store.Saved()
 			if _, err := g.Sell(tt.key.ID, tt.key.Finish, tt.qty); !errors.Is(err, tt.wantErr) {
 				t.Fatalf("Sell error = %v, want %v", err, tt.wantErr)
 			}
 			if g.Balance() != 200 || held(g, "S", cheap()) != 1 {
 				t.Errorf("a refused sale left a balance of %d and %d copies", g.Balance(), held(g, "S", cheap()))
 			}
+			if store.Saved() != saved {
+				t.Error("a refused sale was saved")
+			}
 		})
+	}
+}
+
+// A game without a Counter has no coins, and every Counter action says why it cannot.
+func TestCounter_aGameWithoutOne(t *testing.T) {
+	t.Parallel()
+	g := newGame(t, counterSet())
+	if got := g.Balance(); got != 0 {
+		t.Errorf("Balance = %d, want 0", got)
+	}
+	actions := map[string]func() error{
+		"quote":           func() error { _, err := g.CounterQuote(cheap().ID, cheap().Finish); return err },
+		"buy":             func() error { _, err := g.Buy(cheap().ID, cheap().Finish); return err },
+		"sell":            func() error { _, err := g.Sell(cheap().ID, cheap().Finish, 1); return err },
+		"sell duplicates": func() error { _, err := g.SellDuplicates("S"); return err },
+	}
+	for name, action := range actions {
+		if err := action(); !errors.Is(err, play.ErrNoCounter) {
+			t.Errorf("%s error = %v, want ErrNoCounter", name, err)
+		}
 	}
 }
 
@@ -257,12 +292,17 @@ func TestSell_aTreasuryThatCannotPay(t *testing.T) {
 	rules := counterRules()
 	rules.Params.Treasury = true
 	rules.Treasury = 100
-	g := counterGame(t, &memStore{}, playtest.NewClock(), rules, counterSet())
+	store := &playtest.FlakyStore{}
+	g := counterGame(t, store, playtest.NewClock(), rules, counterSet())
 	mustOpen(t, g, "S")
 	mustOpen(t, g, "S")
+	saved := store.Saved()
 
 	if _, err := g.Sell(cheap().ID, cheap().Finish, 2); !errors.Is(err, play.ErrCounterBroke) {
 		t.Fatalf("Sell error = %v, want ErrCounterBroke", err)
+	}
+	if store.Saved() != saved {
+		t.Error("a refused sale was saved")
 	}
 	if g.Balance() != 200 || held(g, "S", cheap()) != 2 {
 		t.Errorf("a refused sale left a balance of %d and %d copies", g.Balance(), held(g, "S", cheap()))
@@ -313,11 +353,16 @@ func TestBuy_unlocksSetsAndASaleNeverLocksThemAgain(t *testing.T) {
 	if err := g.OpenCounter(counterRules(), play.NewStream(7), play.NewStream(8)); err != nil {
 		t.Fatalf("OpenCounter: %v", err)
 	}
-	if err := g.Persist(play.Saves{Store: &memStore{}, Stream: stream}); err != nil {
+	store := &playtest.FlakyStore{}
+	if err := g.Persist(play.Saves{Store: store, Stream: stream}); err != nil {
 		t.Fatalf("Persist: %v", err)
 	}
+	saved := store.Saved()
 	if _, err := g.Buy("B-00", domain.FinishNonFoil); !errors.Is(err, play.ErrLocked) {
 		t.Fatalf("Buy of a locked set's card error = %v, want ErrLocked", err)
+	}
+	if store.Saved() != saved {
+		t.Error("a refused purchase was saved")
 	}
 
 	p, err := g.Buy("A-00", domain.FinishNonFoil)

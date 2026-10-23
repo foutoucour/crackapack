@@ -13,7 +13,7 @@ the card ("last in stock 5 minutes ago"), or that it never did.
 
 The domain never reads the clock, and the Counter counts its own time in ticks, which the game only
 moves when it catches up, see
-[ADR-0055](0055-the-game-catches-the-counter-up-on-whole-days-at-most-thirty.md). A purchase happens
+[ADR-0055](0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md). A purchase happens
 between catch-ups, at an instant no tick stands for.
 
 ## Decision

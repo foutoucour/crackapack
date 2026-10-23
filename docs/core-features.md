@@ -249,8 +249,10 @@ In the game, the Counter's rules live in `play.Game`, with no page of their own 
   [ADR-0056](adr/0056-the-counter-remembers-when-it-last-had-a-card.md).
 - **Stock:** the initial stock, then what the player sells and what the Counter's supply and the NPCs
   bring each day, also while the game is closed, see
-  [ADR-0055](adr/0055-the-game-catches-the-counter-up-on-whole-days-at-most-thirty.md). The game plays
-  the product's base config, see [ADR-0057](adr/0057-the-game-plays-the-products-base-config.md).
+  [ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md). The game plays
+  the product's base config with an overlay that makes the Counter scarce: no rare or mythic at the
+  start, and a shelf that does not keep cards forever, see
+  [ADR-0057](adr/0057-the-game-plays-the-products-base-config.md).
 - **Prices:** from `--prices`. Without a snapshot every card is worth the fallback price, one cent, as
   a card the snapshot lacks is in the simulation, so every card costs one coin and pays one.
 - **Refusals** change nothing: not enough coins, out of stock, nothing to sell, a locked set, an
@@ -323,7 +325,7 @@ An archetype tied to Magic colours wishes only for cards in those colours.
 - **Time step:** one tick every 10 minutes of game time.
 - **Offline catch-up:** the whole days gone by are simulated when the game loads or the Counter is
   used, capped at `catch_up_days`, see
-  [ADR-0055](adr/0055-the-game-catches-the-counter-up-on-whole-days-at-most-thirty.md). The game's
+  [ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md). The game's
   NPCs do not trade yet.
 - **Coin ledger:** double-entry, covers the player and the Counter. NPCs have no account.
 - **Volume:** 500 NPCs × 10 boosters a day ≈ 75,000 cards drawn a day, stored in SQLite.

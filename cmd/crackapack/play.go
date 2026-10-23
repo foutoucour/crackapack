@@ -149,15 +149,11 @@ while it is missing.`,
   crackapack play --catalogue-dir ./catalogues --sets RAV,TSP --supplementary TSB
   crackapack play --demo --save ./my-save.json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// The game plays the product's base config, the world its goals are judged in. The demo's
-			// configuration cuts its few sets into stages small enough to unlock one soon.
 			var ds demo.Dataset
-			cfgYAML := producttune.BaseYAML
 			if demoData {
 				ds = demo.Build()
-				cfgYAML = ds.PlayConfigYAML
 			}
-			cfg, err := config.Load(strings.NewReader(cfgYAML))
+			cfg, err := playConfig(demoData, ds)
 			if err != nil {
 				return fmt.Errorf("crackapack play: configuration: %w", err)
 			}
@@ -268,6 +264,29 @@ func runPlay(ctx context.Context, a playArgs) error {
 		return err
 	}
 	return nil
+}
+
+// playConfig is the configuration of the game: the product's base config, the world its goals are
+// judged in, with the play overlay, which makes the Counter scarce, see
+// docs/adr/0057-the-game-plays-the-products-base-config.md. The demo has a configuration of its
+// own, ds's, which cuts its few sets into stages small enough to unlock one soon.
+func playConfig(demoData bool, ds demo.Dataset) (config.Config, error) {
+	if demoData {
+		return config.Load(strings.NewReader(ds.PlayConfigYAML))
+	}
+	base, err := config.Load(strings.NewReader(producttune.BaseYAML))
+	if err != nil {
+		return config.Config{}, fmt.Errorf("tune/base.yaml: %w", err)
+	}
+	overlay, err := config.LoadOverrides(strings.NewReader(producttune.PlayYAML))
+	if err != nil {
+		return config.Config{}, fmt.Errorf("tune/play.yaml: %w", err)
+	}
+	cfg, err := config.ApplyOverrides(base, overlay)
+	if err != nil {
+		return config.Config{}, fmt.Errorf("tune/play.yaml: %w", err)
+	}
+	return cfg, nil
 }
 
 // startGame loads the sets and starts the game of a: its stages, its Counter, and what its save

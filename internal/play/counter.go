@@ -20,8 +20,11 @@ var (
 	ErrNothingToSell = errors.New("play: nothing to sell")
 	// ErrCounterBroke is returned by a sale that the Counter's treasury cannot pay.
 	ErrCounterBroke = errors.New("play: the Counter cannot pay for the cards")
-
-	errNoCounter = errors.New("play: the game has no Counter, see Game.OpenCounter")
+	// ErrNotTraded is returned by a purchase or a sale of a card worth less than one coin, which
+	// only a card priced at zero is: its quote has a price of zero.
+	ErrNotTraded = errors.New("play: the Counter does not trade a card worth nothing")
+	// ErrNoCounter is returned by every Counter action of a game without one, see Game.OpenCounter.
+	ErrNoCounter = errors.New("play: the game has no Counter")
 )
 
 // Quote is what the Counter pays for one copy of a card, what one costs, and whether it has a copy:
@@ -55,7 +58,8 @@ func (g *Game) Balance() domain.Coins {
 }
 
 // CounterQuote returns the prices of a copy of the card id in finish at the Counter, and whether
-// it has one. It returns ErrUnknownCard, wrapped, for a card the game does not hold.
+// it has one. It returns ErrUnknownCard, wrapped, for a card the game does not hold, and
+// ErrNoCounter in a game without a Counter.
 func (g *Game) CounterQuote(id domain.CardID, finish domain.Finish) (Quote, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -75,8 +79,8 @@ func (g *Game) CounterQuote(id domain.CardID, finish domain.Finish) (Quote, erro
 }
 
 // Buy buys one copy of the card id in finish from the Counter and adds it to the collection. It
-// returns ErrUnknownCard, ErrLocked when no unlocked set's binder holds the card, ErrOutOfStock or
-// ErrNotEnoughCoins, wrapped, when it cannot, and then changes nothing.
+// returns ErrUnknownCard, ErrLocked when no unlocked set's binder holds the card, ErrOutOfStock,
+// ErrNotEnoughCoins, ErrNotTraded or ErrNoCounter, wrapped, when it cannot, and then changes nothing.
 func (g *Game) Buy(id domain.CardID, finish domain.Finish) (Purchase, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -94,6 +98,8 @@ func (g *Game) Buy(id domain.CardID, finish domain.Finish) (Purchase, error) {
 			err = ErrOutOfStock
 		case errors.Is(err, domain.ErrInsufficientBalance):
 			err = ErrNotEnoughCoins
+		case errors.Is(err, domain.ErrSubCoin):
+			err = ErrNotTraded
 		}
 		return Purchase{}, fmt.Errorf("buy %q: %w", id, err)
 	}
@@ -106,7 +112,8 @@ func (g *Game) Buy(id domain.CardID, finish domain.Finish) (Purchase, error) {
 
 // Sell sells qty copies of the card id in finish to the Counter, the only copy included, and
 // returns the coins paid. It returns ErrUnknownCard, ErrNothingToSell when the player holds fewer
-// than qty copies or qty is not positive, or ErrCounterBroke, wrapped, and then changes nothing.
+// than qty copies or qty is not positive, ErrCounterBroke, ErrNotTraded or ErrNoCounter, wrapped,
+// and then changes nothing.
 // A sale never locks a set again: an unlock is permanent.
 func (g *Game) Sell(id domain.CardID, finish domain.Finish, qty int) (domain.Coins, error) {
 	g.mu.Lock()
@@ -126,8 +133,8 @@ func (g *Game) Sell(id domain.CardID, finish domain.Finish, qty int) (domain.Coi
 }
 
 // SellDuplicates sells the copies above a playset of every card of the binder of setCode, keeping
-// the foils longest, and returns the coins paid. It returns ErrUnknownSet, ErrNothingToSell or
-// ErrCounterBroke, wrapped, and then changes nothing.
+// the foils longest, and returns the coins paid. It returns ErrUnknownSet, ErrNothingToSell,
+// ErrCounterBroke, ErrNotTraded or ErrNoCounter, wrapped, and then changes nothing.
 func (g *Game) SellDuplicates(setCode string) (domain.Coins, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -162,10 +169,12 @@ func (g *Game) SellDuplicates(setCode string) (domain.Coins, error) {
 // be held, and the Counter caught up.
 func (g *Game) sellLot(lines []domain.TradeLine) (domain.Coins, error) {
 	paid, err := g.economy.counter.BuyLotFromPlayer(lines)
-	if errors.Is(err, domain.ErrCounterBroke) {
+	switch {
+	case errors.Is(err, domain.ErrCounterBroke):
 		return 0, ErrCounterBroke
-	}
-	if err != nil {
+	case errors.Is(err, domain.ErrSubCoin):
+		return 0, ErrNotTraded
+	case err != nil:
 		return 0, err
 	}
 	for _, l := range lines {
@@ -193,7 +202,7 @@ func (g *Game) counterFor(id domain.CardID, finish domain.Finish) (*economy, dom
 // syncCounter catches the Counter up with the days gone by. g.mu must be held.
 func (g *Game) syncCounter() error {
 	if g.economy == nil {
-		return errNoCounter
+		return ErrNoCounter
 	}
 	return g.economy.catchUp()
 }

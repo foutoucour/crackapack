@@ -3,7 +3,7 @@
 #   crackapack tune --config tune/base.yaml --space tune/space.yaml --goals tune/goals.yaml ...
 # The Counter's supply is on because the goals on stock and on the coin pile read a world where the
 # Counter opens boosters, see ADR-0041 and ADR-0049. crackapack play plays this file too, so the game
-# runs in the world the goals judge.
+# runs in the world the goals judge, with the overrides of play.yaml on top.
 counter_supply:
   mode: fixed
   boosters_per_day: 13

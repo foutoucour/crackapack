@@ -1,7 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -15,6 +17,18 @@ import (
 type Override struct {
 	Path  string  `json:"path"`
 	Value float64 `json:"value"`
+}
+
+// LoadOverrides reads a YAML list of overrides, each a path and a value, strictly: an unknown field
+// is an error. An empty input is no override.
+func LoadOverrides(r io.Reader) ([]Override, error) {
+	dec := yaml.NewDecoder(r)
+	dec.KnownFields(true)
+	var overrides []Override
+	if err := dec.Decode(&overrides); err != nil && !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("overrides: %w", err)
+	}
+	return overrides, nil
 }
 
 // ApplyOverrides returns base with every override set, run through the same loading and validation

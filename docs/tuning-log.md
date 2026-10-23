@@ -18,18 +18,47 @@ goal band changes. Newest first. Each entry says:
 - how the goals read before and after, on the same scenarios, so the entries compare;
 - what the run does not tell.
 
+## 2026-10-23 – A scarce Counter for the game, no search run
+
+**Trigger:** with `tune/base.yaml` alone the game's Counter holds every printing from the first day and
+never loses one, so no rare is ever out of stock. The game now applies `tune/play.yaml` on top of the
+base, see [ADR-0057](adr/0057-the-game-plays-the-products-base-config.md). The search and
+`config.defaults()` are unchanged.
+
+| Key | Default and `tune/base.yaml` | `tune/play.yaml` |
+|-----|-----------------------------:|-----------------:|
+| `counter_shelf_days` | -1 | 28 |
+| `initial_stock.rare` | 2 | 0 |
+| `initial_stock.mythic` | 2 | 0 |
+
+- **The shelf of 28 days** is the value of candidate 17 in the bell-goal entry below. It is long enough
+  that a card the Counter opens stays a while, and short enough that its stock does not grow forever.
+- **No rare or mythic at the start:** they come only from the Counter's 13 boosters a day of
+  `tune/base.yaml` and from the player's sales, so a rare is something to watch for. Commons and
+  uncommons keep their initial stock, and initial stock never vanishes.
+- On the demo sets with this config, no rare is in stock at the start, and some are after three days
+  of the Counter's boosters. That is pinned by a test of the `play` command.
+- On the 107 sets with these values, a new game starts in 1.67 s and a reload in 1.01 s.
+
+**What it does not show:** how scarce the rares are on the 107 sets after weeks of play. With 13
+boosters a day across 107 sets a given set gets about one booster in eight days, so most rares of the
+scope stay out of stock for long. Nor how this Counter reads against the stock goals of
+[ADR-0049](adr/0049-a-rare-is-scarce-at-the-counter-and-still-reachable-by-trade.md): no simulation ran
+with the overlay.
+
 ## 2026-10-23 – Catch-up cap added for the game's Counter, no search run
 
 **Trigger:** the game catches up the Counter's supply and NPCs on the days it was closed, see
-[ADR-0055](adr/0055-the-game-catches-the-counter-up-on-whole-days-at-most-thirty.md). One key is new in
+[ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md). One key is new in
 `config.defaults()`. It does not change a simulation.
 
 | Key | Default |
 |-----|--------:|
 | `catch_up_days` | 30 |
 
-The value is the maintainers' choice: a month away still shows, and on the 107 sets the 30 days take
-5 ms with the supply of `tune/base.yaml`, and 34 ms with 9 NPCs as well.
+The value is the maintainers' choice: a month away still shows. On the 107 sets the 30 days take 5 ms
+with the supply of `tune/base.yaml`, 13 boosters a day, and 34 ms with 9 NPCs as well. The game starts
+in about one second either way, most of it loading the catalogues.
 
 The demo of `play` sets its own Counter: a fixed supply of 5 boosters a day, 3 NPCs, and no mythic in
 the initial stock, so that a new demo has a card the Counter never had.
