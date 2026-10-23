@@ -53,8 +53,8 @@ hurts yourself.
 
 - **Installation:** download the binary for your OS and run it. It opens the game in your browser.
 - **First launch:** downloads the catalogue, then generates the NPC population.
-- **Welcome bonus:** 200 coins and 10 boosters, split evenly across the sets, the first sets taking
-  the remainder.
+- **Welcome bonus:** 200 coins and 10 boosters, split evenly across the sets of the first
+  [stage](#stages), the first sets taking the remainder.
 - **Saves:** the game is one JSON file, copy it to back it up, see
   [ADR-0052](adr/0052-the-game-is-saved-in-one-versioned-json-file.md). The NPC population will need a
   SQLite file of its own. Export/import from the app is not built.
@@ -166,6 +166,27 @@ printing: the same card in two sets counts as two cards.
 - **Wish list:** 20 cards max, feeds alerts and the search for trades.
 - **Showcase:** a few chosen cards, visible on the profile.
 - **Custom binders:** a free theme (one colour, one artist, one creature type).
+
+## Stages
+
+The sets open up as the player progresses, so a new player starts with a few sets instead of more
+than a hundred.
+
+- **Order:** the sets rank from the quickest binder to fill to the slowest, by the energy a player
+  spends to reach the unlock threshold, see
+  [ADR-0053](adr/0053-the-stages-rank-the-sets-by-the-energy-to-the-unlock-threshold.md).
+- **Stages:** the first `unlock.start_sets` sets of the order are the first stage, open from the
+  start. The rest are cut into `unlock.stages` stages of equal size.
+- **Unlocks:** a binder that reaches `unlock.binder_threshold` of its cards unlocks
+  `unlock.sets_per_unlock` sets of the next stage, drawn at random, once, see
+  [ADR-0054](adr/0054-a-binder-past-the-threshold-unlocks-random-sets-of-the-next-stage-once.md).
+- **Locked sets** show greyed on the home page and cannot be opened. Their binders show in the
+  collection, marked as locked.
+- **Scope:** the stages hold every set of the product's scope, see
+  [ADR-0039](adr/0039-the-product-covers-the-sets-from-mirage-under-60-dollars-a-booster.md). A game on
+  a list of sets has no stage.
+
+The current values of the keys are in the [tuning log](tuning-log.md).
 
 ## Economy: coins, sources and sinks
 

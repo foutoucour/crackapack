@@ -25,6 +25,8 @@ type tabView struct {
 	Owned   int
 	Total   int
 	Current bool
+	// Locked is true while the set cannot be opened: its binder still shows.
+	Locked bool
 }
 
 // filterView is one entry of the filter on rarity: a link, with what the player holds of that
@@ -84,7 +86,7 @@ func newCollectionView(binder play.Binder, binders []play.BinderSummary, rarity 
 		view.Tabs = append(view.Tabs, tabView{
 			SetCode: b.SetCode, SetName: b.SetName,
 			Owned: b.Progress.Owned, Total: b.Progress.Total,
-			Current: b.SetCode == binder.SetCode,
+			Current: b.SetCode == binder.SetCode, Locked: b.Locked,
 		})
 	}
 

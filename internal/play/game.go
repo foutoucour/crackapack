@@ -31,6 +31,10 @@ type Pack struct {
 	// Wait is the time until the player can open a booster of the set: 0 while a welcome booster is
 	// left or the energy can pay for one.
 	Wait time.Duration
+	// Stage is the set's stage, from 1, and 0 in a game without stages, see [Game.Stage].
+	Stage int
+	// Locked is true while the set's stage is not unlocked: it cannot be opened.
+	Locked bool
 }
 
 // RevealedCard is one card of an opened booster.
@@ -46,19 +50,28 @@ type Opening struct {
 	SetCode string
 	SetName string
 	Cards   []RevealedCard
+	// Unlocked are the sets that the cards of the booster unlocked.
+	Unlocked []UnlockedSet
 }
 
 // Game is one player's session. It is safe for concurrent use, since an HTTP server calls it from
 // several goroutines and the opener's random generator is not.
 type Game struct {
-	mu         sync.Mutex
-	sets       []domain.SetCatalogue
-	pools      []domain.SetCatalogue
+	mu    sync.Mutex
+	sets  []domain.SetCatalogue
+	pools []domain.SetCatalogue
+	// binders are the catalogues the binders count, by set code: the set's cards and the cards of
+	// the pools its boosters draw.
+	binders    map[string]domain.SetCatalogue
 	cards      map[domain.CardID]domain.Card
 	opener     *domain.Opener
 	collection *domain.Collection
 	packs      map[string]int
 	last       *Opening
+	// staging is nil in a game where every set is open. carried is then the unlocks of the save,
+	// kept as they were for a staged game on the same save.
+	staging *staging
+	carried *UnlocksSnapshot
 
 	// saves is where the game is kept between runs, see Persist, and saveErr why the latest save failed.
 	saves   Saves
@@ -102,17 +115,20 @@ func NewGame(sets, pools []domain.SetCatalogue, opener *domain.Opener, rules Rul
 			cards[id] = card
 		}
 	}
-	packs := make(map[string]int, len(sets))
-	for i := range WelcomeBoosters {
-		packs[sets[i%len(sets)].Code]++
+	binders := make(map[string]domain.SetCatalogue, len(sets))
+	codes := make([]string, len(sets))
+	for i, cat := range sets {
+		binders[cat.Code] = domain.WithPools(cat, pools)
+		codes[i] = cat.Code
 	}
 	return &Game{
 		sets:       sets,
 		pools:      pools,
+		binders:    binders,
 		cards:      cards,
 		opener:     opener,
 		collection: domain.NewCollection(),
-		packs:      packs,
+		packs:      welcomePacks(codes),
 		rules:      rules,
 		energy:     energy,
 		now:        now,
@@ -120,15 +136,19 @@ func NewGame(sets, pools []domain.SetCatalogue, opener *domain.Opener, rules Rul
 	}, nil
 }
 
-// Packs lists what the player can open of every set, in the order the sets were given to NewGame.
+// Packs lists what the player can open of every set, locked ones included, in the order the sets
+// were given to NewGame, or by stage once Stage has cut them.
 func (g *Game) Packs() []Pack {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	now := g.sync()
 	out := make([]Pack, len(g.sets))
 	for i, cat := range g.sets {
-		pack := Pack{SetCode: cat.Code, SetName: cat.Name, Count: g.packs[cat.Code], Cost: g.rules.Costs[cat.Code]}
-		if pack.Count == 0 {
+		pack := Pack{
+			SetCode: cat.Code, SetName: cat.Name, Count: g.packs[cat.Code], Cost: g.rules.Costs[cat.Code],
+			Stage: g.stage(cat.Code), Locked: g.locked(cat.Code),
+		}
+		if pack.Count == 0 && !pack.Locked {
 			pack.Wait = g.waitFor(pack.Cost, now)
 		}
 		out[i] = pack
@@ -137,8 +157,9 @@ func (g *Game) Packs() []Pack {
 }
 
 // Open opens one booster of setCode and adds its cards to the collection. A welcome booster of the
-// set is used first and costs nothing; once none is left the booster costs the set's energy. It
-// returns ErrUnknownSet or ErrNotEnoughEnergy, wrapped, when it cannot, and then changes nothing.
+// set is used first and costs nothing; once none is left the booster costs the set's energy. The
+// opening lists the sets that its cards unlocked. It returns ErrUnknownSet, ErrLocked or
+// ErrNotEnoughEnergy, wrapped, when it cannot, and then changes nothing.
 func (g *Game) Open(setCode string) (Opening, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -147,6 +168,9 @@ func (g *Game) Open(setCode string) (Opening, error) {
 	cat, ok := g.set(setCode)
 	if !ok {
 		return Opening{}, fmt.Errorf("open %q: %w", setCode, ErrUnknownSet)
+	}
+	if g.locked(setCode) {
+		return Opening{}, fmt.Errorf("open %q: %w", setCode, ErrLocked)
 	}
 	welcome := g.packs[setCode] > 0
 	cost := g.rules.Costs[setCode]
@@ -178,6 +202,7 @@ func (g *Game) Open(setCode string) (Opening, error) {
 		return Opening{}, fmt.Errorf("open %q: %w", setCode, err)
 	}
 	g.collection.AddBooster(booster)
+	opening.Unlocked = g.unlockEarned()
 	g.last = &opening
 	g.save()
 	return opening, nil

@@ -371,6 +371,12 @@ The stack is server-rendered `html/template`, see
   [ADR-0052](adr/0052-the-game-is-saved-in-one-versioned-json-file.md). A save that fails is shown
   on every page and logged. Left: export and import from the app, and the state of the steps to
   come, each added as a field of `play.Snapshot`.
+- [x] Stages: every set in scope with `--sets all`, the default, ranked from the quickest binder to
+  the slowest and cut into stages that a binder at 90% unlocks, see
+  [Stages](core-features.md#stages). Locked sets are greyed on the home page and marked in the
+  collection. Left: a `--config` for `play`, so the `unlock` keys can change without the code; and
+  the cards a set's boosters draw from another openable set, such as Kaladesh's in Aether Revolt,
+  which open but do not count in its binder.
 - [ ] The Counter, trades with NPCs, quests and the profile.
 - [x] Card pictures, downloaded from Scryfall on demand and cached, see
   [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md). The demo draws its own.

@@ -3,7 +3,7 @@
 <nav class="binders" aria-label="Binders">
   <ul>
     {{range .Tabs}}
-    <li><a href="/collection?set={{.SetCode}}"{{if .Current}} aria-current="page"{{end}}>{{.SetName}} <span class="tab-count">{{.Owned}} / {{.Total}}</span></a></li>
+    <li{{if .Locked}} class="locked"{{end}}><a href="/collection?set={{.SetCode}}"{{if .Current}} aria-current="page"{{end}}>{{.SetName}} <span class="tab-count">{{.Owned}} / {{.Total}}</span>{{if .Locked}} <span class="tab-lock">locked</span>{{end}}</a></li>
     {{end}}
   </ul>
 </nav>

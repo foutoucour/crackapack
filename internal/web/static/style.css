@@ -54,7 +54,15 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .packs { list-style: none; margin: var(--gap) 0; padding: 0; display: grid; gap: var(--gap); }
 .pack-tile { background: var(--surface); border-radius: var(--radius); padding: var(--gap); }
-.pack-tile h2 { margin: 0 0 0.25rem; font-size: 1.15rem; }
+.pack-tile h2, .pack-tile h3 { margin: 0 0 0.25rem; font-size: 1.15rem; }
+/* A stage lists its locked sets in short, greyed, with nothing to press. */
+.stage-count { color: var(--text-muted); font-size: 0.9rem; font-weight: 400; }
+.locked-sets { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; margin: var(--gap) 0; padding: 0; }
+.locked-sets li { padding: 0.25rem 0.75rem; border: 1px dashed var(--text-muted); border-radius: 999px; color: var(--text-muted); }
+.binders li.locked a { border-style: dashed; color: var(--text-muted); }
+.tab-lock { font-size: 0.85rem; }
+.unlock { padding: 0.75rem var(--gap); border-radius: var(--radius); background: var(--accent); color: var(--accent-text); font-weight: 600; }
+.unlock a { color: inherit; }
 .count { color: var(--text-muted); margin: 0 0 var(--gap); }
 
 .booster { list-style: none; margin: var(--gap) 0; padding: 0; display: grid; gap: 0.75rem; grid-template-columns: repeat(2, 1fr); }

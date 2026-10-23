@@ -3,6 +3,7 @@
 package playtest
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -89,4 +90,20 @@ func (s *FlakyStore) Save(play.Snapshot) error {
 	}
 	s.saved++
 	return nil
+}
+
+// TinySet is a set of n commons whose booster is perBooster of them, drawn without repeats, so a
+// test knows what a booster does to the binder: n of n gives the whole binder, and 1 of 2 half of
+// it. The set's name is "Set " and its code.
+func TinySet(code string, n, perBooster int) domain.SetCatalogue {
+	cat := domain.SetCatalogue{Code: code, Name: "Set " + code, Cards: make(map[domain.CardID]domain.Card, n)}
+	sheet := domain.Sheet{Name: "common", TotalWeight: n}
+	for i := range n {
+		id := domain.CardID(fmt.Sprintf("%s-%02d", code, i))
+		cat.Cards[id] = domain.Card{ID: id, Name: string(id), Number: fmt.Sprint(i + 1), Rarity: domain.RarityCommon, Finishes: []domain.Finish{domain.FinishNonFoil}}
+		sheet.Cards = append(sheet.Cards, domain.SheetCard{ID: id, Weight: 1})
+	}
+	cat.Sheets = map[string]domain.Sheet{"common": sheet}
+	cat.BoosterOptions = []domain.BoosterOption{{Contents: map[string]int{"common": perBooster}, Weight: 1}}
+	return cat
 }

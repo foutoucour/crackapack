@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"time"
 
@@ -101,7 +102,28 @@ func (g *Game) snapshot() (Snapshot, error) {
 	if g.last != nil {
 		snap.LastOpening = snapshotOpening(*g.last)
 	}
+	if snap.Unlocks, err = g.snapshotUnlocks(); err != nil {
+		return Snapshot{}, err
+	}
 	return snap, nil
+}
+
+// snapshotUnlocks lists the unlocks in code order, so that a save does not depend on the maps'.
+// g.mu must be held.
+func (g *Game) snapshotUnlocks() (*UnlocksSnapshot, error) {
+	s := g.staging
+	if s == nil {
+		return g.carried, nil
+	}
+	state, err := s.stream.State()
+	if err != nil {
+		return nil, err
+	}
+	return &UnlocksSnapshot{
+		Unlocked:  slices.Sorted(maps.Keys(s.unlocked)),
+		Triggered: slices.Sorted(maps.Keys(s.triggered)),
+		Rand:      &OpenerSnapshot{Seed: s.stream.Seed(), State: state},
+	}, nil
 }
 
 // snapshotCollection lists the copies held, in an order that does not depend on the map's.
@@ -121,6 +143,9 @@ func snapshotOpening(o Opening) *OpeningSnapshot {
 	out := &OpeningSnapshot{SetCode: o.SetCode, Cards: make([]OpenedCard, len(o.Cards))}
 	for i, c := range o.Cards {
 		out.Cards[i] = OpenedCard{ID: c.Card.ID, Finish: c.Finish, New: c.New}
+	}
+	for _, s := range o.Unlocked {
+		out.Unlocked = append(out.Unlocked, s.Code)
 	}
 	return out
 }
@@ -149,16 +174,51 @@ func (g *Game) restore(snap Snapshot, stream *Stream) error {
 			return err
 		}
 	}
+	commitUnlocks := func() {}
+	if snap.Unlocks != nil {
+		var err error
+		if commitUnlocks, err = g.restoreUnlocks(*snap.Unlocks); err != nil {
+			return err
+		}
+	}
 	if snap.Opener != nil {
 		if err := stream.Restore(snap.Opener.Seed, snap.Opener.State); err != nil {
 			return err
 		}
 	}
 	g.collection, g.packs, g.energy, g.lastTick = collection, packs, energy, lastTick
+	commitUnlocks()
 	if snap.LastOpening != nil {
 		g.last = g.restoreOpening(*snap.LastOpening)
 	}
 	return nil
+}
+
+// restoreUnlocks checks the unlocks of snap and returns what puts them in the game: they add to
+// the first stage, which stays open whatever snap holds. A set that the game does not play is kept,
+// as restorePacks does. A game without stages keeps snap as it is. Nothing changes until commit is
+// called, so that a save refused later leaves the game as it was. g.mu must be held.
+func (g *Game) restoreUnlocks(snap UnlocksSnapshot) (commit func(), err error) {
+	s := g.staging
+	if s == nil {
+		return func() { g.carried = &snap }, nil
+	}
+	stream := s.stream
+	if snap.Rand != nil {
+		stream = NewStream(snap.Rand.Seed)
+		if err := stream.Restore(snap.Rand.Seed, snap.Rand.State); err != nil {
+			return nil, fmt.Errorf("unlocks: %w", err)
+		}
+	}
+	return func() {
+		*s.stream = *stream
+		for _, code := range snap.Unlocked {
+			s.unlocked[code] = true
+		}
+		for _, code := range snap.Triggered {
+			s.triggered[code] = true
+		}
+	}, nil
 }
 
 func restoreCollection(counts []CardCount) (*domain.Collection, error) {
@@ -222,6 +282,12 @@ func (g *Game) restoreOpening(s OpeningSnapshot) *Opening {
 			return nil
 		}
 		opening.Cards[i] = RevealedCard{Card: card, Finish: c.Finish, New: c.New}
+	}
+	// A set the game no longer plays is left out of the message.
+	for _, code := range s.Unlocked {
+		if unlocked, ok := g.set(code); ok {
+			opening.Unlocked = append(opening.Unlocked, UnlockedSet{Code: code, Name: unlocked.Name})
+		}
 	}
 	return &opening
 }

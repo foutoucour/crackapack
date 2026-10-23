@@ -412,6 +412,25 @@ type Config struct {
 	// Each entry must be > 0 and the list must be strictly ascending.
 	// Default: [10, 25, 50, 100, 250, 500].
 	SweepRates []domain.CoinRate `yaml:"sweep_rates"`
+
+	// Unlock is how the sets of the game open up in stages, see docs/core-features.md#stages.
+	Unlock UnlockConfig `yaml:"unlock"`
+}
+
+// UnlockConfig is how the sets of the game open up: the sets rank from the quickest binder to the
+// slowest and are cut into stages, the first open from the start, and a binder past the threshold
+// opens sets of the next stage once.
+type UnlockConfig struct {
+	// BinderThreshold is the share of a binder, in (0, 1], that opens new sets (default 0.9). It is
+	// the same for every set, and it is the share the sets are ranked by.
+	BinderThreshold float64 `yaml:"binder_threshold"`
+	// SetsPerUnlock is how many sets a binder past the threshold opens (default 3).
+	SetsPerUnlock int `yaml:"sets_per_unlock"`
+	// Stages is how many stages of equal size the sets after the first stage are cut into
+	// (default 4), so a game has one stage more than this.
+	Stages int `yaml:"stages"`
+	// StartSets is the size of the first stage, the sets open from the start (default 5).
+	StartSets int `yaml:"start_sets"`
 }
 
 // isKnownRarity reports whether r is a rarity initial_stock may name.
@@ -478,6 +497,7 @@ func defaults() Config {
 		SessionsPerDay: 3, // ASSUMPTION
 		RunDays:        90,
 		SweepRates:     []domain.CoinRate{10, 25, 50, 100, 250, 500},
+		Unlock:         UnlockConfig{BinderThreshold: 0.9, SetsPerUnlock: 3, Stages: 4, StartSets: 5},
 	}
 }
 
@@ -564,5 +584,5 @@ func validate(cfg Config) error {
 	if err := ValidateSweepRates(cfg.SweepRates); err != nil {
 		return err
 	}
-	return nil
+	return validateUnlock(cfg.Unlock)
 }

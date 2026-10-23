@@ -51,6 +51,9 @@ const (
 	// playing it never touches a real game.
 	saveFile     = "save.json"
 	demoSaveFile = "save-demo.json"
+	// unlockSeedSalt sets the seed of the unlocks apart from the seed of the boosters, so that the
+	// two do not draw the same numbers.
+	unlockSeedSalt = 0x9e3779b97f4a7c15
 )
 
 // playArgs holds all dependencies for runPlay, decoupled from the OS so that tests can serve on a
@@ -60,6 +63,9 @@ type playArgs struct {
 	catFS     fs.FS
 	setCodes  []string // openable set codes (must have a booster section)
 	suppCodes []string // card pools the boosters draw from, such as TSB for TSP
+	// scope plays every set in scope of catFS, with the pools they draw from, in stages that open up
+	// as cfg.Unlock says, instead of setCodes and suppCodes, see [loadScope].
+	scope bool
 
 	// seed seeds the boosters of a new game, so that it is reproducible from it. A game loaded from
 	// a save keeps the seed it was saved with.
@@ -73,7 +79,8 @@ type playArgs struct {
 	// worth more than another and every booster costs the middle tier.
 	pricesFS   fs.FS
 	pricesName string
-	// cfg gives the energy the player recharges and the tiers of what a booster costs.
+	// cfg gives the energy the player recharges, the tiers of what a booster costs and how the stages
+	// open up.
 	cfg config.Config
 	// now tells the time that the energy recharges by.
 	now play.Clock
@@ -108,8 +115,13 @@ func newPlayCmd(stdout, stderr io.Writer) *cobra.Command {
 		Long: `Serve the web client on localhost. You start with ten boosters to open.
 
 Pass --demo to play on the built-in synthetic sets, with a fixed seed, so no files or network are
-needed. Otherwise pass --catalogue-dir and --sets, like simulate; --seed 0 picks a random seed and
-prints it.
+needed. Otherwise pass --catalogue-dir; --seed 0 picks a random seed and prints it.
+
+Without --sets, or with --sets all, the game has every set of the catalogue directory from Mirage
+on whose booster is worth under $60, and the card pools their boosters draw from. The sets open up
+in stages, from the quickest binder to fill to the slowest: the first stage is open, and a binder
+filled to 90% unlocks three sets of the next stage. --sets RAV,TSP plays those sets only, all open,
+with the pools of --supplementary. The demo plays in stages too.
 
 The game is saved after every opening and picked up where it was when you start again, so the
 energy keeps recharging while it is closed. The save is a JSON file in the user config directory,
@@ -125,12 +137,18 @@ in the user cache directory. A card whose picture cannot be downloaded shows as 
 the cards is downloaded once too, also with --demo, and an in-house drawing stands in for it
 while it is missing.`,
 		Example: `  crackapack play --demo
+  crackapack play --catalogue-dir ./catalogues --prices prices.json
   crackapack play --catalogue-dir ./catalogues --sets RAV,TSP --supplementary TSB
   crackapack play --demo --save ./my-save.json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load(strings.NewReader(""))
+			var ds demo.Dataset
+			if demoData {
+				ds = demo.Build()
+			}
+			// The demo's configuration cuts its few sets into stages small enough to unlock one soon.
+			cfg, err := config.Load(strings.NewReader(ds.PlayConfigYAML))
 			if err != nil {
-				return fmt.Errorf("crackapack play: default configuration: %w", err)
+				return fmt.Errorf("crackapack play: configuration: %w", err)
 			}
 			// The one place the real clock is read: the rest of the game is given it.
 			a := playArgs{seed: seed, stdout: stdout, stderr: stderr, cfg: cfg, now: time.Now} //nolint:forbidigo // composition root
@@ -149,28 +167,24 @@ while it is missing.`,
 			}
 			a.savePath, a.store = savePath, play.NewFileStore(savePath)
 			if demoData {
-				ds := demo.Build()
-				a.catFS, a.setCodes, a.suppCodes, a.images = ds.Files, ds.SetCodes, ds.SupplementaryCodes, ds.Images
+				a.catFS, a.scope, a.images = ds.Files, true, ds.Images
 				a.pricesFS, a.pricesName = ds.Files, "prices.json"
 				if a.seed == 0 {
 					a.seed = demoSeed
 				}
 			} else {
-				var missing []string
 				if catDir == "" {
-					missing = append(missing, "--catalogue-dir")
-				}
-				if setsRaw == "" {
-					missing = append(missing, "--sets")
-				}
-				if len(missing) > 0 {
 					if err := cmd.Usage(); err != nil {
 						return err
 					}
-					return fmt.Errorf("crackapack play: required flags not set: %s (or pass --demo)",
-						strings.Join(missing, ", "))
+					return errors.New("crackapack play: required flag not set: --catalogue-dir (or pass --demo)")
 				}
-				a.catFS, a.setCodes, a.suppCodes = os.DirFS(catDir), splitCodes(setsRaw), splitCodes(suppRaw)
+				a.catFS = os.DirFS(catDir)
+				if setsRaw == allSets {
+					a.scope = true
+				} else {
+					a.setCodes, a.suppCodes = splitCodes(setsRaw), splitCodes(suppRaw)
+				}
 				if pricesPath != "" {
 					a.pricesFS, a.pricesName = os.DirFS(filepath.Dir(pricesPath)), filepath.Base(pricesPath)
 				}
@@ -201,8 +215,8 @@ while it is missing.`,
 	f := cmd.Flags()
 	f.BoolVar(&demoData, "demo", false, "play on the built-in synthetic sets, with a fixed seed")
 	f.StringVar(&catDir, "catalogue-dir", "", "catalogue directory of <CODE>.json files (required without --demo)")
-	f.StringVar(&setsRaw, "sets", "", "comma-separated openable set codes, e.g. RAV,TSP (required without --demo)")
-	f.StringVar(&suppRaw, "supplementary", "", "comma-separated card-pool-only codes, e.g. TSB (optional)")
+	f.StringVar(&setsRaw, "sets", allSets, "comma-separated openable set codes, e.g. RAV,TSP, or all for every set in scope, in stages")
+	f.StringVar(&suppRaw, "supplementary", "", "comma-separated card-pool-only codes, e.g. TSB (optional, ignored with --sets all)")
 	f.StringVar(&pricesPath, "prices", "", "JSON price snapshot file; sets what a booster costs in energy (optional, ignored with --demo)")
 	f.StringVar(&addr, "addr", defaultPlayAddr, "address to listen on; keep it on localhost")
 	f.Uint64Var(&seed, "seed", 0, "seed of the boosters of a new game; 0 is the demo seed with --demo and a random one otherwise")
@@ -217,7 +231,14 @@ func runPlay(ctx context.Context, a playArgs) error {
 	if a.store == nil {
 		return errors.New("no store to save the game in")
 	}
-	sets, pools, err := loadPlayCatalogues(a.catFS, a.setCodes, a.suppCodes)
+	prices := domain.PriceSnapshot{}
+	if a.pricesName != "" {
+		var err error
+		if prices, err = domain.LoadPriceSnapshot(a.pricesFS, a.pricesName); err != nil {
+			return fmt.Errorf("prices %q: %w", a.pricesName, err)
+		}
+	}
+	sets, pools, reference, err := loadPlaySets(a, prices)
 	if err != nil {
 		return err
 	}
@@ -228,13 +249,20 @@ func runPlay(ctx context.Context, a playArgs) error {
 		},
 		rand.New(stream),
 	)
-	rules, err := playRules(a, sets)
+	costs, err := domain.BoosterEnergyCosts(sets, reference, prices, a.cfg.FallbackPrice, a.cfg.Energy.CostTiers())
 	if err != nil {
 		return err
 	}
-	game, err := play.NewGame(sets, pools, opener, rules, a.now)
+	game, err := play.NewGame(sets, pools, opener, play.Rules{Energy: a.cfg.Energy.Params(), Costs: costs}, a.now)
 	if err != nil {
 		return err
+	}
+	if a.scope {
+		u := a.cfg.Unlock
+		stages := play.StageRules{Threshold: u.BinderThreshold, SetsPerUnlock: u.SetsPerUnlock, Stages: u.Stages, StartSets: u.StartSets}
+		if err := game.Stage(stages, play.NewStream(a.seed^unlockSeedSalt)); err != nil {
+			return err
+		}
 	}
 	log := slog.New(slog.NewTextHandler(a.stderr, nil))
 	// Said first, so that an error about the save has said which file it is.
@@ -278,30 +306,25 @@ func defaultSavePath(configDir string, demo bool) string {
 	return filepath.Join(configDir, saveSubdir, name)
 }
 
-// playRules builds the rules of the session: the recharge of the energy, and what a booster of each
-// set costs. The cost follows the booster's value against the median of every set of the common
-// bundle in the catalogue directory, as in the simulation, so it does not depend on which sets are
-// played. A requested set of the expensive bundle fails the session, see
-// [leaveOutExpensiveSets].
-func playRules(a playArgs, sets []domain.SetCatalogue) (play.Rules, error) {
-	reference, err := loadReferenceCatalogues(a.catFS, a.setCodes, sets)
-	if err != nil {
-		return play.Rules{}, err
+// loadPlaySets loads the sets of the session and the card pools their boosters draw from: every
+// set in scope with a.scope, see [loadScope], and otherwise the sets and pools a names. reference
+// is the common bundle of the catalogue directory, which the energy cost of a booster follows: its
+// value against their median, as in the simulation, so it does not depend on which sets are played.
+// A requested set of the expensive bundle fails the session, see [leaveOutExpensiveSets].
+func loadPlaySets(a playArgs, prices domain.PriceSnapshot) (sets, pools, reference []domain.SetCatalogue, err error) {
+	if a.scope {
+		return loadScope(a.catFS, prices, a.cfg)
 	}
-	prices := domain.PriceSnapshot{}
-	if a.pricesName != "" {
-		if prices, err = domain.LoadPriceSnapshot(a.pricesFS, a.pricesName); err != nil {
-			return play.Rules{}, fmt.Errorf("prices %q: %w", a.pricesName, err)
-		}
+	if sets, pools, err = loadPlayCatalogues(a.catFS, a.setCodes, a.suppCodes); err != nil {
+		return nil, nil, nil, err
+	}
+	if reference, err = loadReferenceCatalogues(a.catFS, a.setCodes, sets); err != nil {
+		return nil, nil, nil, err
 	}
 	if reference, err = leaveOutExpensiveSets(sets, reference, prices, a.cfg); err != nil {
-		return play.Rules{}, err
+		return nil, nil, nil, err
 	}
-	costs, err := domain.BoosterEnergyCosts(sets, reference, prices, a.cfg.FallbackPrice, a.cfg.Energy.CostTiers())
-	if err != nil {
-		return play.Rules{}, err
-	}
-	return play.Rules{Energy: a.cfg.Energy.Params(), Costs: costs}, nil
+	return sets, pools, reference, nil
 }
 
 // loadPlayCatalogues loads the openable sets, which need a booster definition, and the card pools

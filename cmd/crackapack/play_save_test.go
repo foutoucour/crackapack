@@ -43,7 +43,7 @@ func TestDefaultSavePath(t *testing.T) {
 
 func TestRunPlay_aRestartKeepsTheGameAndItsSeed(t *testing.T) {
 	t.Parallel()
-	a := demoPlayArgs(t)
+	a := demoListArgs(t)
 	var out1, out2 bytes.Buffer
 
 	a.stdout = &out1
@@ -198,7 +198,8 @@ func TestCmdPlay_savesTheGameWhereSaveSays(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read the save: %v", err)
 	}
-	if !strings.Contains(string(saved), `"DEM": 4`) {
+	// The demo plays in stages, so DEM, its first stage, has the ten welcome boosters.
+	if !strings.Contains(string(saved), `"DEM": 9`) {
 		t.Errorf("the save does not show a welcome booster of DEM opened:\n%s", saved)
 	}
 }

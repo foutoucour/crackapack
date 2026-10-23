@@ -12,6 +12,8 @@ type BinderSummary struct {
 	SetCode  string
 	SetName  string
 	Progress domain.Progress
+	// Locked is true while the set cannot be opened, see [Pack].
+	Locked bool
 }
 
 // BinderCard is a card of a binder and how many copies of it the player holds, by finish. A card
@@ -45,13 +47,13 @@ type Binder struct {
 	Pools []BinderPool
 }
 
-// Binders lists the progress of every set's binder, in the order the sets were given to NewGame.
+// Binders lists the progress of every set's binder, in the order of Packs.
 func (g *Game) Binders() []BinderSummary {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	out := make([]BinderSummary, len(g.sets))
 	for i, cat := range g.sets {
-		out[i] = BinderSummary{SetCode: cat.Code, SetName: cat.Name, Progress: g.collection.BinderProgress(domain.WithPools(cat, g.pools))}
+		out[i] = BinderSummary{SetCode: cat.Code, SetName: cat.Name, Progress: g.collection.BinderProgress(g.binders[cat.Code]), Locked: g.locked(cat.Code)}
 	}
 	return out
 }
@@ -68,7 +70,7 @@ func (g *Game) Binder(setCode string) (Binder, error) {
 	binder := Binder{
 		SetCode:  cat.Code,
 		SetName:  cat.Name,
-		Progress: g.collection.BinderProgress(domain.WithPools(cat, g.pools)),
+		Progress: g.collection.BinderProgress(g.binders[cat.Code]),
 	}
 
 	for _, card := range cat.Cards {

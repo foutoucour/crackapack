@@ -8,7 +8,38 @@ import (
 )
 
 type homeView struct {
-	Packs []play.Pack
+	// Staged is true in a game whose sets open up in stages: each stage has a heading of its own.
+	Staged bool
+	Stages []stageView
+}
+
+// stageView is one stage of the home page: the sets the player can open, as tiles, and the locked
+// ones as a short list, so that a hundred sets stay a page one can scan.
+type stageView struct {
+	Number int
+	Open   []play.Pack
+	Locked []play.Pack
+}
+
+// Size is the number of sets in the stage.
+func (s stageView) Size() int { return len(s.Open) + len(s.Locked) }
+
+// newHomeView groups packs by stage, keeping their order. A game without stages has one group.
+func newHomeView(packs []play.Pack) homeView {
+	var view homeView
+	for _, p := range packs {
+		if n := len(view.Stages); n == 0 || view.Stages[n-1].Number != p.Stage {
+			view.Stages = append(view.Stages, stageView{Number: p.Stage})
+		}
+		stage := &view.Stages[len(view.Stages)-1]
+		if p.Locked {
+			stage.Locked = append(stage.Locked, p)
+		} else {
+			stage.Open = append(stage.Open, p)
+		}
+		view.Staged = view.Staged || p.Stage > 0
+	}
+	return view
 }
 
 type errorView struct {
@@ -25,6 +56,8 @@ type packView struct {
 	// the time until the player can open one, 0 when they can now.
 	Cost int
 	Wait time.Duration
+	// Unlocked are the sets the booster unlocked.
+	Unlocked []play.UnlockedSet
 }
 
 type cardView struct {
@@ -38,7 +71,7 @@ type cardView struct {
 }
 
 func newPackView(opening play.Opening, packs []play.Pack) packView {
-	view := packView{SetName: opening.SetName, SetCode: opening.SetCode, Cards: make([]cardView, len(opening.Cards))}
+	view := packView{SetName: opening.SetName, SetCode: opening.SetCode, Cards: make([]cardView, len(opening.Cards)), Unlocked: opening.Unlocked}
 	for _, p := range packs {
 		if p.SetCode == opening.SetCode {
 			view.Left, view.Cost, view.Wait = p.Count, p.Cost, p.Wait

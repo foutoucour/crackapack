@@ -82,7 +82,7 @@ func securityHeaders(next http.Handler) http.Handler {
 }
 
 func (h *handler) home(w http.ResponseWriter, _ *http.Request) {
-	h.render(w, http.StatusOK, "home", homeView{Packs: h.game.Packs()})
+	h.render(w, http.StatusOK, "home", newHomeView(h.game.Packs()))
 }
 
 func (h *handler) open(w http.ResponseWriter, r *http.Request) {
@@ -150,6 +150,8 @@ func (h *handler) playFailed(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, play.ErrUnknownSet):
 		h.fail(w, http.StatusBadRequest, "Unknown set: pick one of the sets on the home page.")
+	case errors.Is(err, play.ErrLocked):
+		h.fail(w, http.StatusConflict, "This set is locked: fill a binder of an open set to unlock more.")
 	case errors.Is(err, play.ErrNotEnoughEnergy):
 		var short *play.NotEnoughEnergyError
 		if errors.As(err, &short) {

@@ -75,22 +75,32 @@ func (f fakeBack) Image(_ context.Context, id string) (images.Image, error) {
 	return images.Image{ContentType: "image/jpeg", Data: f.data}, nil
 }
 
-// demoPlayArgs is the demo session, with the default configuration and a clock that does not move.
+// demoPlayArgs is the demo session, in stages, with the demo's configuration and a clock that does
+// not move.
 func demoPlayArgs(t *testing.T) playArgs {
 	t.Helper()
 	ds := demo.Build()
-	cfg, err := config.Load(strings.NewReader(""))
+	cfg, err := config.Load(strings.NewReader(ds.PlayConfigYAML))
 	if err != nil {
-		t.Fatalf("load the default configuration: %v", err)
+		t.Fatalf("load the demo configuration: %v", err)
 	}
 	savePath := filepath.Join(t.TempDir(), "save.json")
 	return playArgs{
-		catFS: ds.Files, setCodes: ds.SetCodes, suppCodes: ds.SupplementaryCodes,
+		catFS: ds.Files, scope: true,
 		pricesFS: ds.Files, pricesName: "prices.json",
 		cfg: cfg, now: playtest.NewClock().Now,
 		images: ds.Images, cardBack: fakeBack{data: []byte("back-jpeg")}, seed: 42,
 		savePath: savePath, store: play.NewFileStore(savePath),
 	}
+}
+
+// demoListArgs is demoPlayArgs on the demo's list of sets, every one open, as --sets plays them.
+func demoListArgs(t *testing.T) playArgs {
+	t.Helper()
+	ds := demo.Build()
+	a := demoPlayArgs(t)
+	a.scope, a.setCodes, a.suppCodes = false, ds.SetCodes, ds.SupplementaryCodes
+	return a
 }
 
 func TestRunPlay_servesTheCardBackBesideTheCardPictures(t *testing.T) {
@@ -168,7 +178,7 @@ func TestRunPlay_sameSeedOpensTheSameBooster(t *testing.T) {
 
 func TestRunPlay_rejectsAnUnknownSetCode(t *testing.T) {
 	t.Parallel()
-	a := demoPlayArgs(t)
+	a := demoListArgs(t)
 	a.setCodes = []string{"NOPE"}
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -185,7 +195,7 @@ func TestRunPlay_rejectsAnUnknownSetCode(t *testing.T) {
 	}
 }
 
-func TestCmdPlay_withoutDemoNeedsTheCatalogueFlags(t *testing.T) {
+func TestCmdPlay_withoutDemoNeedsTheCatalogueDirectory(t *testing.T) {
 	t.Parallel()
 	var stdout, stderr bytes.Buffer
 
@@ -194,10 +204,8 @@ func TestCmdPlay_withoutDemoNeedsTheCatalogueFlags(t *testing.T) {
 	if err == nil {
 		t.Fatal("play with no flag returned nil error")
 	}
-	for _, want := range []string{"--catalogue-dir", "--sets"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("error %q does not name %s", err, want)
-		}
+	if !strings.Contains(err.Error(), "--catalogue-dir") {
+		t.Errorf("error %q does not name --catalogue-dir", err)
 	}
 }
 

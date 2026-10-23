@@ -10,9 +10,9 @@ solo, local game. It is a personal project, published for anyone who wants to ru
 
 Pre-alpha. The simulation MVP exists, with NPCs that open boosters and supply the Counter. The
 first UI lets you open the ten welcome boosters, then more for energy that recharges by itself, and
-browse your collection, one binder per set. The game is saved after every opening, so a restart
-picks it up where it was. The following are not built yet: the Counter and trades in the UI, coins
-in the game, and catalogue sync.
+browse your collection, one binder per set. It plays every set in scope, unlocked in stages as your
+binders fill. The game is saved after every opening, so a restart picks it up where it was. The
+following are not built yet: the Counter and trades in the UI, coins in the game, and catalogue sync.
 
 ## Open your first boosters
 
@@ -24,9 +24,11 @@ go run ./cmd/crackapack play --demo
 ```
 
 Then open the address it prints. With real catalogues from `fetchdata`, pass
-`--catalogue-dir ./catalogues --sets RAV,TSP --supplementary TSB --prices ./prices.json` instead of
-`--demo`; the prices set what a booster costs in energy, and without them every booster costs the
-same. The card
+`--catalogue-dir ./catalogues --prices ./prices.json` instead of `--demo`. That plays every set of
+the directory in scope, from Mirage on, in [stages](docs/core-features.md#stages): a few sets are
+open at the start, and a binder filled to 90% unlocks three more. Add
+`--sets RAV,TSP --supplementary TSB` to play a few sets, all open. The prices set what a booster
+costs in energy, and without them every booster costs the same. The card
 pictures are then downloaded from Scryfall the first time a card shows, and kept in your user cache
 directory, see [ADR-0035](docs/adr/0035-card-pictures-are-served-from-a-local-cache.md).
 

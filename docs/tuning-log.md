@@ -18,6 +18,24 @@ goal band changes. Newest first. Each entry says:
 - how the goals read before and after, on the same scenarios, so the entries compare;
 - what the run does not tell.
 
+## 2026-10-23 – Unlock keys added for the stages of the game, no search run
+
+**Trigger:** the game opens its sets in stages, see [Stages](core-features.md#stages). Four keys are
+new in `config.defaults()`, under `unlock`. They do not change a simulation.
+
+| Key | Default |
+|-----|--------:|
+| `unlock.binder_threshold` | 0.9 |
+| `unlock.sets_per_unlock` | 3 |
+| `unlock.stages` | 4 |
+| `unlock.start_sets` | 5 |
+
+The values are the maintainers' choice. On the 107 sets of the scope they make a first stage of 5 sets,
+then four stages of 26, 26, 26 and 24. The demo of `play` has its own: two stages of one set and a
+threshold of 0.25, so the welcome boosters unlock the second set.
+
+**What it does not show:** how long a player takes to unlock a stage. No simulation plays the stages.
+
 ## 2026-10-23 – Bell goal on the 97 sets that can finish, not applied
 
 **Trigger:** a check that the tuner moves toward the bell once the ten sets of the entry below are out of

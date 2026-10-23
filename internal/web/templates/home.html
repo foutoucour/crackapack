@@ -1,23 +1,35 @@
 {{define "title"}}Your boosters{{end}}
 {{define "content"}}
 <h1>Your boosters</h1>
-<p class="lead">Pick a set and crack a booster open.</p>
-<ul class="packs">
-  {{range .Packs}}
-  <li class="pack-tile">
-    <h2>{{.SetName}}</h2>
-    {{if .Count}}
-    <p class="count">{{.Count}} {{if eq .Count 1}}booster{{else}}boosters{{end}}</p>
-    <p class="hint">Welcome gift: free.</p>
-    {{else}}
-    <p class="count">{{.Cost}} energy</p>
-    {{if .Wait}}<p class="hint wait">Ready in {{duration .Wait}}</p>{{end}}
+<p class="lead">Pick a set and crack a booster open.{{if .Staged}} Fill a binder to unlock sets of the next stage.{{end}}</p>
+{{range .Stages}}
+<section class="stage">
+  {{if $.Staged}}<h2>Stage {{.Number}} <span class="stage-count">{{len .Open}} of {{.Size}} open</span></h2>{{end}}
+  {{if .Open}}
+  <ul class="packs">
+    {{range .Open}}
+    <li class="pack-tile">
+      {{if $.Staged}}<h3>{{.SetName}}</h3>{{else}}<h2>{{.SetName}}</h2>{{end}}
+      {{if .Count}}
+      <p class="count">{{.Count}} {{if eq .Count 1}}booster{{else}}boosters{{end}}</p>
+      <p class="hint">Welcome gift: free.</p>
+      {{else}}
+      <p class="count">{{.Cost}} energy</p>
+      {{if .Wait}}<p class="hint wait">Ready in {{duration .Wait}}</p>{{end}}
+      {{end}}
+      <form method="post" action="/open">
+        <input type="hidden" name="set" value="{{.SetCode}}">
+        <button type="submit" class="primary"{{if .Wait}} disabled{{end}}>Open a booster{{if not .Count}} ({{.Cost}} energy){{end}}</button>
+      </form>
+    </li>
     {{end}}
-    <form method="post" action="/open">
-      <input type="hidden" name="set" value="{{.SetCode}}">
-      <button type="submit" class="primary"{{if .Wait}} disabled{{end}}>Open a booster{{if not .Count}} ({{.Cost}} energy){{end}}</button>
-    </form>
-  </li>
+  </ul>
   {{end}}
-</ul>
+  {{if .Locked}}
+  <ul class="locked-sets">
+    {{range .Locked}}<li class="locked">{{.SetName}} <span class="sr-only">(locked)</span></li>{{end}}
+  </ul>
+  {{end}}
+</section>
+{{end}}
 {{end}}

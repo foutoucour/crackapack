@@ -4,6 +4,17 @@ package demo
 // this seed via a PCG generator so the dataset is byte-identical on every platform.
 const demSeed uint64 = 42
 
+// playConfigYAML cuts the two demo sets into two stages of one, and lets a quarter of a binder
+// unlock the other set, so that the welcome boosters of the first reach it: a binder at 90% takes a
+// few dozen boosters.
+const playConfigYAML = `
+unlock:
+  start_sets: 1
+  stages: 1
+  sets_per_unlock: 1
+  binder_threshold: 0.25
+`
+
 // demoConfigYAML is the YAML configuration for the crackapack demo sweep.
 //
 // Calibration targets are pacing targets set by the maintainers. They were

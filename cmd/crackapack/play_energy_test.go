@@ -68,7 +68,7 @@ func TestRunPlay_theHeaderShowsTheEnergyOfAFreshSession(t *testing.T) {
 // of pinning them: the costs must come from the prices and the median of the catalogue.
 func TestRunPlay_theDemoPricesGiveEachSetItsCost(t *testing.T) {
 	t.Parallel()
-	base := servePlay(t, demoPlayArgs(t))
+	base := servePlay(t, demoListArgs(t))
 	spendWelcomeBoosters(t, base)
 
 	costs := tileCosts(t, getBody(t, base+"/"))
@@ -83,7 +83,7 @@ func TestRunPlay_theDemoPricesGiveEachSetItsCost(t *testing.T) {
 
 func TestRunPlay_withoutPricesEverySetCostsTheMiddleTier(t *testing.T) {
 	t.Parallel()
-	a := demoPlayArgs(t)
+	a := demoListArgs(t)
 	a.pricesFS, a.pricesName = nil, ""
 	base := servePlay(t, a)
 	spendWelcomeBoosters(t, base)
@@ -102,7 +102,7 @@ func TestRunPlay_withoutPricesEverySetCostsTheMiddleTier(t *testing.T) {
 
 func TestRunPlay_aBoosterBeyondTheEnergyIsRefusedAndSaysWhy(t *testing.T) {
 	t.Parallel()
-	base := servePlay(t, demoPlayArgs(t))
+	base := servePlay(t, demoListArgs(t))
 	spendWelcomeBoosters(t, base)
 
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}

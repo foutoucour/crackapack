@@ -26,9 +26,11 @@ type Snapshot struct {
 	Energy     *EnergySnapshot `json:"energy"`
 	// LastOpening is the booster the pack page shows, null before the first opening.
 	LastOpening *OpeningSnapshot `json:"last_opening"`
+	// Unlocks is how far the player is through the stages, see [Game.Stage].
+	Unlocks *UnlocksSnapshot `json:"unlocks"`
 }
 
-// OpenerSnapshot is the seed of the game and the opaque state of its [Stream].
+// OpenerSnapshot is a seed and the opaque state of the [Stream] it started.
 type OpenerSnapshot struct {
 	Seed  uint64 `json:"seed"`
 	State []byte `json:"state"`
@@ -55,6 +57,8 @@ type EnergySnapshot struct {
 type OpeningSnapshot struct {
 	SetCode string       `json:"set"`
 	Cards   []OpenedCard `json:"cards"`
+	// Unlocked are the codes of the sets the opening unlocked.
+	Unlocked []string `json:"unlocked,omitempty"`
 }
 
 // OpenedCard is one card of an [OpeningSnapshot].
@@ -62,4 +66,13 @@ type OpenedCard struct {
 	ID     domain.CardID `json:"id"`
 	Finish domain.Finish `json:"finish"`
 	New    bool          `json:"new"`
+}
+
+// UnlocksSnapshot is the sets unlocked, the sets whose binder has unlocked sets already, and where
+// the draw of the unlocks stands, so that a reload does not draw them again. The first stage is open
+// whatever it holds.
+type UnlocksSnapshot struct {
+	Unlocked  []string        `json:"unlocked"`
+	Triggered []string        `json:"triggered"`
+	Rand      *OpenerSnapshot `json:"rand"`
 }
