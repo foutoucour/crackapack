@@ -58,7 +58,8 @@ func TestStartGame_theDemoCounterSellsAndBuys(t *testing.T) {
 	t.Fatal("no demo rare was in stock at a price the player could pay")
 }
 
-// A purchase in the demo's locked set is refused until the set unlocks.
+// A purchase in the demo's locked set, or asking around for one of its cards, is refused until the
+// set unlocks.
 func TestStartGame_theDemoRefusesACardOfALockedSet(t *testing.T) {
 	t.Parallel()
 	game, _, err := startGame(demoGameArgs(t), slog.New(slog.DiscardHandler))
@@ -67,6 +68,9 @@ func TestStartGame_theDemoRefusesACardOfALockedSet(t *testing.T) {
 	}
 	if _, err := game.Buy("dsp-c-000", domain.FinishNonFoil); !errors.Is(err, play.ErrLocked) {
 		t.Errorf("Buy of a card of the locked set error = %v, want ErrLocked", err)
+	}
+	if _, err := game.AskAround("dsp-c-000", domain.FinishNonFoil); !errors.Is(err, play.ErrLocked) {
+		t.Errorf("AskAround for a card of the locked set error = %v, want ErrLocked", err)
 	}
 }
 
