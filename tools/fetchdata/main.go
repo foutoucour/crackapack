@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
@@ -39,6 +40,7 @@ func main() {
 		baseURL: mtgjsonBaseURL,
 		stdout:  os.Stdout,
 		stderr:  os.Stderr,
+		pools:   borrowedPools(),
 	}
 	if err := a.run(ctx, os.Args[1:]); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -55,6 +57,7 @@ type app struct {
 	baseURL string
 	stdout  io.Writer
 	stderr  io.Writer
+	pools   []borrowedPool
 }
 
 // run parses args, downloads the requested sets and merges their prices into the price snapshot.
@@ -89,7 +92,7 @@ func (a app) run(ctx context.Context, args []string) error {
 	}
 
 	wanted := make(map[string]struct{})
-	for _, code := range codes {
+	for _, code := range withDonors(codes, a.pools) {
 		path := filepath.Join(*catalogueDir, code+".json")
 		if err := a.download(ctx, code+".json", path); err != nil {
 			return fmt.Errorf("set %s: %w", code, err)
@@ -102,6 +105,18 @@ func (a app) run(ctx context.Context, args []string) error {
 			wanted[id] = struct{}{}
 		}
 		fmt.Fprintf(a.stdout, "%s: %d cards -> %s\n", code, len(uuids), path)
+	}
+
+	for _, pool := range a.pools {
+		if !slices.Contains(codes, pool.host) {
+			continue
+		}
+		count, err := writeBorrowedPool(*catalogueDir, pool)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(a.stdout, "%s: %d cards borrowed by %s -> %s\n", pool.code, count, pool.host,
+			filepath.Join(*catalogueDir, pool.code+".json"))
 	}
 
 	priced, total, err := a.downloadPrices(ctx, wanted, existing, *prices)

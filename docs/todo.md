@@ -228,13 +228,6 @@ are the goals and their bands, the scope, and the remedies that change a rule.
   per-finish source. An `etched` finish loads as a foil, so it shares that price too.
 - [ ] **Duplicate protection and jokers:** commons and uncommons only, or rares once the set is
   complete, see [Lessons from MTG Arena](retention.md#lessons-from-mtg-arena).
-- [ ] **Phyrexia: All Will Be One does not load**, so a run over the whole scope of ADR-0039 has 106
-  sets, not 107. Its `prototypePraetor` sheet holds 4 cards that belong to Dominaria United, Kamigawa:
-  Neon Dynasty, Kaldheim and Streets of New Capenna, which are openable sets and keep only the cards of
-  their own sheets, see [ADR-0007](adr/0007-catalogues-count-only-obtainable-cards.md). The engine
-  stops with "hold 4 cards that no loaded catalogue has", and passing those sets as supplementary
-  fails with a card in two catalogues. Needs a decision: let a sheet draw a card from another
-  openable set's file, or hand-build a small pool.
 - [ ] **Scope:** Ninth and Tenth Edition in V1, and a first economy run on Planar Chaos and Future
   Sight, which no recorded run covers.
 - [ ] **Star printings:** a rule for the foil-only duplicate printings of 10E, 9ED and ONS, which
