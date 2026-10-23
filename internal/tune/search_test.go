@@ -29,13 +29,33 @@ func (f *fakeRunner) Run(cfg config.Config, run tune.Run) (sim.Summary, error) {
 	}
 	// The noise stands for the seed's luck: -1, 0 or +1 around the buy percentage.
 	noise := float64(cfg.Seed%3) - 1
-	return sim.Summary{
+	summary := sim.Summary{
 		"buy":         float64(cfg.CounterBuyPct) + noise,
 		"sessions":    float64(cfg.SessionsPerDay),
 		"days":        float64(cfg.RunDays),
 		"unrelated":   float64(cfg.WelcomeBonus),
 		"player_name": float64(len(run.Player)),
-	}, nil
+	}
+	// A set alone has a pace of its own: the buy percentage over ten, plus the set's offset.
+	if len(run.Sets) == 1 {
+		if offset, ok := paceOffset(run.Sets[0]); ok {
+			summary["pace."+strings.ToLower(run.Sets[0])] = float64(cfg.CounterBuyPct)/10 + offset
+		}
+	}
+	return summary, nil
+}
+
+// paceOffset spreads three sets around the middle, about as a bell of three would.
+func paceOffset(set string) (float64, bool) {
+	switch set {
+	case "RAV":
+		return -3, true
+	case "TSP":
+		return 0, true
+	case "GPT":
+		return 3, true
+	}
+	return 0, false
 }
 
 const searchSpaceYAML = `
@@ -378,5 +398,49 @@ func TestWriteText_namesTheBestCandidateTheWindowsAndTheInfluence(t *testing.T) 
 		if !strings.Contains(text, want) {
 			t.Errorf("report lacks %q:\n%s", want, text)
 		}
+	}
+}
+
+const shapeSearchProblemYAML = `
+scenarios:
+  - {name: alone, player: collector, sets: [RAV, TSP, GPT], per_set: true}
+shapes:
+  - {scenario: alone, metric: "pace.{set}", center: 14, spread: 3}
+`
+
+func TestSearch_aShapeGoalCentersTheSpread(t *testing.T) {
+	t.Parallel()
+	base, space, problem := searchFixture(t, searchSpaceYAML, shapeSearchProblemYAML)
+
+	report, err := tune.Search(context.Background(), base, space, problem, &fakeRunner{}, options())
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+
+	best := report.Best()
+	if got := report.BestConfig.CounterBuyPct; got < 135 || got > 145 {
+		t.Errorf("best counter_buy_pct = %d, want about 140, which puts the middle set at 14 days", got)
+	}
+	if _, ok := best.Goals["alone shape pace.{set}"]; !ok {
+		t.Errorf("best goals = %v, want one entry for the shape", best.Goals)
+	}
+	if best.Loss == nil || *best.Loss > 0.5 {
+		t.Errorf("best loss = %v, want under 0.5: offsets of -3, 0 and 3 are close to a bell of spread 3", best.Loss)
+	}
+}
+
+func TestSearch_aShapeOnAMetricTheRunsLackAbortsTheSearch(t *testing.T) {
+	t.Parallel()
+	base, space, problem := searchFixture(t, searchSpaceYAML, `
+scenarios:
+  - {name: alone, player: collector, sets: [RAV, TSP, GPT], per_set: true}
+shapes:
+  - {scenario: alone, metric: "missing.{set}", center: 14, spread: 3}
+`)
+
+	_, err := tune.Search(context.Background(), base, space, problem, &fakeRunner{}, options())
+
+	if err == nil || !strings.Contains(err.Error(), "reports no metric") {
+		t.Errorf("Search error = %v, want it to say a run reports no metric", err)
 	}
 }

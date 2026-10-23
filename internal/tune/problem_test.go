@@ -1,6 +1,7 @@
 package tune_test
 
 import (
+	"math"
 	"slices"
 	"strings"
 	"testing"
@@ -121,7 +122,7 @@ func TestLoadProblem_rejects(t *testing.T) {
 		want string
 	}{
 		{"no scenarios", "goals:\n  - {scenario: a, metric: m, comparison: at_most, max: 1}\n", "scenarios must not be empty"},
-		{"no goals", scenario, "goals must not be empty"},
+		{"no goals", scenario, "goals and shapes must not both be empty"},
 		{"unknown scenario", scenario + "goals:\n  - {scenario: b, metric: m, comparison: at_most, max: 1}\n", "unknown scenario"},
 		{"unknown key", scenario + "goals:\n  - {scenario: a, metric: m, comparison: at_most, max: 1, weight: 2}\n", "weight"},
 		{"band without its bound", scenario + "goals:\n  - {scenario: a, metric: m, comparison: between, min: 1}\n", "needs min and max"},
@@ -138,5 +139,136 @@ func TestLoadProblem_rejects(t *testing.T) {
 				t.Errorf("LoadProblem error = %v, want one naming %q", err, tc.want)
 			}
 		})
+	}
+}
+
+// bellOfThree is three values at the quantiles of a normal curve of the given center and spread:
+// the points a perfect bell of three sets would take. The z of 1/6 and 5/6 is 0.9674.
+func bellOfThree(center, spread float64) []float64 {
+	const z = 0.9674215661
+	return []float64{center - z*spread, center, center + z*spread}
+}
+
+func TestShapeDistance(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		values []float64
+		want   float64
+	}{
+		{"a perfect bell", bellOfThree(14, 4), 0},
+		{"the order of the values does not matter", []float64{bellOfThree(14, 4)[2], bellOfThree(14, 4)[0], 14}, 0},
+		{"a bell one spread too late is one spread off per value", []float64{18 - 3.8697, 18, 18 + 3.8697}, 3},
+		{"one value, at the center", []float64{14}, 0},
+		{"one value, two spreads away", []float64{22}, 2},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := tune.ShapeDistance(tc.values, 14, 4); math.Abs(got-tc.want) > 1e-3 {
+				t.Errorf("ShapeDistance(%v) = %v, want %v", tc.values, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestShapeDistance_aPileAtTheCenterIsNotABell(t *testing.T) {
+	t.Parallel()
+	bell := tune.ShapeDistance(bellOfThree(14, 4), 14, 4)
+
+	pile := tune.ShapeDistance([]float64{14, 14, 14}, 14, 4)
+
+	if pile <= bell {
+		t.Errorf("a pile of equal values scores %v, a bell scores %v: the pile must be farther", pile, bell)
+	}
+}
+
+func TestShapeDistance_aLongTailCostsMoreThanASmallOne(t *testing.T) {
+	t.Parallel()
+	short := tune.ShapeDistance([]float64{10, 14, 18}, 14, 4)
+
+	long := tune.ShapeDistance([]float64{10, 14, 41}, 14, 4)
+
+	if long <= short {
+		t.Errorf("a set that finishes at 41 days scores %v, one at 18 scores %v: the tail must cost more", long, short)
+	}
+}
+
+const shapeProblemYAML = `
+scenarios:
+  - {name: pace3, player: collector, sessions_per_day: 3, run_days: 40, sets: [RAV, TSP, GPT], per_set: true}
+  - {name: pile, player: master-collector, sets: [RAV, TSP]}
+goals:
+  - {scenario: pile, metric: final_balance, comparison: at_most, max: 3000}
+shapes:
+  - {scenario: pace3, metric: "days_to_100pct.{set}", center: 14, spread: 4}
+`
+
+func TestProblemRuns_aShapeNamesTheMetricOfEachSetsRun(t *testing.T) {
+	t.Parallel()
+	problem, err := tune.LoadProblem(strings.NewReader(shapeProblemYAML))
+	if err != nil {
+		t.Fatalf("LoadProblem: %v", err)
+	}
+
+	runs := problem.Runs()
+
+	if len(runs) != 4 {
+		t.Fatalf("got %d runs, want 4 (three sets alone, then the pile)", len(runs))
+	}
+	tsp := runs[1]
+	if len(tsp.Shapes) != 1 || tsp.Shapes[0].Metric != "days_to_100pct.tsp" {
+		t.Errorf("TSP run shapes = %+v, want its own metric days_to_100pct.tsp", tsp.Shapes)
+	}
+	if runs[0].Shapes[0].Key != tsp.Shapes[0].Key {
+		t.Errorf("the runs of one scenario must share the shape's key: %q and %q", runs[0].Shapes[0].Key, tsp.Shapes[0].Key)
+	}
+	if len(runs[3].Shapes) != 0 {
+		t.Errorf("the pile run carries shapes %+v, want none", runs[3].Shapes)
+	}
+}
+
+func TestLoadProblem_rejectsABadShape(t *testing.T) {
+	t.Parallel()
+	const scenarios = `
+scenarios:
+  - {name: pace3, player: collector, sets: [RAV, TSP], per_set: true}
+  - {name: pile, player: master-collector, sets: [RAV, TSP]}
+goals:
+  - {scenario: pile, metric: final_balance, comparison: at_most, max: 3000}
+shapes:
+`
+	tests := []struct {
+		name  string
+		shape string
+		want  string
+	}{
+		{"unknown scenario", `  - {scenario: nope, metric: "days_to_100pct.{set}", center: 14, spread: 4}`, "unknown scenario"},
+		{"scenario not per set", `  - {scenario: pile, metric: "days_to_100pct.{set}", center: 14, spread: 4}`, "per_set"},
+		{"metric without the set placeholder", `  - {scenario: pace3, metric: days_to_100pct.rav, center: 14, spread: 4}`, "{set}"},
+		{"no spread", `  - {scenario: pace3, metric: "days_to_100pct.{set}", center: 14, spread: 0}`, "spread"},
+		{"no center", `  - {scenario: pace3, metric: "days_to_100pct.{set}", center: 0, spread: 4}`, "center"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := tune.LoadProblem(strings.NewReader(scenarios + tc.shape + "\n"))
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("LoadProblem error = %v, want it to mention %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestLoadProblem_aShapeCanBeTheOnlyGoal(t *testing.T) {
+	t.Parallel()
+	_, err := tune.LoadProblem(strings.NewReader(`
+scenarios:
+  - {name: pace3, player: collector, sets: [RAV, TSP], per_set: true}
+shapes:
+  - {scenario: pace3, metric: "days_to_100pct.{set}", center: 14, spread: 4}
+`))
+	if err != nil {
+		t.Errorf("LoadProblem: %v, want a shape to count as a goal", err)
 	}
 }
