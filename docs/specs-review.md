@@ -133,7 +133,9 @@ maintainer-set calibration targets (see [Simulation guide](simulation.md#reading
 What the sweep leaves open (see [Open questions](#open-questions)):
 
 - Product targets: the passing window behind [ADR-0006](adr/0006-coin-rate-is-100-per-dollar.md)
-  uses the demo's targets, not targets the maintainers have chosen.
+  uses the demo's targets. The product's own are set since
+  [ADR-0039](adr/0039-the-product-covers-the-sets-from-mirage-under-60-dollars-a-booster.md), and the
+  sweep has not been re-run against them.
 - Stock assumptions: the initial Counter stock and NPC opening pace are not yet
   calibrated; they affect how quickly the Counter runs out of rare copies.
 - The collector's reserve rule: `collectorReserveDays = 1` is an assumption; a
@@ -232,8 +234,9 @@ missing cards. Days until the five 2005-2007 binders are complete, across 5 seed
 ### Limits of this test
 
 - **Prices:** Alpha, Beta and Unlimited have rares with no TCGplayer price. The simulation prices
-  them at `fallback_price` and the Counter refuses to buy them (`sub_coin_cards` equals
-  `unpriced_cards`): 101 cards on Alpha (96 are rares), 62 on Beta, and 4 rares on Unlimited, among
+  them at `fallback_price` and the Counter refused to buy them (`sub_coin_cards` equalled
+  `unpriced_cards`; since [ADR-0044](adr/0044-the-counter-pays-at-least-one-coin-for-a-priced-card.md)
+  it pays one coin for them): 101 cards on Alpha (96 are rares), 62 on Beta, and 4 rares on Unlimited, among
   them Black Lotus, Mox Jet and Mox Sapphire. Their booster values are lower bounds.
 - **Layouts:** the pre-Mirage `default` definitions are taken as MTGJSON gives them, and their
   fidelity to the real boosters was not checked. ARN, ATQ, DRK, FEM and HML boosters hold 8 cards,
@@ -607,9 +610,10 @@ The most uncertain item is the NPC simulation's behaviour at scale. Hosting no l
 - [ ] Ninth and Tenth Edition in V1? Both hold star printings that block their binders, see
   [The star printings of 10E, 9ED and ONS](#the-star-printings-of-10e-9ed-and-ons).
 - [ ] Reference value of a card with no TCGplayer price.
-- [ ] Pacing target: a set's binder in about two weeks at 3 visits a day and about one week at 6.
-  The simulation gives 8 days for RAV and TSP at 3 visits and 6 days at 6. With about 150 sets, the
-  target is per set, since finishing every set takes years.
+- [x] Pacing target: a set's binder in about two weeks at 3 visits a day and about one week at 6,
+  for a set played alone, see
+  [ADR-0040](adr/0040-a-binder-takes-about-two-weeks-for-a-set-played-alone.md). The simulation gives
+  8 days for RAV and TSP at 3 visits and 6 days at 6, faster than the goal.
 - [x] Energy cost tiers are relative to the median booster value of the whole catalogue, not of the
   sets in a run or what the player has unlocked; see
   [ADR-0008](adr/0008-energy-cost-reference-is-the-catalogue-directory.md).

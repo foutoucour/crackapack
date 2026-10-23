@@ -172,9 +172,16 @@ many parameters at once for a config that meets the goals.
 The tuning system below is meant to settle most numeric values here. The decisions that stay manual
 are the goals and their bands, the scope, and the remedies that change a rule.
 
-- [ ] **Product targets** for the sweep. The window behind
-  [ADR-0006](adr/0006-coin-rate-is-100-per-dollar.md) uses the demo's targets, not targets the
-  maintainers chose.
+- [ ] **Re-run the sweep against the product targets.** The targets are set, see
+  [ADR-0039](adr/0039-the-product-covers-the-sets-from-mirage-under-60-dollars-a-booster.md) to
+  [ADR-0043](adr/0043-no-card-is-worth-less-than-one-coin-at-the-counter.md). The window behind
+  [ADR-0006](adr/0006-coin-rate-is-100-per-dollar.md) still rests on the demo's targets.
+  ADR-0042 is still Proposed: its bands have no metric or run behind them.
+- [x] **Implement the Counter's one-coin floor**, see
+  [ADR-0044](adr/0044-the-counter-pays-at-least-one-coin-for-a-priced-card.md): the Counter's sell
+  price and `sub_coin_cards` use `domain.PayoutCoins`, so only a card with no price is refused. The
+  demo sweep used to split its grid on one-cent cards: it now splits it on the daily reward alone,
+  and the sweep tests split theirs on `final_balance`.
 - [ ] **NPC defaults:** population, archetype split, rhythms and keep thresholds. A first run on
   RAV and TSP with the defaults gave about 3,400 boosters a day at 500 NPCs and millions of cards
   in the Counter after 90 days. With the Counter starting empty, 50 NPCs were enough to match the
@@ -221,6 +228,13 @@ are the goals and their bands, the scope, and the remedies that change a rule.
   per-finish source. An `etched` finish loads as a foil, so it shares that price too.
 - [ ] **Duplicate protection and jokers:** commons and uncommons only, or rares once the set is
   complete, see [Lessons from MTG Arena](retention.md#lessons-from-mtg-arena).
+- [ ] **Phyrexia: All Will Be One does not load**, so a run over the whole scope of ADR-0039 has 106
+  sets, not 107. Its `prototypePraetor` sheet holds 4 cards that belong to Dominaria United, Kamigawa:
+  Neon Dynasty, Kaldheim and Streets of New Capenna, which are openable sets and keep only the cards of
+  their own sheets, see [ADR-0007](adr/0007-catalogues-count-only-obtainable-cards.md). The engine
+  stops with "hold 4 cards that no loaded catalogue has", and passing those sets as supplementary
+  fails with a card in two catalogues. Needs a decision: let a sheet draw a card from another
+  openable set's file, or hand-build a small pool.
 - [ ] **Scope:** Ninth and Tenth Edition in V1, and a first economy run on Planar Chaos and Future
   Sight, which no recorded run covers.
 - [ ] **Star printings:** a rule for the foil-only duplicate printings of 10E, 9ED and ONS, which
@@ -254,15 +268,18 @@ run today. The other two wait for features that are not built. The
 
 - [ ] **Tuning system:** search many parameters at once and find, from simulation data, configs
   that give a good economy. A run is scored by a loss, and the search lowers it, the way training
-  lowers a loss. The design below is proposed and not yet approved. Today the sweep varies only the
-  coin rate, uses one seed and judges runs pass or fail, which cannot rank two configs.
-  - [ ] **Goals and bands**, a manual decision. Each goal is a band on a metric, reusing the
-    `between`, `at_most` and `at_least` targets:
-    - [ ] Pace per set: a binder in about two weeks at 3 visits a day and about one week at 6.
-    - [ ] No runaway coins: the idle pile after a full binder and the money supply stay bounded.
-    - [ ] Healthy Counter stock: rares neither dry up nor pile up.
-    - [ ] Fair prices at small scale: no sub-coin cards, and a sensible number of commons for the
-      daily reward.
+  lowers a loss. The goals and the Counter stock metrics are done. The rest of the design below is proposed and not
+  yet approved. Today the sweep varies only the coin rate, uses one seed and judges runs pass or fail,
+  which cannot rank two configs.
+  - [x] **Goals and bands**, a manual decision. Each goal is a band on a metric, reusing the
+    `between`, `at_most` and `at_least` targets. The sets they apply to are in
+    [ADR-0039](adr/0039-the-product-covers-the-sets-from-mirage-under-60-dollars-a-booster.md):
+    - [x] Pace per set: [ADR-0040](adr/0040-a-binder-takes-about-two-weeks-for-a-set-played-alone.md).
+    - [x] No runaway coins: [ADR-0041](adr/0041-a-finished-collector-keeps-at-most-3000-coins.md).
+      The money supply has no band yet.
+    - [x] Healthy Counter stock: [ADR-0042](adr/0042-the-counters-rares-are-scarce-but-not-gone.md).
+    - [x] Fair prices at small scale:
+      [ADR-0043](adr/0043-no-card-is-worth-less-than-one-coin-at-the-counter.md).
   - [ ] **Search space file:** parameters addressed by their path in the config, such as
     `counter_buy_pct` or `npcs.archetypes.casual.keep_copies`, each with a range, a type and a
     scale. A candidate is the base config with those paths overridden, then loaded through the
@@ -272,8 +289,9 @@ run today. The other two wait for features that are not built. The
     rates, and each goal names the scenarios it applies to.
   - [ ] **Loss:** the distance outside each band, normalised by the band's size, averaged over
     seeds and summed. A loss of 0 means every goal is met.
-  - [ ] **Counter stock metrics:** the share of rare printings out of stock, and the average rare
-    stock per printing. Neither exists today, and their bands are a manual decision.
+  - [x] **Counter stock metrics:** `rare_out_of_stock_pct` and `rare_stock_per_printing`, with the
+    bands of [ADR-0042](adr/0042-the-counters-rares-are-scarce-but-not-gone.md). That ADR is still
+    Proposed: no run has judged its numbers yet.
   - [ ] **Parallel evaluation** across cores, reproducible from a search seed.
   - [ ] **Search:** staged random search. A cheap stage on one seed keeps the best fraction, and the
     full batch of seeds, policies and sets scores the survivors.

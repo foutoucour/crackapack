@@ -81,8 +81,9 @@ to write the same per-rate reports as sweep. Pass `--rates` to override the defa
 grid (`[50, 100, 200, 400]`).
 
 The demo runs in about one second. The binder milestones (`days_to_100pct_cu.*`) come
-out identical at every rate on this dataset; the targets that split the grid are
-`sub_coin_cards`, `daily_reward_commons` and `unsold_duplicate_copies`. Why the rate
+out identical at every rate on this dataset; the one target that splits the grid is
+`daily_reward_commons`, since the Counter's one-coin floor leaves no sub-coin card and no unsold
+duplicate at any rate (`sub_coin_cards`, `unsold_duplicate_copies`). Why the rate
 leaves the milestones alone is explained in
 [What the sweep answers](specs-review.md#what-the-sweep-answers-about-the-coin-rate).
 
@@ -227,7 +228,9 @@ above the run horizon. Config validation keeps it from passing by accident: an `
 |--------|-----------|
 | `final_balance` | Player coin balance after the last day |
 | `total_refused_trades` | Sum of sell attempts refused by the Counter (ErrSubCoin) across all days; volume signal for stuck inventory |
-| `sub_coin_cards` | Distinct non-foil, non-basic-land cards, openable sets and supplementary pools included, that the Counter refuses to buy because the sale is worth less than one coin at the configured rate (a zero price counts); zero is the usual calibration target |
+| `sub_coin_cards` | Distinct non-foil, non-basic-land cards, openable sets and supplementary pools included, that the Counter refuses to buy. The Counter pays at least one coin for any positive price, see [ADR-0044](adr/0044-the-counter-pays-at-least-one-coin-for-a-priced-card.md), so these are the cards with a price of zero; zero is the usual calibration target |
+| `rare_out_of_stock_pct` | Share, in percent, of the rare and mythic printings of the openable sets of which the Counter holds no copy after the last day, see [ADR-0042](adr/0042-the-counters-rares-are-scarce-but-not-gone.md) |
+| `rare_stock_per_printing` | Copies the Counter holds, per rare or mythic printing of the openable sets, after the last day |
 | `daily_reward_commons` | `floor(DailyReward / median_common_buy_coins)`; how many commons the daily reward buys at the Counter |
 | `unpriced_cards` | Distinct non-basic-land cards, supplementary pools included, absent from the price snapshot and therefore priced at `fallback_price`; a count close to the whole catalogue means the snapshot is keyed wrongly |
 | `unsold_duplicate_copies` | Copies above a playset (4) still held at the end of the run, whatever the policy's own keep count; non-zero when sub-coin cards cannot be sold |

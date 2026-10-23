@@ -78,18 +78,18 @@ func buildSweepArgs(
 }
 
 // goldenConfig is the YAML used in the golden test.
-// Grid [10, 100, 250]; targets split the grid: 250 passes both, 10 and 100 fail.
+// Grid [10, 100, 250]; the targets split the grid: only 100 passes both.
 //
 // Observed per-rate values (RAV, seed=42, run_days=5, prices seed=1):
 //
-//	rate  sub_coin_cards  total_refused_trades  final_balance
-//	  10           2               814              55046
-//	 100           1               379             547857
-//	 250           0                 0            1369344
+//	rate  sub_coin_cards  final_balance
+//	  10           0            55156
+//	 100           0           547907
+//	 250           0          1369344
 //
-// Target 1 (sub_coin_cards ≤ 0): passes at 250 only.
-// Target 2 (total_refused_trades ≤ 400): passes at 100 and 250.
-// Combined: only rate 250 passes both.
+// Target 1 (sub_coin_cards ≤ 0): passes at every rate, since the Counter pays one coin for a
+// card priced at one cent, see ADR-0044.
+// Target 2 (final_balance between 100000 and 1000000): passes at 100 only.
 const goldenConfig = `run_days: 5
 seed: 42
 expensive_booster_value: 100000000
@@ -97,9 +97,10 @@ targets:
   - metric: sub_coin_cards
     comparison: at_most
     max: 0
-  - metric: total_refused_trades
-    comparison: at_most
-    max: 400
+  - metric: final_balance
+    comparison: between
+    min: 100000
+    max: 1000000
 `
 
 // TestRunSweep_happyPath verifies the happy path: files are written and stdout contains the table.
@@ -405,12 +406,12 @@ func TestRunSweep_sweepJSONContainsPerRateSummary(t *testing.T) {
 //
 // Setup (RAV catalogue, seed=42, run_days=5, prices seed=1, grid [10, 100, 250]):
 //
-//	rate  sub_coin_cards  total_refused_trades  final_balance  unsold_dup
-//	  10           2               814              55046          110     → FAIL both
-//	 100           1               379             547857           50     → FAIL sub_coin_cards
-//	 250           0                 0            1369344            0     → PASS both
+//	rate  sub_coin_cards  final_balance
+//	  10           0            55156     → FAIL final_balance
+//	 100           0           547907     → PASS both
+//	 250           0          1369344     → FAIL final_balance
 //
-// Passing rates: 250 (range 250–250, contiguous).
+// Passing rates: 100 (range 100–100, contiguous).
 func TestCmdSweep_goldenReport(t *testing.T) {
 	t.Parallel()
 
@@ -501,11 +502,11 @@ func TestCmdSweep_sweepJSONGoldenPassingRates(t *testing.T) {
 	if report.NoTargets {
 		t.Error("no_targets should be false")
 	}
-	if len(report.PassingRates) != 1 || report.PassingRates[0] != 250 {
-		t.Errorf("passing_rates: got %v, want [250]", report.PassingRates)
+	if len(report.PassingRates) != 1 || report.PassingRates[0] != 100 {
+		t.Errorf("passing_rates: got %v, want [100]", report.PassingRates)
 	}
-	if report.RangeMin != 250 || report.RangeMax != 250 {
-		t.Errorf("range: got %d–%d, want 250–250", report.RangeMin, report.RangeMax)
+	if report.RangeMin != 100 || report.RangeMax != 100 {
+		t.Errorf("range: got %d–%d, want 100–100", report.RangeMin, report.RangeMax)
 	}
 }
 

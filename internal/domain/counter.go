@@ -181,14 +181,14 @@ func NewCounter(cats []SetCatalogue, prices PriceSnapshot, journal *Journal, par
 // requested finish is not listed for that card.
 // Returns a wrapped ErrCounterBroke, with the card not taken, if the Counter has a treasury that
 // cannot pay.
-// Returns a wrapped ErrSubCoin if the trade is worth less than one coin.
-// This covers both genuinely sub-coin prices and zero prices
-// (e.g. FallbackPrice == 0 or a snapshot price of 0).
+// Returns a wrapped ErrSubCoin if the card has a price of zero (e.g. FallbackPrice == 0 or a
+// snapshot price of 0). A positive price that converts to under one coin pays one coin, see
+// ADR-0044.
 func (c *Counter) BuyFromPlayer(key CardKey) error {
 	if _, err := c.lookupCard(key); err != nil {
 		return err
 	}
-	coins, err := c.tradeCoins(c.referencePrice(key), c.params.SellPct)
+	coins, err := c.payoutCoins(c.referencePrice(key))
 	if err != nil {
 		return err
 	}
@@ -389,6 +389,19 @@ func (c *Counter) tradeCoins(price USDCents, pct Percent) (Coins, error) {
 		// price == 0 yields (0, nil) from PriceToCoins; refuse rather than letting
 		// the ledger's ErrNonPositiveAmount surface as an opaque error.
 		return 0, fmt.Errorf("counter: trade refused, worth less than one coin: %w", ErrSubCoin)
+	}
+	return coins, nil
+}
+
+// payoutCoins converts a reference price to the coins the Counter pays the player, at least one
+// coin for a positive price. A zero price is refused as a wrapped ErrSubCoin, like tradeCoins.
+func (c *Counter) payoutCoins(price USDCents) (Coins, error) {
+	coins, err := PayoutCoins(price, c.params.CoinRate, c.params.SellPct)
+	if err != nil {
+		if errors.Is(err, ErrSubCoin) {
+			return 0, fmt.Errorf("counter: trade refused, worth less than one coin: %w", ErrSubCoin)
+		}
+		return 0, fmt.Errorf("counter: price conversion: %w", err)
 	}
 	return coins, nil
 }

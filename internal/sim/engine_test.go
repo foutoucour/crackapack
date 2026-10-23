@@ -396,8 +396,7 @@ func TestRun_subCoinCardsIncludesSupplementaryInSummary(t *testing.T) {
 		},
 	}
 
-	// Supplementary card with price 1 cent: sell value at rate 10, sell 60%
-	// = floor(1*10*60/10000) = 0 → ErrSubCoin.
+	// Supplementary card with a price of zero: the Counter refuses it, see ADR-0044.
 	suppCard := domain.Card{
 		ID:       "supp-sp-001",
 		Name:     "Supp Special",
@@ -413,12 +412,11 @@ func TestRun_subCoinCardsIncludesSupplementaryInSummary(t *testing.T) {
 
 	prices := domain.PriceSnapshot{
 		"main-r-002":  500, // well-priced
-		"supp-sp-001": 1,   // sub-coin at low rate
+		"supp-sp-001": 0,   // refused by the Counter
 	}
 
 	cfg := smallConfig()
 	cfg.RunDays = 1
-	cfg.CoinRate = 10 // low rate so 1 cent → sub-coin
 	rng := rand.New(rand.NewPCG(cfg.Seed, cfg.Seed))
 
 	e, err := sim.NewEngine(cfg, []domain.SetCatalogue{mainCat}, []domain.SetCatalogue{suppCat}, prices, sim.NewCollectorPolicy(), rng)
