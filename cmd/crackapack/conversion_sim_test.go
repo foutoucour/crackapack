@@ -158,6 +158,13 @@ func TestCoinTopupVariants_SimReport(t *testing.T) {
 			},
 			player: "converting-collector",
 		},
+		{
+			name: "energy-first (min_energy_units=1)",
+			topup: config.EnergyCoinTopupConfig{
+				Enabled: true, Variant: config.CoinTopupVariantMinEnergy, MinEnergyUnits: 1, EscalationStep: 1,
+			},
+			player: "energy-first",
+		},
 	})
 
 	// Table 2: low-fee stall scenario at p=10.
@@ -173,6 +180,13 @@ func TestCoinTopupVariants_SimReport(t *testing.T) {
 				Enabled: true, Variant: config.CoinTopupVariantMinEnergy, MinEnergyUnits: 1, EscalationStep: 1,
 			},
 			player: "converting-collector",
+		},
+		{
+			name: "energy-first (min_energy_units=1)",
+			topup: config.EnergyCoinTopupConfig{
+				Enabled: true, Variant: config.CoinTopupVariantMinEnergy, MinEnergyUnits: 1, EscalationStep: 1,
+			},
+			player: "energy-first",
 		},
 	})
 }
