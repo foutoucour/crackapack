@@ -2,7 +2,8 @@
 
 ## Status
 
-Proposed — 2026-10-23. Supersedes [ADR-0012](0012-an-npc-counters-once.md).
+Proposed — 2026-10-23. Supersedes [ADR-0012](0012-an-npc-counters-once.md) for the game only: the
+simulation's Exchange still follows ADR-0012.
 
 ## Context
 

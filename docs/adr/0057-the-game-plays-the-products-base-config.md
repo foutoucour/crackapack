@@ -27,11 +27,12 @@ see [ADR-0056](0056-the-counter-remembers-when-it-last-had-a-card.md).
 [`tune/play.yaml`](../../tune/play.yaml), a list of overrides in the form of the search's candidates.
 The search reads the base config only.
 
-The overlay makes the Counter scarce:
+The overlay makes the Counter scarce, and gives the game its NPCs:
 - **A limited shelf:** a card sold to the Counter, or opened by it, vanishes after a while.
 - **No rare or mythic at the start:** they reach the Counter only through its daily boosters and the
   player's sales, and stay reachable by trade once trades are in the game, see
   [ADR-0049](0049-a-rare-is-scarce-at-the-counter-and-still-reachable-by-trade.md).
+- **A crowd of NPCs** that trades with the player on the market and holds its surplus on a shelf.
 
 The demo keeps a config of its own, small enough to show every feature in a few boosters.
 
@@ -41,7 +42,9 @@ The demo keeps a config of its own, small enough to show every feature in a few 
   the game only.
 - The game is not exactly the world the goals judge: its Counter is scarcer. A search that should judge
   the game's world has to vary the overlay's keys too, or move them into the base.
-- The base config has no NPCs, and neither does the overlay, so the game has none. The game builds and
-  saves a crowd when a config has one, which the demo does.
+- The base config has no NPCs. The overlay gives the game a crowd, how many NPCs and how long they
+  hold their surplus, for the market of
+  [ADR-0058](0058-the-player-trades-on-a-market-of-requests-and-listings.md), so the search judges a
+  world without the game's NPCs.
 - The values of the overlay and why they were chosen are in the [tuning log](../tuning-log.md).
 - `play` still has no `--config`.

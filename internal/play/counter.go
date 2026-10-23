@@ -3,6 +3,7 @@ package play
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/foutoucour/crackapack/internal/domain"
@@ -297,7 +298,7 @@ func (g *Game) sellLot(lines []domain.TradeLine) (domain.Coins, error) {
 func (g *Game) counterFor(id domain.CardID, finish domain.Finish) (*economy, domain.CardKey, error) {
 	key := domain.CardKey{ID: id, Finish: finish}
 	card, ok := g.cards[id]
-	if !ok || !hasFinish(card, finish) {
+	if !ok || !slices.Contains(card.Finishes, finish) {
 		return nil, key, ErrUnknownCard
 	}
 	if err := g.syncCounter(); err != nil {
@@ -306,27 +307,23 @@ func (g *Game) counterFor(id domain.CardID, finish domain.Finish) (*economy, dom
 	return g.economy, key, nil
 }
 
-// syncCounter catches the Counter up with the days gone by. g.mu must be held.
+// syncCounter catches the Counter up with the days gone by, with the sets that the market's trades
+// meanwhile unlocked. g.mu must be held.
 func (g *Game) syncCounter() error {
 	if g.economy == nil {
 		return ErrNoCounter
 	}
-	return g.economy.catchUp()
+	if err := g.economy.catchUp(); err != nil {
+		return err
+	}
+	g.unlockCaughtUp()
+	return nil
 }
 
 // buyable reports whether a binder of an unlocked set holds the card. g.mu must be held.
 func (g *Game) buyable(id domain.CardID) bool {
 	for _, code := range g.binderSets[id] {
 		if !g.locked(code) {
-			return true
-		}
-	}
-	return false
-}
-
-func hasFinish(card domain.Card, finish domain.Finish) bool {
-	for _, f := range card.Finishes {
-		if f == finish {
 			return true
 		}
 	}

@@ -19,7 +19,7 @@ and the runs depend on the config being tuned.
 The days to 100% are dominated by the rarest card. Ten sets hold cards that a booster gives once in
 thousands, see [the tuning log](../tuning-log.md). A measure of the whole binder would rank those ten
 sets by one card each, and not by how they play. The unlock happens before the binder is whole, at
-`unlock.binder_threshold` of it, 90% by default.
+`unlock.binder_threshold` of it, whose value is in the [tuning log](../tuning-log.md).
 
 ## Decision
 

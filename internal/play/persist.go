@@ -64,6 +64,7 @@ func (g *Game) Persist(saves Saves) error {
 			return err
 		}
 	}
+	g.unlockCaughtUp()
 	return nil
 }
 

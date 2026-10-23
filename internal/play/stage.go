@@ -150,6 +150,15 @@ func (g *Game) stage(code string) int {
 	return g.staging.stageOf[code]
 }
 
+// unlockCaughtUp unlocks the sets that a catch-up, or a save from before the stages, earned, and
+// saves the game when it did, so that a set shown unlocked is still unlocked after a restart. A
+// failed save is reported as every save is, see SaveError. g.mu must be held.
+func (g *Game) unlockCaughtUp() {
+	if len(g.unlockEarned()) > 0 {
+		g.save()
+	}
+}
+
 // unlockEarned unlocks sets for every binder that has reached the threshold and not unlocked
 // before, and returns them in the order they were drawn. Every method that adds cards to the
 // collection calls it, before it saves. g.mu must be held.

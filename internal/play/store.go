@@ -76,7 +76,7 @@ func decodeSnapshot(data []byte) (Snapshot, error) {
 // Save writes the snapshot to a temporary file next to the save, then renames it over the save, so
 // that a crash or a full disk never leaves half a save.
 func (s *FileStore) Save(snap Snapshot) (err error) {
-	data, err := json.MarshalIndent(snap, "", "  ")
+	data, err := json.Marshal(snap)
 	if err != nil {
 		return fmt.Errorf("play: encode save: %w", err)
 	}

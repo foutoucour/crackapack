@@ -2,8 +2,8 @@
 
 ## Status
 
-Superseded by [ADR-0058](0058-the-player-trades-on-a-market-of-requests-and-listings.md) — 2026-10-23.
-Accepted 2026-10-13.
+Superseded for the game by [ADR-0058](0058-the-player-trades-on-a-market-of-requests-and-listings.md)
+— 2026-10-23; the simulation still follows it. Accepted 2026-10-13.
 
 ## Context
 

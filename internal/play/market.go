@@ -308,7 +308,7 @@ func (g *Game) syncMarket() (*domain.Market, error) {
 	if err := g.economy.catchUp(); err != nil {
 		return nil, err
 	}
-	g.unlockEarned()
+	g.unlockCaughtUp()
 	return g.economy.market, nil
 }
 
@@ -317,7 +317,7 @@ func (g *Game) syncMarket() (*domain.Market, error) {
 func (g *Game) marketFor(id domain.CardID, finish domain.Finish) (*domain.Market, domain.CardKey, error) {
 	key := domain.CardKey{ID: id, Finish: finish}
 	card, ok := g.cards[id]
-	if !ok || !hasFinish(card, finish) {
+	if !ok || !slices.Contains(card.Finishes, finish) {
 		return nil, key, ErrUnknownCard
 	}
 	m, err := g.syncMarket()

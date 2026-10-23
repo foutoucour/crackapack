@@ -11,6 +11,11 @@ this rule, such as ADR-0041 and ADR-0043, still carry the numbers they were acce
 How the search works is in [The tuning system](simulation.md#the-tuning-system). The goals are the bands
 of ADR-0051, ADR-0041, ADR-0049 and ADR-0043, and the search files are in [`tune/`](../tune).
 
+**A change to `initial_stock` reaches existing saves.** The game saves the Counter's stock as its
+difference from the configured initial stock, see
+[ADR-0052](adr/0052-the-game-is-saved-in-one-versioned-json-file.md). Raising or lowering an initial
+stock moves the Counter of every save already written by the same amount.
+
 **Add an entry** whenever a default of the config changes, a search runs on the product's files, or a
 goal band changes. Newest first. Each entry says:
 - what triggered it and whether the values were applied to `config.defaults()`;
@@ -67,6 +72,9 @@ shelf, so that asking around for it gets an answer.
 - The binary starts a new game in 1.80 s, against 1.67 s without NPCs, and loads it in 1.23 s, against
   1.01 s. Catching up 30 days takes about 0.15 s.
 - At 30 days, 8 NPCs save 1.4 MB and 16 save 2.0 MB.
+- The save is now written without indentation. That changes little: 1,605 KB at 30 days and 1,981 KB
+  at 90, against 1,609 KB and 2,047 KB, since the NPCs' cards and the Counter's shelf were compact
+  strings already.
 - Before the NPCs opened only the sets the player can open, see
   [ADR-0063](adr/0063-the-npcs-of-the-game-open-the-sets-the-player-can-open.md), the same crowd held 0
   of the 156 cards on the fourth day and 28 after a month, and its save was 3.0 MB after 30 days, half

@@ -12,12 +12,12 @@
     <div class="answer-actions">
       <form method="post" action="/accept">
         <input type="hidden" name="answer" value="{{.AnswerID}}">{{template "backFields" .Back}}
-        <button type="submit">Accept<span class="sr-only"> {{.Who}}</span></button>
+        <button type="submit">Accept<span class="sr-only"> {{.Who}} for {{.Card}}</span></button>
       </form>
-      <a class="button" href="{{.CounterHref}}">Counter<span class="sr-only"> {{.Who}}</span></a>
+      <a class="button" href="{{.CounterHref}}">Counter<span class="sr-only"> {{.Who}} for {{.Card}}</span></a>
       <form method="post" action="/decline">
         <input type="hidden" name="answer" value="{{.AnswerID}}">{{template "backFields" .Back}}
-        <button type="submit">Decline<span class="sr-only"> {{.Who}}</span></button>
+        <button type="submit">Decline<span class="sr-only"> {{.Who}} for {{.Card}}</span></button>
       </form>
     </div>
     {{end}}

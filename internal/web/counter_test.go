@@ -321,6 +321,8 @@ func TestSell_oneOfSeveralCopiesPaysAndComesBackToItsPlace(t *testing.T) {
 	t.Parallel()
 	shop := newCounterShop(t)
 	shop.open(t, 2)
+	mustContain(t, "the quantity of a held card for a screen reader", slot(t, shop.get(t, "/collection?set=S"), cheapCard),
+		`Quantity<span class="sr-only"> of S-00</span>`)
 
 	resp, _ := shop.post(t, "/sell", sellForm(cheapCard, "1"))
 

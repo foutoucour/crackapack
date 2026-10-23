@@ -148,6 +148,10 @@ func TestAskAround_theSlotShowsThePendingStateAndTheAnswersAsTheyArrive(t *testi
 		"NPC 1 (a fast)", "asks 100 coins",
 		`action="/accept"`, `action="/decline"`, "/counter-offer?", `action="/withdraw"`)
 	mustNotContain(t, "the slot after asking", got, `action="/ask-around"`, "NPC 2")
+	mustContain(t, "the answer's buttons for a screen reader", got,
+		`Accept<span class="sr-only"> NPC 1 (a fast) for S-00</span>`,
+		`Counter<span class="sr-only"> NPC 1 (a fast) for S-00</span>`,
+		`Decline<span class="sr-only"> NPC 1 (a fast) for S-00</span>`)
 
 	shop.clock.Advance(slowDelay)
 	got = slot(t, shop.get(t, "/collection?set=S"), cheapCard)

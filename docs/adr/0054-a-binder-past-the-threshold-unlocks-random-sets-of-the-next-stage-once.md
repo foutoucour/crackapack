@@ -33,8 +33,8 @@ which sets were just unlocked.
 
 - The threshold is the same for every set, so a small set unlocks sooner than a large one, which is
   the point of ranking the sets.
-- With the default 3 sets per unlock and 5 sets in the first stage, a player who fills the binders of
-  the first stage has unlocked 15 more sets.
+- A player who fills the binders of the first stage has unlocked `unlock.sets_per_unlock` sets for
+  each of them. The values of the keys are in the [tuning log](../tuning-log.md).
 - A game played from a list of sets, `--sets RAV,TSP`, has no stage: every set is open. Its save keeps
   the unlocks of a staged game untouched, for the next staged game on the same save.
 - A save written before the stages loads with the first stage open and every other set locked.

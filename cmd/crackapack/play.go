@@ -124,10 +124,11 @@ needed. Otherwise pass --catalogue-dir; --seed 0 picks a random seed and prints 
 Without --sets, or with --sets all, the game has every set of the catalogue directory from Mirage
 on whose booster is worth under $60, and the card pools their boosters draw from. The sets open up
 in stages, from the quickest binder to fill to the slowest: the first stage is open, and a binder
-filled to 90% unlocks three sets of the next stage. --sets RAV,TSP plays those sets only, all open,
-with the pools of --supplementary. The demo plays in stages too.
+filled to unlock.binder_threshold of its cards unlocks unlock.sets_per_unlock sets of the next stage.
+--sets RAV,TSP plays those sets only, all open, with the pools of --supplementary. The demo plays in
+stages too.
 
-The game is saved after every opening and picked up where it was when you start again, so the
+The game is saved after every action and picked up where it was when you start again, so the
 energy keeps recharging while it is closed. The save is a JSON file in the user config directory,
 or at --save; the demo has a save of its own. A game that is loaded keeps the seed it was saved
 with, and --seed only seeds a new one.
@@ -137,7 +138,7 @@ booster costs follows its value against the median of the catalogue, so pass --p
 snapshot of fetchdata, to tell the sets apart; without it every booster costs the same.
 
 You start with 200 coins. The Counter buys any card at 60% of its price and sells at 120%, and it
-stocks itself each day, also while the game is closed, up to the last 30 days. The prices come from
+stocks itself each day, also while the game is closed, up to the last catch_up_days. The prices come from
 --prices too: without it every card is worth the fallback price of one cent.
 
 The game's NPCs open the sets you can open and trade with you on the market: ask around for a card and

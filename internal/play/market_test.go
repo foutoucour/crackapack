@@ -531,3 +531,76 @@ func TestSpare_aGameWithoutAMarketHasNone(t *testing.T) {
 		t.Errorf("Spare error = %v, want ErrNoMarket", err)
 	}
 }
+
+// A deal that completes a binder while the player is away unlocks sets the moment the game shows it,
+// and the unlock is saved: a restart shows the same sets unlocked.
+func TestMarket_anUnlockByADealWhileAwayIsSaved(t *testing.T) {
+	t.Parallel()
+	clock := playtest.NewClock()
+	store := &memStore{}
+	g := stagedMarketGame(t, store, clock)
+	missing := domain.CardKey{ID: "A-00", Finish: domain.FinishNonFoil}
+	if got := mustOpen(t, g, "A").Cards[0].Card.ID; got == missing.ID {
+		missing.ID = "A-01"
+	}
+	mustAsk(t, g, missing)
+	clock.Advance(slowDelay)
+	if err := g.CounterAnswer(answerOf(t, mustMarket(t, g), slowNPC).ID, 5, nil); err != nil {
+		t.Fatalf("CounterAnswer: %v", err)
+	}
+
+	clock.Advance(slowDelay)
+	if v := mustMarket(t, g); len(v.Results) == 0 || v.Results[0].Outcome != domain.MarketAccepted {
+		t.Fatalf("results = %+v, want the counter accepted", v.Results)
+	}
+	if shown := locked(g); len(shown) != 0 {
+		t.Fatalf("locked after the deal = %v, want B unlocked", shown)
+	}
+	if got := locked(stagedMarketGame(t, store.copied(), clock)); len(got) != 0 {
+		t.Errorf("locked after a restart = %v, want B unlocked as it was shown", got)
+	}
+}
+
+// stagedMarketGame is a game with a market on two sets in stages, loaded from store: A gives one
+// card a booster and is open; B unlocks once A's binder is complete.
+func stagedMarketGame(t *testing.T, store play.Store, clock *playtest.Clock) *play.Game {
+	t.Helper()
+	g, stream, err := newSeededGame(clock, playtest.TinySet("B", 3, 1), playtest.TinySet("A", 2, 1))
+	if err != nil {
+		t.Fatalf("NewGame: %v", err)
+	}
+	if err := g.Stage(play.StageRules{Threshold: 1, SetsPerUnlock: 1, Stages: 1, StartSets: 1}, play.NewStream(3)); err != nil {
+		t.Fatalf("Stage: %v", err)
+	}
+	rules := marketRules()
+	rules.Prices = domain.PriceSnapshot{}
+	if err := g.OpenCounter(rules, play.NewStream(7), play.NewStream(8)); err != nil {
+		t.Fatalf("OpenCounter: %v", err)
+	}
+	if err := g.Persist(play.Saves{Store: store, Stream: stream}); err != nil {
+		t.Fatalf("Persist: %v", err)
+	}
+	return g
+}
+
+// A save from before the stages, whose binder is past the threshold, unlocks at load and is saved
+// with the unlock.
+func TestPersist_aSavePastTheThresholdUnlocksAtLoad(t *testing.T) {
+	t.Parallel()
+	clock := playtest.NewClock()
+	store := &memStore{}
+	g := stagedMarketGame(t, store, clock)
+	for len(locked(g)) > 0 {
+		mustOpen(t, g, "A")
+	}
+	snap := store.last(t)
+	snap.Unlocks = nil
+	old := &memStore{snap: snap, found: true}
+
+	if got := locked(stagedMarketGame(t, old, clock)); len(got) != 0 {
+		t.Errorf("locked after loading = %v, want B unlocked", got)
+	}
+	if u := old.last(t).Unlocks; u == nil || len(u.Unlocked) == 0 {
+		t.Errorf("saved unlocks = %+v, want B", u)
+	}
+}

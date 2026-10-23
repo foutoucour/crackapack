@@ -169,7 +169,7 @@ func (idx *marketIndex) requestView(r play.Request, ref cardRef, back backView) 
 		Name:      cardName(r.Card, r.Finish),
 		Status:    requestStatus(r.Asked, r.Pending, len(r.Answers)),
 		Over:      r.Pending == 0 && len(r.Answers) == 0,
-		Answers:   idx.answerViews(r.Answers, true, back),
+		Answers:   idx.answerViews(r.Answers, true, cardName(r.Card, r.Finish), back),
 		Back:      back,
 	}
 }
@@ -207,7 +207,7 @@ func (idx *marketIndex) listingView(l play.Listing, ref cardRef, back backView) 
 		ListingID: int(l.ID),
 		Name:      cardName(l.Card, l.Finish),
 		Price:     l.Price,
-		Answers:   idx.answerViews(l.Answers, false, back),
+		Answers:   idx.answerViews(l.Answers, false, cardName(l.Card, l.Finish), back),
 		Back:      back,
 	}
 	if len(l.Answers) == 0 {
@@ -222,6 +222,8 @@ type answerView struct {
 	// Who is the NPC and its personality, and Terms what it asks or offers.
 	Who   string
 	Terms string
+	// Card names the card answered about, for the buttons read by a screen reader.
+	Card string
 	// Lapses says when the answer is gone unless the player takes it.
 	Lapses string
 	// Countered says the player's counter and when the NPC replies, and is empty for an answer the
@@ -231,7 +233,7 @@ type answerView struct {
 	Back        backView
 }
 
-func (idx *marketIndex) answerViews(answers []play.Answer, ask bool, back backView) []answerView {
+func (idx *marketIndex) answerViews(answers []play.Answer, ask bool, card string, back backView) []answerView {
 	out := make([]answerView, len(answers))
 	for i, a := range answers {
 		verb := "offers"
@@ -242,6 +244,7 @@ func (idx *marketIndex) answerViews(answers []play.Answer, ask bool, back backVi
 			AnswerID:    int(a.ID),
 			Who:         npcLabel(a),
 			Terms:       verb + " " + termsText(a.Coins, a.Cards),
+			Card:        card,
 			CounterHref: counterHref(a.ID, back),
 			Back:        back,
 		}

@@ -99,7 +99,7 @@
       {{if .Traded}}
       <form method="post" action="/sell" class="sell">
         {{template "cardFields" .}}
-        {{if gt .Copies 1}}<label>Quantity <input type="number" name="qty" value="1" min="1" max="{{.Copies}}" inputmode="numeric"></label>{{else}}<input type="hidden" name="qty" value="1">{{end}}
+        {{if gt .Copies 1}}<label>Quantity<span class="sr-only"> of {{$slot.Name}}</span> <input type="number" name="qty" value="1" min="1" max="{{.Copies}}" inputmode="numeric"></label>{{else}}<input type="hidden" name="qty" value="1">{{end}}
         <button type="submit">Sell{{if .Foil}} foil{{end}}<span class="sr-only"> {{$slot.Name}}</span> for {{coins .Price}}{{if gt .Copies 1}} each{{end}}</button>
       </form>
       {{else}}

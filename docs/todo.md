@@ -382,7 +382,7 @@ The stack is server-rendered `html/template`, see
   Left: the collection's value, the card page, filters (colour among them), and the master set
   (foil as slots of their own).
 - [x] Saves: the collection, the welcome boosters left, the energy and the booster stream are saved
-  to one JSON file after every opening and loaded on start, and the energy recharges for the time the
+  to one JSON file after every action and loaded on start, and the energy recharges for the time the
   game was closed, see
   [ADR-0052](adr/0052-the-game-is-saved-in-one-versioned-json-file.md). A save that fails is shown
   on every page and logged. The Counter and the market are saved in it too. Left: export and import

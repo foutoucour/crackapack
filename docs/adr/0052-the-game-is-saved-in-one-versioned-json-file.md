@@ -49,3 +49,6 @@ The file is `<user config dir>/crackapack/save.json`, `save-demo.json` for the d
 - A set added after the first save has no welcome boosters: they were given once, at the start.
 - A save written by a newer game is refused by an older one, since an older game would drop its
   state at the next save.
+- The Counter's stock is saved as its difference from the initial stock the config gives, so that a
+  save stays small. A later change to `initial_stock` therefore changes the Counter of every existing
+  save, without a word, by the same difference.

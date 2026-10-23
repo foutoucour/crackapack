@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -199,8 +200,11 @@ func TestCmdPlay_savesTheGameWhereSaveSays(t *testing.T) {
 		t.Fatalf("read the save: %v", err)
 	}
 	// The demo plays in stages, so DEM, its first stage, has the ten welcome boosters.
-	if !strings.Contains(string(saved), `"DEM": 9`) {
-		t.Errorf("the save does not show a welcome booster of DEM opened:\n%s", saved)
+	var snap struct {
+		Welcome map[string]int `json:"welcome"`
+	}
+	if err := json.Unmarshal(saved, &snap); err != nil || snap.Welcome["DEM"] != 9 {
+		t.Errorf("the save does not show a welcome booster of DEM opened (%v):\n%s", err, saved)
 	}
 }
 
