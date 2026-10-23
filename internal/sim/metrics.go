@@ -139,10 +139,9 @@ type DayMetrics struct {
 //     for stuck inventory (one sub-coin card above playset generates one refusal
 //     per copy per session per day). Use sub_coin_cards for the distinct-card count.
 //   - sub_coin_cards: distinct non-foil, non-basic-land cards across openable and
-//     supplementary catalogues whose Counter sell value (at SellPct) is sub-coin
-//     at the configured rate, including cards priced at zero (zero price returns
-//     (0, nil) from PriceToCoins but the Counter refuses it identically to ErrSubCoin);
-//     the economy is calibrated when this is zero
+//     supplementary catalogues that the Counter refuses to buy. Since ADR-0044 the Counter
+//     pays at least one coin for a positive price, so these are the cards priced at zero
+//     (domain.PayoutCoins); the economy is calibrated when this is zero
 //   - daily_reward_commons: floor(DailyReward / medianCommonBuyCoins) where
 //     medianCommonBuyCoins is PriceToCoins(median common non-basic price, rate, BuyPct)
 //     over openable and supplementary catalogues; 0 when the median converts to sub-coin
@@ -160,6 +159,10 @@ type DayMetrics struct {
 //     of the set (openable catalogues only)
 //   - coins_after_full_binder: player balance gained from the first day every openable set
 //     is complete to the end of the run; 0 when that day is never reached
+//   - rare_out_of_stock_pct: share, in percent, of the rare and mythic printings of the
+//     openable sets that the Counter holds no copy of after the last day, see ADR-0042
+//   - rare_stock_per_printing: copies the Counter holds per rare or mythic printing of the
+//     openable sets after the last day
 //   - max_booster_wait_minutes: longest wait, from an empty reserve and empty savings, to
 //     afford one booster of any openable set; set by the energy settings, not by play
 //
@@ -189,6 +192,34 @@ type DayMetrics struct {
 //   - trade_volume_coins: reference value of the cards moved, in coins
 //   - trade_topup_coins: coins the player paid on top of cards
 type Summary map[string]float64
+
+// addRareStockSummary adds the two rare-stock metrics of ADR-0042 to s, read over the rare and
+// mythic printings of cats. A printing's stock is its copies in every finish it comes in.
+func addRareStockSummary(s Summary, cats []domain.SetCatalogue, stock func(domain.CardKey) int) {
+	var printings, outOfStock, copies int
+	for _, cat := range cats {
+		for id, card := range cat.Cards {
+			if card.IsBasicLand || (card.Rarity != domain.RarityRare && card.Rarity != domain.RarityMythic) {
+				continue
+			}
+			printings++
+			held := 0
+			for _, finish := range card.Finishes {
+				held += stock(domain.CardKey{ID: id, Finish: finish})
+			}
+			copies += held
+			if held == 0 {
+				outOfStock++
+			}
+		}
+	}
+	s["rare_out_of_stock_pct"] = 0
+	s["rare_stock_per_printing"] = 0
+	if printings > 0 {
+		s["rare_out_of_stock_pct"] = 100 * float64(outOfStock) / float64(printings)
+		s["rare_stock_per_printing"] = float64(copies) / float64(printings)
+	}
+}
 
 // addCounterSummary adds the totals of the Counter's own openings to s. Every entry of days must
 // carry Counter metrics.
@@ -387,11 +418,9 @@ func countSubCoinCards(
 		if !ok {
 			price = fallback
 		}
-		coins, err := domain.PriceToCoins(price, rate, sellPct)
-		// Count as sub-coin when PriceToCoins errors (ErrSubCoin for non-zero prices that
-		// round down) OR when coins == 0 with no error (zero price returns (0, nil) but the
-		// Counter's tradeCoins refuses it identically, wrapping ErrSubCoin).
-		if err != nil || coins == 0 {
+		// The Counter pays one coin for any positive price, see ADR-0044, so only a card with
+		// no price is refused. The metric reads the same rule as the Counter.
+		if _, err := domain.PayoutCoins(price, rate, sellPct); err != nil {
 			count++
 		}
 	}

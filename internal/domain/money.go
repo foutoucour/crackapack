@@ -39,6 +39,22 @@ func PriceToCoins(price USDCents, rate CoinRate, pct Percent) (Coins, error) {
 	return result, nil
 }
 
+// PayoutCoins converts a price to the coins the Counter pays for it, see ADR-0044. It is
+// PriceToCoins with a floor: a positive price that converts to under one coin pays one coin. A
+// price of zero is refused with ErrSubCoin, and negative inputs with ErrNegativeInput.
+func PayoutCoins(price USDCents, rate CoinRate, pct Percent) (Coins, error) {
+	coins, err := PriceToCoins(price, rate, pct)
+	switch {
+	case errors.Is(err, ErrSubCoin):
+		return 1, nil
+	case err != nil:
+		return 0, err
+	case coins == 0:
+		return 0, ErrSubCoin
+	}
+	return coins, nil
+}
+
 // FoilPrice returns the reference price of a foil whose non-foil is worth price, at pct percent
 // of it. A pct of zero prices the foil as its non-foil.
 func FoilPrice(price USDCents, pct Percent) USDCents {

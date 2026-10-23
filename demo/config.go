@@ -12,13 +12,15 @@ const demSeed uint64 = 42
 //
 //	rate | sub_coin_cards | daily_reward_commons | unsold_duplicate_copies
 //	-----+----------------+----------------------+------------------------
-//	  50 |             44 |                   33 |                    4368
-//	 100 |              2 |                   14 |                     888
+//	  50 |              0 |                   33 |                       0
+//	 100 |              0 |                   14 |                       0
 //	 200 |              0 |                    7 |                       0
 //	 400 |              0 |                    3 |                       0
 //
-// The three targets below split the grid: rates 50 and 100 fail at least one
-// target; rates 200 and 400 pass all three.
+// The Counter pays one coin for a card priced at one cent, see ADR-0044, so no rate leaves a
+// sub-coin card here, and the table above is what the sweep gave after that floor: before it, rates
+// 50 and 100 had 44 and 2 such cards. The targets below now split the grid on the daily reward alone:
+// rate 50 fails it, and rates 100 to 400 pass all three.
 //
 // The Counter opens 40 boosters a day and pays from a treasury of 5 million coins plus 20 thousand
 // a day, large enough that the sweep outcome above does not change: the demo exercises the

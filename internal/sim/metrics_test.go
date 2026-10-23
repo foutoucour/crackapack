@@ -90,26 +90,27 @@ func TestSummary_neverReachedSentinel(t *testing.T) {
 	}
 }
 
+// TestSummary_subCoinCards pins ADR-0044: the Counter pays one coin for a card priced at one
+// cent, so only a card with no price is refused and counted.
 func TestSummary_subCoinCards(t *testing.T) {
 	t.Parallel()
-	// Card with price 1 cent at rate 100, sell 60%:
-	// PriceToCoins(1, 100, 60) = floor(1 * 100 * 60 / 10000) = floor(0.6) = 0 → ErrSubCoin.
-	subCoinID := domain.CardID("sub-c")
+	oneCentID := domain.CardID("one-cent")
+	zeroPriceID := domain.CardID("zero-price")
 	okID := domain.CardID("ok-c")
 	cat := domain.SetCatalogue{
 		Code: "TST",
 		Cards: map[domain.CardID]domain.Card{
-			subCoinID: {ID: subCoinID, Rarity: domain.RarityCommon, Finishes: []domain.Finish{domain.FinishNonFoil}},
-			okID:      {ID: okID, Rarity: domain.RarityCommon, Finishes: []domain.Finish{domain.FinishNonFoil}},
+			oneCentID:   {ID: oneCentID, Rarity: domain.RarityCommon, Finishes: []domain.Finish{domain.FinishNonFoil}},
+			zeroPriceID: {ID: zeroPriceID, Rarity: domain.RarityCommon, Finishes: []domain.Finish{domain.FinishNonFoil}},
+			okID:        {ID: okID, Rarity: domain.RarityCommon, Finishes: []domain.Finish{domain.FinishNonFoil}},
 		},
 	}
-	prices := domain.PriceSnapshot{subCoinID: 1, okID: 500}
+	prices := domain.PriceSnapshot{oneCentID: 1, zeroPriceID: 0, okID: 500}
 	days := []sim.DayMetrics{{Day: 1, MoneySupply: zeroSupply()}}
 	s := sim.ComputeSummaryForTest(days, 1, []domain.SetCatalogue{cat}, nil, prices, 0, 100, 60, 120, 100)
 
-	v := s["sub_coin_cards"]
-	if v != 1 {
-		t.Errorf("sub_coin_cards = %v, want 1", v)
+	if v := s["sub_coin_cards"]; v != 1 {
+		t.Errorf("sub_coin_cards = %v, want 1 (the zero-priced card only)", v)
 	}
 }
 
@@ -150,41 +151,18 @@ func TestSummary_unsoldDuplicateCopies(t *testing.T) {
 	}
 }
 
-// TestSummary_subCoinCards_zeroPrice reproduces defect 2: a card with price 0
-// returns (0, nil) from PriceToCoins but the Counter refuses it as sub-coin.
-// countSubCoinCards must count it.
-func TestSummary_subCoinCards_zeroPrice(t *testing.T) {
-	t.Parallel()
-	zeroPriceID := domain.CardID("zero-price")
-	cat := domain.SetCatalogue{
-		Code: "TST",
-		Cards: map[domain.CardID]domain.Card{
-			zeroPriceID: {ID: zeroPriceID, Rarity: domain.RarityCommon, Finishes: []domain.Finish{domain.FinishNonFoil}},
-		},
-	}
-	// price 0 → PriceToCoins(0, 100, 60) = (0, nil); Counter still refuses it.
-	prices := domain.PriceSnapshot{zeroPriceID: 0}
-	days := []sim.DayMetrics{{Day: 1, MoneySupply: zeroSupply()}}
-	s := sim.ComputeSummaryForTest(days, 1, []domain.SetCatalogue{cat}, nil, prices, 0, 100, 60, 120, 100)
-
-	if v := s["sub_coin_cards"]; v != 1 {
-		t.Errorf("sub_coin_cards = %v, want 1 (zero-priced card must be counted)", v)
-	}
-}
-
 // TestSummary_subCoinCardsIncludesSupplementary reproduces defect 3: supplementary
 // catalogue cards must be counted in sub_coin_cards.
 func TestSummary_subCoinCardsIncludesSupplementary(t *testing.T) {
 	t.Parallel()
-	suppID := domain.CardID("supp-cheap")
+	suppID := domain.CardID("supp-unpriced")
 	suppCat := domain.SetCatalogue{
 		Code: "SUP",
 		Cards: map[domain.CardID]domain.Card{
 			suppID: {ID: suppID, Rarity: domain.RaritySpecial, Finishes: []domain.Finish{domain.FinishNonFoil}},
 		},
 	}
-	// price 1 cent at rate 100, sell 60%: floor(1*100*60/10000) = 0 → ErrSubCoin.
-	prices := domain.PriceSnapshot{suppID: 1}
+	prices := domain.PriceSnapshot{suppID: 0}
 	days := []sim.DayMetrics{{Day: 1, MoneySupply: zeroSupply()}}
 	// cats is nil (no openable catalogues); supplementary has one sub-coin card.
 	s := sim.ComputeSummaryForTest(days, 1, nil, []domain.SetCatalogue{suppCat}, prices, 0, 100, 60, 120, 100)

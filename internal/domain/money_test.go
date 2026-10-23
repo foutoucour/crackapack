@@ -125,3 +125,35 @@ func TestPriceToCoinsNoProfitRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestPayoutCoins(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		price   domain.USDCents
+		rate    domain.CoinRate
+		pct     domain.Percent
+		want    domain.Coins
+		wantErr error
+	}{
+		{name: "above one coin is unchanged", price: 100, rate: 100, pct: 60, want: 60},
+		{name: "one cent at the default rate is floored to one coin", price: 1, rate: 100, pct: 60, want: 1},
+		{name: "one cent at a low rate is floored to one coin", price: 1, rate: 1, pct: 60, want: 1},
+		{name: "zero price is still refused", price: 0, rate: 100, pct: 60, wantErr: domain.ErrSubCoin},
+		{name: "negative price", price: -1, rate: 100, pct: 60, wantErr: domain.ErrNegativeInput},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := domain.PayoutCoins(tc.price, tc.rate, tc.pct)
+			if !errors.Is(err, tc.wantErr) {
+				t.Errorf("PayoutCoins(%d, %d, %d) error = %v, want %v", tc.price, tc.rate, tc.pct, err, tc.wantErr)
+			}
+			if got != tc.want {
+				t.Errorf("PayoutCoins(%d, %d, %d) = %d, want %d", tc.price, tc.rate, tc.pct, got, tc.want)
+			}
+		})
+	}
+}

@@ -267,21 +267,24 @@ func TestCounterBuyFromPlayer(t *testing.T) {
 		}
 	})
 
-	t.Run("sub-coin price returns ErrSubCoin, ledger unchanged", func(t *testing.T) {
+	t.Run("a price under one coin pays one coin", func(t *testing.T) {
 		t.Parallel()
-		// 1 cent at rate=1, SellPct=60: floor(1×1×60/10000)=0 → ErrSubCoin.
+		// 1 cent at rate=1, SellPct=60: floor(1×1×60/10000)=0, floored to one coin by ADR-0044.
 		p := counterParams()
 		p.CoinRate = 1
 		subPrices := domain.PriceSnapshot{"synth-c-0000": 1}
 		c, j := newTestCounter(t, []domain.SetCatalogue{cat}, subPrices, p)
 		key := domain.CardKey{ID: "synth-c-0000", Finish: domain.FinishNonFoil}
+		before := c.Stock(key)
 
-		err := c.BuyFromPlayer(key)
-		if !errors.Is(err, domain.ErrSubCoin) {
-			t.Errorf("BuyFromPlayer sub-coin: got %v, want ErrSubCoin", err)
+		if err := c.BuyFromPlayer(key); err != nil {
+			t.Fatalf("BuyFromPlayer one cent: %v", err)
 		}
-		if got := j.Balance(domain.AccountPlayer); got != 0 {
-			t.Errorf("AccountPlayer balance after sub-coin refusal = %d, want 0", got)
+		if got := j.Balance(domain.AccountPlayer); got != 1 {
+			t.Errorf("AccountPlayer balance = %d, want 1", got)
+		}
+		if got := c.Stock(key); got != before+1 {
+			t.Errorf("stock = %d, want %d", got, before+1)
 		}
 	})
 

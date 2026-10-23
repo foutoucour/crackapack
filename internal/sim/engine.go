@@ -407,6 +407,7 @@ func (e *Engine) Run() (Result, error) {
 		e.collection,
 	)
 	summary["max_booster_wait_minutes"] = e.maxWait
+	addRareStockSummary(summary, e.catalogues, e.counter.Stock)
 	if e.crowd != nil {
 		addNPCSummary(summary, days)
 	}

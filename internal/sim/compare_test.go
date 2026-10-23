@@ -99,8 +99,7 @@ func TestCompare_sameResult_zeroDeltas(t *testing.T) {
 // with different coin rates produces non-zero deltas on expected metrics.
 //
 // With CoinRate=100 vs CoinRate=200:
-//   - sub_coin_cards: at CoinRate=100 the 1-cent fallback cards are sub-coin;
-//     at CoinRate=200 they are not → delta must be non-zero.
+//   - final_balance: the rate scales prices → delta must be non-zero.
 //   - per-day collection_coins scales with CoinRate → at least one day differs.
 func TestCompare_differentCoinRate_nonZeroDeltas(t *testing.T) {
 	t.Parallel()
@@ -126,16 +125,13 @@ func TestCompare_differentCoinRate_nonZeroDeltas(t *testing.T) {
 		t.Fatalf("Compare: %v", err)
 	}
 
-	// sub_coin_cards: at CoinRate=100 the 1-cent fallback card (FallbackPrice=1,
-	// SellPct=60) sells for floor(1*100*60/10000)=0 coins → sub-coin.
-	// At CoinRate=200 it sells for floor(1*200*60/10000)=1 coin → not sub-coin.
-	// The two catalogues each have one no-price card → sub_coin_cards differs.
-	diff, ok := cmp.Summary["sub_coin_cards"]
+	// The rate scales every price, so the player's final balance differs.
+	diff, ok := cmp.Summary["final_balance"]
 	if !ok {
-		t.Fatal("sub_coin_cards not in comparison")
+		t.Fatal("final_balance not in comparison")
 	}
 	if diff.Delta == 0 {
-		t.Errorf("sub_coin_cards delta = 0; expected non-zero (a=%g, b=%g)", diff.A, diff.B)
+		t.Errorf("final_balance delta = 0; expected non-zero (a=%g, b=%g)", diff.A, diff.B)
 	}
 
 	// At least one per-day column delta must also be non-zero.
