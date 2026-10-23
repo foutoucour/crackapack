@@ -24,15 +24,27 @@ import (
 //
 // When top-up is disabled (CoinTopupEnabled == false) the policy behaves identically to
 // CollectorPolicy: it opens boosters only with energy and keeps the standard coin floor.
-type ConvertingCollectorPolicy struct{}
+//
+// The energy-first variant, see NewEnergyFirstPolicy, also keeps the coins of the next top-up out
+// of the card purchases in Phase 3. The plain policy spends every coin above its floor on cards
+// each session, so at a low income its balance never reaches the price of a top-up.
+type ConvertingCollectorPolicy struct {
+	energyFirst bool
+}
 
 // NewConvertingCollectorPolicy returns a ConvertingCollectorPolicy ready to use.
 func NewConvertingCollectorPolicy() ConvertingCollectorPolicy {
 	return ConvertingCollectorPolicy{}
 }
 
+// NewEnergyFirstPolicy returns a ConvertingCollectorPolicy that saves for the next top-up before it
+// buys cards, so energy and cards compete for the same coins.
+func NewEnergyFirstPolicy() ConvertingCollectorPolicy {
+	return ConvertingCollectorPolicy{energyFirst: true}
+}
+
 // RunSession implements PlayerPolicy.
-func (ConvertingCollectorPolicy) RunSession(s Session) {
+func (p ConvertingCollectorPolicy) RunSession(s Session) {
 	// Phase 1: open boosters. Try a normal open first; fall back to coin top-up when energy is
 	// short and the balance permits.
 	for {
@@ -81,6 +93,9 @@ func (ConvertingCollectorPolicy) RunSession(s Session) {
 	v := s.View()
 	minFee := minimumBoosterFee(v)
 	floor := v.DailyReward*domain.Coins(collectorReserveDays) + minFee
+	if p.energyFirst {
+		floor += topUpReserve(v)
+	}
 
 	candidates := buildBuyCandidates(v)
 	for _, c := range candidates {
@@ -107,6 +122,22 @@ func topUpCostFromView(v WorldView, n int) domain.Coins {
 		total += rate
 	}
 	return total
+}
+
+// topUpReserve returns the coins the energy-first policy keeps back from card purchases: the top-up
+// of a whole booster of the set it would open next, plus that set's mandatory fee. The player
+// always brings the minimum real energy, so the top-up covers the cost minus that minimum. It is
+// zero when top-up is off or no set can be opened.
+func topUpReserve(v WorldView) domain.Coins {
+	if !v.CoinTopupEnabled {
+		return 0
+	}
+	target, ok := pickTargetSet(v)
+	if !ok {
+		return 0
+	}
+	missingUnits := max(v.BoosterCosts[target]-v.CoinTopupMinEnergyUnits, 0)
+	return topUpCostFromView(v, missingUnits) + v.BoosterFees[target]
 }
 
 // minimumBoosterFee returns the smallest non-zero mandatory booster fee across all sets in v,
