@@ -3,6 +3,7 @@ package domain_test
 import (
 	"fmt"
 	"math/rand/v2"
+	"reflect"
 	"testing"
 
 	"github.com/foutoucour/crackapack/internal/domain"
@@ -204,6 +205,13 @@ func TestCrowdRestore_refusesAStateThatCannotBe(t *testing.T) {
 		{name: "a negative tick", state: domain.CrowdState{Tick: -1, NPCs: make([]domain.NPCState, 3)}},
 		{name: "a day of credit", state: domain.CrowdState{NPCs: []domain.NPCState{{Credit: domain.TicksPerDay}, {}, {}}}},
 		{name: "a card held no times", state: domain.CrowdState{NPCs: []domain.NPCState{{Cards: map[domain.CardKey]int{card: 0}}, {}, {}}}},
+		{name: "a shelf copy from after the tick", state: domain.CrowdState{Tick: 5, NPCs: []domain.NPCState{{Shelf: map[domain.CardKey][]int{card: {6}}}, {}, {}}}},
+		{name: "a shelf copy from before the start", state: domain.CrowdState{Tick: 5, NPCs: []domain.NPCState{{Shelf: map[domain.CardKey][]int{card: {-1}}}, {}, {}}}},
+		{name: "shelf copies newest first", state: domain.CrowdState{Tick: 5, NPCs: []domain.NPCState{{Shelf: map[domain.CardKey][]int{card: {3, 2}}}, {}, {}}}},
+		{name: "a shelf with no copy", state: domain.CrowdState{Tick: 5, NPCs: []domain.NPCState{{Shelf: map[domain.CardKey][]int{card: {}}}, {}, {}}}},
+		{name: "a wish for no copy", state: domain.CrowdState{NPCs: []domain.NPCState{{Wishes: []domain.Wish{{ID: card.ID, Want: 0}}}, {}, {}}}},
+		{name: "a wish twice", state: domain.CrowdState{NPCs: []domain.NPCState{{Wishes: []domain.Wish{{ID: card.ID, Want: 1}, {ID: card.ID, Want: 1}}}, {}, {}}}},
+		{name: "a negative decline streak", state: domain.CrowdState{NPCs: []domain.NPCState{{DeclineStreak: -1}, {}, {}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -216,23 +224,119 @@ func TestCrowdRestore_refusesAStateThatCannotBe(t *testing.T) {
 	}
 }
 
-// The state of a crowd that trades, with wishes and shelves, is not kept yet: State says so
-// rather than saving half of it.
-func TestCrowdState_refusesACrowdThatTrades(t *testing.T) {
-	t.Parallel()
-	w := &world{src: rand.NewPCG(5, 5), counter: newWorldCounter(t)}
+// tradingWorld is a crowd that trades, whose NPCs mix the traits that keep a state of their own,
+// with an Exchange and a player who holds two copies of every card, so that the NPCs wish for them.
+type tradingWorld struct {
+	world
+	player   *domain.Collection
+	exchange *domain.Exchange
+}
+
+func newTradingWorld(t *testing.T) *tradingWorld {
+	t.Helper()
+	w := &tradingWorld{world: world{src: rand.NewPCG(5, 5), counter: newWorldCounter(t)}, player: domain.NewCollection()}
 	rng := rand.New(w.src)
-	npcs, err := domain.GeneratePopulation(domain.PopulationParams{Size: 1, Archetypes: map[string]domain.ArchetypeSpec{
-		"npc": {Share: 1, MinBoostersPerDay: 2, MaxBoostersPerDay: 2, KeepCopies: 1},
+	valuer := domain.NewValuer(domain.PriceSnapshot{}, 10)
+	npcs, err := domain.GeneratePopulation(domain.PopulationParams{Size: 3, Valuer: valuer, MaxMarginPct: 1000, Archetypes: map[string]domain.ArchetypeSpec{
+		"npc": {
+			Share: 1, MinBoostersPerDay: 2, MaxBoostersPerDay: 4, KeepCopies: 1,
+			Behaviour: "casual", WishSize: 4, MarginPct: 0, OfferChancePct: 20,
+			Traits: []domain.TraitSpec{
+				{Name: "ego", Params: map[string]int{"max_retries": 3, "endowment_pct_per_day": 5}},
+				{Name: "gambler", Params: map[string]int{"chance_step_pct": 4, "max_offer_chance_pct": 30, "margin_extra_pct": 15, "margin_step_pct": 5}},
+			},
+		},
 	}}, crowdSets(), rng)
 	if err != nil {
 		t.Fatalf("GeneratePopulation: %v", err)
 	}
-	crowd, err := domain.NewCrowd(npcs, crowdSets(), newOpenerOn(rng), w.counter, rng, domain.WithSurplusHold(1))
-	if err != nil {
+	if w.crowd, err = domain.NewCrowd(npcs, crowdSets(), newOpenerOn(rng), w.counter, rng, domain.WithSurplusHold(2)); err != nil {
 		t.Fatalf("NewCrowd: %v", err)
 	}
-	if _, err := crowd.State(); err == nil {
-		t.Error("State of a crowd that holds its surplus went through")
+	for _, cat := range crowdSets() {
+		for id, card := range cat.Cards {
+			if !card.IsBasicLand {
+				if err := w.player.Add(domain.CardKey{ID: id, Finish: domain.FinishNonFoil}, 2); err != nil {
+					t.Fatalf("Add: %v", err)
+				}
+			}
+		}
+	}
+	w.newExchange(t)
+	return w
+}
+
+func (w *tradingWorld) newExchange(t *testing.T) {
+	t.Helper()
+	var err error
+	w.exchange, err = domain.NewExchange(domain.ExchangeParams{
+		ExpiryDays: 3, MaxCardsPerSide: 10, DuplicateKeep: 1, MaxOffersPerDay: 20, CoinRate: 100,
+	}, w.crowd, w.player, domain.NewJournal(), domain.NewValuer(domain.PriceSnapshot{}, 10))
+	if err != nil {
+		t.Fatalf("NewExchange: %v", err)
+	}
+}
+
+func (w *tradingWorld) state(t *testing.T) domain.CrowdState {
+	t.Helper()
+	s, err := w.crowd.State()
+	if err != nil {
+		t.Fatalf("State: %v", err)
+	}
+	return s
+}
+
+// A crowd that trades, restored from the state of another, keeps each NPC's shelf, wishes and the
+// moods its traits keep after a decline, so that it opens, sells, wishes and proposes as the other
+// does from then on.
+func TestCrowdRestore_continuesAsTheTradingCrowdItCameFrom(t *testing.T) {
+	t.Parallel()
+	a := newTradingWorld(t)
+	a.tick(t, domain.TicksPerDay+30)
+	a.exchange.StartDay(1)
+	// The offer chance is below 100 so that the gambler has a chance to tilt.
+	for range 20 {
+		if err := a.exchange.ProposeFromNPCs(); err != nil {
+			t.Fatalf("ProposeFromNPCs: %v", err)
+		}
+	}
+	offers := a.exchange.Offers()
+	if len(offers) == 0 {
+		t.Fatal("no NPC proposed, so no trait was told of a decline: the test proves nothing")
+	}
+	for _, o := range offers {
+		if err := a.exchange.Decline(o.ID); err != nil {
+			t.Fatalf("Decline: %v", err)
+		}
+	}
+	a.tick(t, 40)
+	state := a.state(t)
+
+	b := newTradingWorld(t)
+	b.restoreFrom(t, &a.world)
+	if err := b.crowd.Restore(state); err != nil {
+		t.Fatalf("crowd Restore: %v", err)
+	}
+	if got := b.state(t); !reflect.DeepEqual(got, state) {
+		t.Fatalf("State after Restore = %+v, want %+v", got, state)
+	}
+	if b.crowd.CardsHeld() != a.crowd.CardsHeld() {
+		t.Errorf("CardsHeld = %d restored, %d original", b.crowd.CardsHeld(), a.crowd.CardsHeld())
+	}
+	a.tick(t, domain.TicksPerDay+70)
+	b.tick(t, domain.TicksPerDay+70)
+	if got, want := b.state(t), a.state(t); !reflect.DeepEqual(got, want) {
+		t.Fatalf("a day and a half on, State = %+v, want %+v", got, want)
+	}
+	a.newExchange(t)
+	b.newExchange(t)
+	for _, w := range []*tradingWorld{a, b} {
+		w.exchange.StartDay(1)
+		if err := w.exchange.ProposeFromNPCs(); err != nil {
+			t.Fatalf("ProposeFromNPCs: %v", err)
+		}
+	}
+	if got, want := b.exchange.Offers(), a.exchange.Offers(); !reflect.DeepEqual(got, want) {
+		t.Errorf("offers after Restore = %+v, want %+v", got, want)
 	}
 }

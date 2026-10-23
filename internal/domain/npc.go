@@ -6,6 +6,7 @@ import (
 	"maps"
 	"math/rand/v2"
 	"slices"
+	"time"
 )
 
 // ArchetypeSpec is the supply behaviour of one NPC archetype. Archetypes are data, not code: a
@@ -35,6 +36,9 @@ type ArchetypeSpec struct {
 	// OfferChancePct is the chance, per tick, that an NPC with a match proposes a trade to the
 	// player. It must be in [0, 100].
 	OfferChancePct int
+	// ResponseDelay is how long an NPC of the archetype takes to answer the player on the market.
+	// It must not be negative.
+	ResponseDelay time.Duration
 	// Colors are the Magic colours the archetype wishes for, from ValidColors. Empty means no
 	// restriction. See ADR-0021 for how personalities tie to colours.
 	Colors []string
@@ -81,6 +85,12 @@ type NPC struct {
 	OfferChancePct int
 	// Colors are the colours the NPC wishes for, or nil when it has no restriction.
 	Colors []string
+	// ResponseDelay is how long the NPC takes to answer the player on the market.
+	ResponseDelay time.Duration
+
+	// speculates is true for an NPC of the speculator behaviour, which offers on a listed card it
+	// lacks even when it does not wish for it, see Market.List.
+	speculates bool
 
 	collection *Collection
 	// wishes is the wish list, and shelf holds the surplus copies the NPC can trade away, per
@@ -190,6 +200,8 @@ func GeneratePopulation(p PopulationParams, sets []SetCatalogue, rng *rand.Rand)
 				WishSize:       spec.WishSize,
 				OfferChancePct: spec.OfferChancePct,
 				Colors:         slices.Clone(spec.Colors),
+				ResponseDelay:  spec.ResponseDelay,
+				speculates:     spec.Behaviour == "speculator",
 				collection:     NewCollection(),
 				shelf:          make(map[CardKey][]int),
 			}
@@ -231,6 +243,8 @@ func validateArchetypes(names []string, archetypes map[string]ArchetypeSpec) (in
 			return 0, fmt.Errorf("population: archetype %q: margin must be >= 0, got %d", name, spec.MarginPct)
 		case spec.OfferChancePct < 0 || spec.OfferChancePct > 100:
 			return 0, fmt.Errorf("population: archetype %q: offer chance must be in [0, 100], got %d", name, spec.OfferChancePct)
+		case spec.ResponseDelay < 0:
+			return 0, fmt.Errorf("population: archetype %q: response delay must be >= 0, got %v", name, spec.ResponseDelay)
 		case spec.FocusSet < FocusSetNone || spec.FocusSet > FocusSetOldest:
 			return 0, fmt.Errorf("population: archetype %q: focus set mode %d is not known", name, spec.FocusSet)
 		}

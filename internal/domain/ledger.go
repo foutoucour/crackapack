@@ -55,6 +55,13 @@ const (
 	// top-ups paid.
 	AccountTradeTopUp Account = "trade_topup"
 
+	// AccountMarketSale is the source account for the coins an NPC pays the player for a card on
+	// the market: the payment posts from AccountMarketSale to AccountPlayer. NPCs hold no coins, so
+	// the coins enter the economy here, as the Counter's do through AccountCounterSale, and never
+	// more than the card is worth, see Market. It is unguarded, and its negative balance is the
+	// total NPCs paid.
+	AccountMarketSale Account = "market_sale"
+
 	// AccountCoinTopup is the sink account for the coins the player pays to substitute coins for
 	// missing energy when opening a booster (the optional coin top-up). It posts from
 	// AccountPlayer to AccountCoinTopup, and the coins leave the economy. It is unguarded, and

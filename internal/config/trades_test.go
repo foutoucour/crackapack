@@ -71,6 +71,8 @@ func TestLoad_tradesRejectsInvalidValues(t *testing.T) {
 		{"offer chance above 100", strings.Replace(archetype, "%s", "behaviour: casual, offer_chance_pct: 101", 1), "npcs.archetypes.casual.offer_chance_pct"},
 		{"negative offer chance", strings.Replace(archetype, "%s", "behaviour: casual, offer_chance_pct: -1", 1), "npcs.archetypes.casual.offer_chance_pct"},
 		{"negative wish size", strings.Replace(archetype, "%s", "behaviour: casual, wish_size: -1", 1), "npcs.archetypes.casual.wish_size"},
+		{"negative response delay", strings.Replace(archetype, "%s", "behaviour: casual, response_delay_hours: -1", 1), "npcs.archetypes.casual.response_delay_hours"},
+		{"response delay above two days", strings.Replace(archetype, "%s", "behaviour: casual, response_delay_hours: 49", 1), "npcs.archetypes.casual.response_delay_hours"},
 		{"trades without a crowd", "trades: {enabled: true}", "trades.enabled"},
 		{"trades without a hold", "npcs: {population: 5, surplus_hold_days: 0}\ntrades: {enabled: true}", "npcs.surplus_hold_days"},
 		{

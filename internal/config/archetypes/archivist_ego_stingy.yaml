@@ -26,6 +26,7 @@ behaviour: casual
 wish_size: 6
 margin_pct: 5
 offer_chance_pct: 2
+response_delay_hours: 36
 colors: [W, U, B]
 traits: [archivist, ego, stingy]
 trait_params:

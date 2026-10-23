@@ -10,3 +10,4 @@ behaviour: casual
 wish_size: 5
 margin_pct: 0
 offer_chance_pct: 2
+response_delay_hours: 0

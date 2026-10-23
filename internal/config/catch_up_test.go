@@ -3,6 +3,7 @@ package config_test
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/foutoucour/crackapack/internal/config"
 	"github.com/foutoucour/crackapack/internal/domain"
@@ -91,6 +92,12 @@ func TestNPCConfig_ArchetypeSpecs(t *testing.T) {
 		if got := spec.Behaviour != ""; got != trades {
 			t.Errorf("trades %v: casual has the behaviour %q", trades, spec.Behaviour)
 		}
+	}
+	if got := cfg.NPCs.ArchetypeSpecs(true)["ego"].ResponseDelay; got != 24*time.Hour {
+		t.Errorf("response delay of ego = %v, want 24h", got)
+	}
+	if got := cfg.NPCs.ArchetypeSpecs(false)["ego"].ResponseDelay; got != 0 {
+		t.Errorf("response delay of ego without trades = %v, want 0", got)
 	}
 	if got := cfg.NPCs.ArchetypeSpecs(true)["ego"].Traits; len(got) != 1 || got[0].Name != "ego" || got[0].Params["max_retries"] != 3 {
 		t.Errorf("traits of ego = %+v, want ego with its params", got)

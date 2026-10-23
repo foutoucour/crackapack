@@ -51,11 +51,16 @@ type counterVetoer interface{ VetoesCounter(Offer) bool }
 // alone. Only traitBehaviour implements it, so TradeBehaviour needs no new method.
 type contextMarginer interface{ MarginFor(MarginContext) Percent }
 
-// marginOf returns the margin npc demands on offer: the one of its behaviour, with the context a
-// trait may read when the behaviour takes it.
+// marginOf returns the margin npc demands on offer, see npcMargin.
 func (x *Exchange) marginOf(npc *NPC, offer Offer) Percent {
+	return npcMargin(npc, offer, x.crowd.tick)
+}
+
+// npcMargin returns the margin npc demands on offer at the crowd's tick: the one of its behaviour,
+// with the context a trait may read when the behaviour takes it.
+func npcMargin(npc *NPC, offer Offer, tick int) Percent {
 	if cm, ok := npc.Behaviour.(contextMarginer); ok {
-		return cm.MarginFor(MarginContext{Offer: offer, NPC: npc, Tick: x.crowd.tick})
+		return cm.MarginFor(MarginContext{Offer: offer, NPC: npc, Tick: tick})
 	}
 	return npc.Behaviour.Margin(offer)
 }
@@ -124,20 +129,20 @@ func (x *Exchange) prepare(npcID int, playerGives, npcGives []TradeLine, topUp C
 	case cardCount(offer.PlayerGives) > x.params.MaxCardsPerSide || cardCount(offer.NPCGives) > x.params.MaxCardsPerSide:
 		return nil, offer, fmt.Errorf("%w: at most %d", ErrTooManyCards, x.params.MaxCardsPerSide)
 	}
-	if err := x.holdingsError(npc, offer); err != nil {
+	if err := holdingsError(x.player, npc, offer.PlayerGives, offer.NPCGives); err != nil {
 		return nil, offer, err
 	}
 	return npc, offer, nil
 }
 
 // holdingsError checks that the player holds what it gives and the NPC's shelf holds what it gives.
-func (x *Exchange) holdingsError(npc *NPC, o Offer) error {
-	for _, l := range o.PlayerGives {
-		if x.player.Quantity(l.Key) < l.Qty {
+func holdingsError(player *Collection, npc *NPC, playerGives, npcGives []TradeLine) error {
+	for _, l := range playerGives {
+		if player.Quantity(l.Key) < l.Qty {
 			return fmt.Errorf("%w: %s x%d", ErrPlayerLacksCard, l.Key.ID, l.Qty)
 		}
 	}
-	for _, l := range o.NPCGives {
+	for _, l := range npcGives {
 		if npc.ShelfQuantity(l.Key) < l.Qty {
 			return fmt.Errorf("%w: %s x%d", ErrNPCLacksCard, l.Key.ID, l.Qty)
 		}
@@ -148,7 +153,7 @@ func (x *Exchange) holdingsError(npc *NPC, o Offer) error {
 // execute moves the cards and the top-up of o atomically: it checks both sides hold what they
 // give, posts the top-up, which is the only step that can still fail, and then moves the cards.
 func (x *Exchange) execute(npc *NPC, o Offer) error {
-	if err := x.holdingsError(npc, o); err != nil {
+	if err := holdingsError(x.player, npc, o.PlayerGives, o.NPCGives); err != nil {
 		return err
 	}
 	if o.TopUp > 0 {
@@ -159,17 +164,23 @@ func (x *Exchange) execute(npc *NPC, o Offer) error {
 			return err
 		}
 	}
-	for _, l := range o.PlayerGives {
-		if err := x.player.Remove(l.Key, l.Qty); err != nil {
+	return x.crowd.swapWithPlayer(x.player, npc, o.PlayerGives, o.NPCGives)
+}
+
+// swapWithPlayer moves the cards of a trade between player and npc, whose holdings the caller
+// has checked: the player gives playerGives and gets npcGives from the NPC's shelf.
+func (c *Crowd) swapWithPlayer(player *Collection, npc *NPC, playerGives, npcGives []TradeLine) error {
+	for _, l := range playerGives {
+		if err := player.Remove(l.Key, l.Qty); err != nil {
 			return err
 		}
 	}
-	for _, l := range o.NPCGives {
-		if err := x.player.Add(l.Key, l.Qty); err != nil {
+	for _, l := range npcGives {
+		if err := player.Add(l.Key, l.Qty); err != nil {
 			return err
 		}
 	}
-	return x.crowd.applyTrade(npc, o.NPCGives, o.PlayerGives)
+	return c.applyTrade(npc, npcGives, playerGives)
 }
 
 // accepted books an executed offer, resets the NPC's decline streak and returns the Decision.
@@ -187,8 +198,8 @@ func (x *Exchange) accepted(o Offer) Decision {
 	return Decision{Outcome: OutcomeAccepted, Offer: o}
 }
 
-// declined increments the NPC's consecutive decline streak and notifies its traits.
-func (x *Exchange) declined(npc *NPC, offer Offer) {
+// tellDecline increments npc's decline streak and tells its traits, see ADR-0024.
+func tellDecline(npc *NPC, offer Offer) {
 	npc.declineStreak++
 	if r, ok := npc.Behaviour.(DeclineReactor); ok {
 		r.ReactToDecline(DeclineContext{NPC: npc, Offer: offer})
@@ -233,7 +244,7 @@ func (x *Exchange) Decline(offerID int) error {
 	x.close(offerID)
 	x.record(o, OutcomeRefused, nil)
 	if npc, ok := x.crowd.byID[o.NPC]; ok && (o.Origin == OriginNPC || o.Origin == OriginNPCCounter) {
-		x.declined(npc, o)
+		tellDecline(npc, o)
 	}
 	return nil
 }

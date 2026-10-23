@@ -257,23 +257,28 @@ func TestLoad_embeddedArchetypesKeepTheirPreviousValues(t *testing.T) {
 		"casual": {
 			Share: 50, MinBoostersPerDay: 4, MaxBoostersPerDay: 8, KeepCopies: 1,
 			FocusSet: config.FocusSetNone, Behaviour: "casual", WishSize: 5, MarginPct: 0, OfferChancePct: 2,
+			ResponseDelayHours: 0,
 		},
 		"playset_hunter": {
 			Share: 15, MinBoostersPerDay: 3, MaxBoostersPerDay: 6, KeepCopies: 4,
 			FocusSet: config.FocusSetNone, Behaviour: "playset_hunter", WishSize: 5, MarginPct: 5, OfferChancePct: 2,
+			ResponseDelayHours: 4,
 		},
 		"targeted_collector": {
 			Share: 20, MinBoostersPerDay: 2, MaxBoostersPerDay: 5, KeepCopies: 1,
 			FocusSet: config.FocusSetRandom, Behaviour: "targeted_collector", WishSize: 5, MarginPct: 5, OfferChancePct: 2,
+			ResponseDelayHours: 8,
 		},
 		"speculator": {
 			Share: 10, MinBoostersPerDay: 2, MaxBoostersPerDay: 4, KeepCopies: 2,
 			FocusSet: config.FocusSetNone, Behaviour: "speculator", WishSize: 5, MarginPct: 15, OfferChancePct: 1,
+			ResponseDelayHours: 0,
 		},
 		"whale": {
 			Share: 5, MinBoostersPerDay: 30, MaxBoostersPerDay: 50, KeepCopies: 1,
 			FocusSet: config.FocusSetNone, Behaviour: "whale", WishSize: 3, MarginPct: 10, OfferChancePct: 1,
-			Colors: []string{"W", "U", "B", "R", "G"},
+			ResponseDelayHours: 12,
+			Colors:             []string{"W", "U", "B", "R", "G"},
 		},
 	}
 
@@ -312,6 +317,23 @@ trades:
 				t.Errorf("archetype %q has no behaviour; shipped archetypes must name a behaviour", name)
 			}
 		})
+	}
+}
+
+// The market wants answers at once from some NPCs and the next day from others, see
+// docs/simulation.md#the-market.
+func TestLoad_shippedArchetypesAnswerAtOnceAndAfterADay(t *testing.T) {
+	t.Parallel()
+	cfg, err := config.Load(strings.NewReader("{}"))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	fastest, slowest := 1<<31, -1
+	for _, a := range cfg.NPCs.Archetypes {
+		fastest, slowest = min(fastest, a.ResponseDelayHours), max(slowest, a.ResponseDelayHours)
+	}
+	if fastest != 0 || slowest < 24 {
+		t.Errorf("response delays run from %dh to %dh, want from 0h to at least 24h", fastest, slowest)
 	}
 }
 

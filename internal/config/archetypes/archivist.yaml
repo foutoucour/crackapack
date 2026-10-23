@@ -14,4 +14,5 @@ behaviour: targeted_collector
 wish_size: 5
 margin_pct: 2
 offer_chance_pct: 2
+response_delay_hours: 24
 colors: [W]

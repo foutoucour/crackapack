@@ -9,3 +9,4 @@ behaviour: speculator
 wish_size: 5
 margin_pct: 15
 offer_chance_pct: 1
+response_delay_hours: 0
