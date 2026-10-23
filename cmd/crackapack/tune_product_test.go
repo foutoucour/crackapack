@@ -65,9 +65,9 @@ func TestProductTuneFiles_goalsLoadAndCoverTheScope(t *testing.T) {
 	}
 }
 
-// A days_to_ metric that is not reached reads as one day past the run, so a ceiling above the run
-// length lets a set that never finishes pass, see ADR-0050.
-func TestProductTuneFiles_aPaceCeilingNeverExceedsItsRunLength(t *testing.T) {
+// A bell needs room in its run: a set that is not finished reads as one day past the run, so a run
+// too short for the bell's upper tail would score every slow set as a set that never finishes.
+func TestProductTuneFiles_aShapeFitsItsRunLength(t *testing.T) {
 	t.Parallel()
 	problem, err := tune.LoadProblem(strings.NewReader(readProductFile(t, "goals.yaml")))
 	if err != nil {
@@ -77,13 +77,15 @@ func TestProductTuneFiles_aPaceCeilingNeverExceedsItsRunLength(t *testing.T) {
 	for _, s := range problem.Scenarios {
 		runDays[s.Name] = s.RunDays
 	}
+	if len(problem.Shapes) == 0 {
+		t.Fatal("goals.yaml has no shape, want the pace goal of ADR-0051")
+	}
 
-	for _, g := range problem.Goals {
-		if !strings.HasPrefix(g.Metric, "days_to_") || g.Max == nil {
-			continue
-		}
-		if run := runDays[g.Scenario]; run == 0 || *g.Max > float64(run) {
-			t.Errorf("goal %s on %s: ceiling %v is not within the scenario's run_days %d", g.Metric, g.Scenario, *g.Max, run)
+	const upperTailSpreads = 3
+	for _, sh := range problem.Shapes {
+		tail := sh.Center + upperTailSpreads*sh.Spread
+		if run := runDays[sh.Scenario]; run == 0 || tail > float64(run) {
+			t.Errorf("shape %s on %s: the bell reaches %v days, past the scenario's run_days %d", sh.Metric, sh.Scenario, tail, run)
 		}
 	}
 }

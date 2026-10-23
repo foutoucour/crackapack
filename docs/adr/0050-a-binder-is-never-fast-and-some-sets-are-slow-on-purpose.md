@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — 2026-10-23
+Superseded by [ADR-0051](0051-the-pace-of-the-scope-is-a-bell-curve-around-two-weeks.md)
 
 ## Context
 

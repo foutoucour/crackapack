@@ -420,6 +420,34 @@ only and has its own UUID. `1★` sits next to `1`, with the same name.
   are on a sheet, so it keeps them.
 - A rule for these printings is not decided, see [TODO](todo.md#calibration-and-decisions).
 
+### Why ten sets never finish their binder
+
+Ten sets of the scope did not finish a binder in 400 days of a default run: 10E, 7ED, 8ED, 9ED, PLS, AER,
+AKH, BFZ, HOU and KLD. The cause was found on 2026-10-23 from the exact chance of each card in one
+booster, worked out from the booster definitions, and from runs of 400 days with the defaults, the
+Counter opening 13 boosters a day and seed 0. The engine behaves as designed: a binder counts every
+card a booster can draw, see [ADR-0037](adr/0037-a-binder-counts-the-pool-cards-its-boosters-draw.md),
+and two kinds of card are drawn about once in thousands of boosters.
+
+- **Star printings,** the foil-only duplicates of the section above. 7ED has 110 of each of commons,
+  uncommons and rares, 8ED and 9ED have 110 uncommons and 110 rares, 10E has 39 uncommons and 40 rares,
+  and PLS has 3 rares. The cards sit on a foil sheet and each is drawn once in 1,100 to 11,000 boosters.
+  7ED, 8ED, 9ED and 10E do not even finish their commons and uncommons.
+- **Masterpiece series,** a sheet that gives a card of another series once in 144 or 129 boosters. AER holds
+  24 of them, AKH 30, BFZ 25, HOU 24 and KLD 30, each drawn once in about 3,100 to 4,300 boosters. Their
+  commons and uncommons finish in 3 to 5 days.
+
+A card drawn once in `1/p` boosters needs about `1/p` boosters, and a group of `n` such cards about
+`(ln n + 0.58) / p`. That is roughly 12,000 to 17,000 boosters for the Masterpiece cards of a set, and 36,000
+to 58,000 for the star rares of 10E and 7ED. A 400-day run opens 3,400 boosters of 10E, 5,400 of AER or KLD
+and 9,100 of OGW. AER ended with 204 of 208 cards and KLD with 270 of 279, which is what the odds give: after
+that many boosters, about 5 of AER's 24 Masterpiece cards and 9 of KLD's 30 are still missing.
+
+Four more sets hold such cards and do finish, slowly: OGW has 20 Masterpiece cards and completes on day 361
+after 9,100 boosters, and ONS, SHM and FRF have 1, 1 and 6 star printings and complete on days 218,
+183 and 74. Why MIR and USG take 72 and 41 days was not studied. A rule for these cards is not decided, see
+[TODO](todo.md#calibration-and-decisions).
+
 ### Do the parameter findings hold on 10 sets
 
 The first-round sweeps ran on two sets. The key ones were repeated on a pool of RAV, TSP, MRD, DST,
@@ -611,8 +639,8 @@ The most uncertain item is the NPC simulation's behaviour at scale. Hosting no l
   [The star printings of 10E, 9ED and ONS](#the-star-printings-of-10e-9ed-and-ons).
 - [ ] Reference value of a card with no TCGplayer price.
 - [x] Pacing target: a set's binder in about two weeks at 3 visits a day and about one week at 6,
-  for a set played alone, and no set faster than that floor, see
-  [ADR-0050](adr/0050-a-binder-is-never-fast-and-some-sets-are-slow-on-purpose.md). The simulation gives
+  for a set played alone, with the sets spread as a bell curve around it, see
+  [ADR-0051](adr/0051-the-pace-of-the-scope-is-a-bell-curve-around-two-weeks.md). The simulation gives
   8 days for RAV and TSP at 3 visits and 6 days at 6, faster than the goal.
 - [x] Energy cost tiers are relative to the median booster value of the whole catalogue, not of the
   sets in a run or what the player has unlocked; see

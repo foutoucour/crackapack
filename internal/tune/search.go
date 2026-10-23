@@ -111,6 +111,7 @@ func (r Report) Best() Candidate { return r.Candidates[r.Ranked[0]] }
 type searcher struct {
 	base   config.Config
 	runs   []Run
+	shapes []Shape
 	runner Runner
 	opts   Options
 	// configs are the built configs by candidate ID, filled by the single goroutine that scores.
@@ -123,7 +124,7 @@ func Search(ctx context.Context, base config.Config, space Space, problem Proble
 	if err := opts.validate(); err != nil {
 		return Report{}, fmt.Errorf("search: %w", err)
 	}
-	s := &searcher{base: base, runs: problem.Runs(), runner: runner, opts: opts, configs: make(map[int]built)}
+	s := &searcher{base: base, runs: problem.Runs(), shapes: problem.Shapes, runner: runner, opts: opts, configs: make(map[int]built)}
 	searchSeeds, validationSeeds := deriveSeeds(opts.Seed, opts.Seeds, opts.ValidationSeeds)
 	report := Report{
 		Options: opts, ScreenSeed: searchSeeds[0], SearchSeeds: searchSeeds, ValidationSeeds: validationSeeds,
@@ -294,9 +295,11 @@ type seedResult struct {
 	invalid string
 }
 
-// runAll simulates every run of the problem with one seed and sums the distance outside the bands.
+// runAll simulates every run of the problem with one seed and sums the distance outside the bands,
+// and the distance of each shape from its bell.
 func (s *searcher) runAll(cfg config.Config, seed uint64) (seedResult, error) {
 	res := seedResult{goals: make(map[string]float64)}
+	shaped := make(map[string][]float64)
 	for _, run := range s.runs {
 		runCfg := cfg
 		runCfg.Seed = seed
@@ -319,6 +322,18 @@ func (s *searcher) runAll(cfg config.Config, seed uint64) (seedResult, error) {
 			res.loss += d
 			res.goals[run.Name+" "+band.Metric] += d
 		}
+		for _, shape := range run.Shapes {
+			value, ok := summary[shape.Metric]
+			if !ok {
+				return seedResult{}, fmt.Errorf("run %s reports no metric %q", run.Name, shape.Metric)
+			}
+			shaped[shape.Key] = append(shaped[shape.Key], value)
+		}
+	}
+	for _, shape := range s.shapes {
+		d := ShapeDistance(shaped[shape.key()], shape.Center, shape.Spread)
+		res.loss += d
+		res.goals[shape.key()] += d
 	}
 	return res, nil
 }

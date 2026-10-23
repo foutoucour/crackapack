@@ -799,12 +799,20 @@ scenarios:
      sets: [RAV, TSP], supplementary: [TSB], per_set: true}
   - {name: pile, player: master-collector, sets: [RAV, TSP], supplementary: [TSB]}
 goals:
-  - {scenario: pace-3, metric: "days_to_100pct.{set}", comparison: between, min: 10, max: 40}
   - {scenario: pile, metric: final_balance, comparison: at_most, max: 3000}
   - {scenario: pile, metric: rare_out_of_stock_pct, comparison: between, min: 10, max: 50}
+shapes:
+  - {scenario: pace-3, metric: "days_to_100pct.{set}", center: 14, spread: 4}
 ```
 
-`per_set: true` runs each set alone, as [ADR-0050](adr/0050-a-binder-is-never-fast-and-some-sets-are-slow-on-purpose.md)
+A **shape** is a goal on the runs of a `per_set` scenario together, not on each one: the metric of the
+sets should form a bell curve of the given `center` and `spread`, the mean and the standard deviation in
+the metric's unit, see [ADR-0051](adr/0051-the-pace-of-the-scope-is-a-bell-curve-around-two-weeks.md).
+The metric names each set's run with `{set}`, and a shape can be a config's only goal. The run must be
+long enough to hold the bell: a set that is not finished reads as one day past the run, so a bell whose
+upper tail goes past the run length scores every slow set as one that never finishes.
+
+`per_set: true` runs each set alone, as [ADR-0051](adr/0051-the-pace-of-the-scope-is-a-bell-curve-around-two-weeks.md)
 asks: one run per set, and `{set}` in a metric becomes the lower-cased set code. `sessions_per_day`
 and `run_days` replace the config's own for the scenario. The sets must be openable sets of the
 catalogue directory, so a pool such as TSB goes under `supplementary`.
@@ -816,7 +824,7 @@ sets under `supplementary` of a per-set scenario. A per-set run drops its own se
 KLD played alone does not also take KLD as a pool.
 
 **The product's files** are in `tune/`: `base.yaml` turns the Counter's supply on, `space.yaml` is the
-search space and `goals.yaml` holds the goals of ADR-0050, ADR-0041, ADR-0049 and ADR-0043 on the 107 sets of
+search space and `goals.yaml` holds the goals of ADR-0051, ADR-0041, ADR-0049 and ADR-0043 on the 107 sets of
 [ADR-0039](adr/0039-the-product-covers-the-sets-from-mirage-under-60-dollars-a-booster.md). They need
 the catalogues of the whole scope and the card pools `BRR`, `EXP`, `MP2`, `MPS`, `MUL`, `PRAETORS`,
 `STA`, `TSB` and `WOT` next to them. A candidate takes about a minute of CPU, so run the search niced:
@@ -841,7 +849,14 @@ under `supplementary`.
 the width of a `between` band, otherwise the magnitude of its bound, and at least 1. So a metric of
 thousands of coins and one of a few days weigh alike, and `sub_coin_cards` at most 0 counts each
 card as 1. The loss of a candidate is the mean over the seeds of the sum over all runs and bands. A
-loss of 0 means every goal is met. A candidate whose config is refused, or whose run fails, scores
+loss of 0 means every goal is met.
+
+A shape adds one term. The sorted values of the sets are laid against the quantiles of the bell, the
+value the i-th of n sets would take in a perfect bell, and each gap is counted in spreads. A set one
+spread from its place adds 1, as a set one band-width outside a band does. A pile of equal values, a skew
+and a long tail all cost, and so does a set that never finishes, which sits far out in the tail.
+
+A candidate whose config is refused, or whose run fails, scores
 1,000,000,000 and is never kept.
 
 **The search** is staged random search:

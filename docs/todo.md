@@ -232,9 +232,10 @@ are the goals and their bands, the scope, and the remedies that change a rule.
   complete, see [Lessons from MTG Arena](retention.md#lessons-from-mtg-arena).
 - [ ] **Scope:** Ninth and Tenth Edition in V1, and a first economy run on Planar Chaos and Future
   Sight, which no recorded run covers.
-- [ ] **Star printings:** a rule for the foil-only duplicate printings of 10E, 9ED and ONS, which
-  make their binders almost unreachable, see
-  [The star printings of 10E, 9ED and ONS](specs-review.md#the-star-printings-of-10e-9ed-and-ons).
+- [ ] **Star printings and Masterpiece cards:** a rule for the foil-only duplicate printings of 7ED to 10E,
+  PLS and ONS, and for the Masterpiece series of AER, AKH, BFZ, HOU and KLD. They make ten binders
+  unreachable, see [Why ten sets never finish their binder](specs-review.md#why-ten-sets-never-finish-their-binder)
+  and [The star printings of 10E, 9ED and ONS](specs-review.md#the-star-printings-of-10e-9ed-and-ons).
 - [ ] **When live prices replace the snapshot**, if ever.
 
 ### Scenarios to run
@@ -272,7 +273,8 @@ run today. The other two wait for features that are not built. The
   - [x] **Goals and bands**, a manual decision. Each goal is a band on a metric, reusing the
     `between`, `at_most` and `at_least` targets. The sets they apply to are in
     [ADR-0039](adr/0039-the-product-covers-the-sets-from-mirage-under-60-dollars-a-booster.md):
-    - [x] Pace per set: [ADR-0050](adr/0050-a-binder-is-never-fast-and-some-sets-are-slow-on-purpose.md).
+    - [x] Pace across the sets, as a bell curve:
+      [ADR-0051](adr/0051-the-pace-of-the-scope-is-a-bell-curve-around-two-weeks.md).
     - [x] No runaway coins: [ADR-0041](adr/0041-a-finished-collector-keeps-at-most-3000-coins.md).
       The money supply has no band yet.
     - [x] Healthy Counter stock, trades included:
@@ -305,9 +307,10 @@ run today. The other two wait for features that are not built. The
     `sweep` accept.
   - [x] **Demo:** `crackapack demo --tune` ships a small search space and goals with the feature, see
     [Demo data ships with the feature](../.claude/skills/crackapack-conventions/SKILL.md#demo-data-ships-with-the-feature).
-  - [ ] **Pace of 14 sets that never finish in 40 days:** 10E, 7ED, 8ED, 9ED, AER, AKH, BFZ, FRF, HOU,
-    KLD, OGW, ONS, PLS and SHM, see the [tuning log](tuning-log.md). Find why, then decide whether the goal
-    or the binder rule changes, see [Star printings](#calibration-and-decisions).
+  - [ ] **Ten sets never finish a binder:** the cause is found, see
+    [Why ten sets never finish their binder](specs-review.md#why-ten-sets-never-finish-their-binder). The
+    decision on the binder rule is left, see [Star printings](#calibration-and-decisions). The pace goal
+    reads those sets as one day past the run until it is made.
   - [ ] **Adaptive search:** an evolution strategy that starts from the survivors, once random
     search runs out of reach.
   - [ ] **New goals** for quests, milestones and trades as those mechanics land. The system does
