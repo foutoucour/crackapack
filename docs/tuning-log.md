@@ -18,6 +18,56 @@ goal band changes. Newest first. Each entry says:
 - how the goals read before and after, on the same scenarios, so the entries compare;
 - what the run does not tell.
 
+## 2026-10-23 – Bell goal on the 97 sets that can finish, not applied
+
+**Trigger:** a check that the tuner moves toward the bell once the ten sets of the entry below are out of
+the way. A scratch search, with a goals file of its own that is not in the repo: the 3-visit shape alone,
+on the 97 sets of the scope that can finish a binder. 48 candidates over the keys of `tune/space.yaml`,
+the best 12 scored on 2 seeds and the best 3 validated on 2 fresh ones.
+
+**Status:** not applied. `config.defaults()` is unchanged, and the maintainers prefer the baseline curve.
+
+The best candidate, number 17, would change these defaults:
+
+| Key | Default | Candidate 17 |
+|-----|--------:|-------------:|
+| `counter_sell_pct` | 60 | 77 |
+| `counter_buy_pct` | 120 | 103 |
+| `counter_foil_pct` | 500 | 781 |
+| `counter_shelf_days` | -1 | 28 |
+| `counter_supply` | none | fixed, 31 a day |
+| `npcs.population` | 0 | 37 |
+| `initial_stock.rare` | 2 | 2 |
+| `daily_reward` | 100 | 93 |
+| `energy.recharge_per_tick` | 1 | 2 |
+| `energy.reserve_cap` | 10 | 9 |
+| `energy.cost_table[1].cost` | 5 | 7 |
+| `energy.cost_table[2].cost` | 8 | 10 |
+
+**Impact**, the `collector` at 3 visits a day for 40 days on the 97 sets, seed 0. The baseline is the
+defaults with the Counter's fixed supply on, 13 boosters a day, as `tune/base.yaml` sets it.
+
+| Reading | Baseline | Candidate 17 |
+|---------|---------:|-------------:|
+| Search loss, the distance from the bell | 92.3 | 80.8 (86.9 on fresh seeds) |
+| Distance from the bell at seed 0 | 106.2 | 91.5 |
+| Sets finishing in 10 to 18 days | 34 | 43 |
+| Sets finishing under 10 days | 42 | 32 |
+| Mean days, sets that finish | 12.3 | 13.2 |
+| Spread (sd), sets that finish | 7.0 | 7.2 |
+| Sets not finished in 40 days | 6 | 5 |
+
+**What it shows**
+- The tuner moves toward the bell. The sets move from under 10 days into the middle, and the mean goes
+  from 12.3 toward 14.
+- It does not reach a bell. The spread stays at 7 days against a target of 4, and five sets still take
+  longer than the 40-day run: FRF, MIR, OGW, ONS and SHM on the candidate, and USG on the baseline.
+- The gap between the search seeds and the fresh seeds is 6 points, so part of the gain is the seeds'
+  luck.
+
+**What it does not show:** a search with more candidates, an adaptive search, or a longer run that
+would let the five slow sets finish and so read their real time.
+
 ## 2026-10-23 – Why ten sets never finish, no config change
 
 **Trigger:** the bell curve of the entry below is dominated by the sets that do not finish.
