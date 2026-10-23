@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/foutoucour/crackapack/internal/domain"
 	"github.com/foutoucour/crackapack/internal/domain/domaintest"
@@ -157,6 +158,27 @@ func TestPersist_theEnergyRechargesForTheTimeTheGameWasClosed(t *testing.T) {
 	}
 	if want := playtest.Tick / 2; got.NextIn != want {
 		t.Errorf("next point in %v, want %v: the half tick that had gone by must not be lost", got.NextIn, want)
+	}
+}
+
+func TestPersist_aSaveFromTheFutureRechargesFromNow(t *testing.T) {
+	t.Parallel()
+	rav := domaintest.NewRavnicaCatalogue()
+	store := newFileStore(t)
+	clock := playtest.NewClock()
+	// The game is played and saved while the clock is two hours ahead, then the clock is put back.
+	clock.Advance(2 * time.Hour)
+	g, _ := openSaved(t, store, clock, 42, rav)
+	for range play.WelcomeBoosters + 2 {
+		mustOpen(t, g, rav.Code)
+	}
+	clock.Advance(-2 * time.Hour)
+
+	loaded, _ := openSaved(t, store, clock, 42, rav)
+	clock.Advance(3 * playtest.Tick)
+
+	if got := loaded.Energy().Reserve; got != 3 {
+		t.Errorf("reserve three ticks after the load = %d, want 3: the energy must not wait for the clock to pass the saved time", got)
 	}
 }
 

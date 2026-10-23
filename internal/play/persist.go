@@ -198,7 +198,13 @@ func (g *Game) restoreEnergy(s EnergySnapshot) (*domain.Energy, time.Time, error
 	if err := energy.Restore(domain.EnergyState{Reserve: s.Reserve, Savings: s.Savings, SavingsTick: s.SavingsTick}); err != nil {
 		return nil, time.Time{}, err
 	}
-	return energy, s.SyncedAt, nil
+	// A save from the future, written while the clock was ahead, would stop the recharge until the
+	// clock caught up, so it counts from now.
+	syncedAt := s.SyncedAt
+	if now := g.now(); syncedAt.After(now) {
+		syncedAt = now
+	}
+	return energy, syncedAt, nil
 }
 
 // restoreOpening resolves the cards of a saved opening again. An opening of a set the game does not

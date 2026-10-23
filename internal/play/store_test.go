@@ -120,8 +120,11 @@ func TestFileStore_saveCreatesAPrivateFileInAMissingDirectory(t *testing.T) {
 	assertOnlyFile(t, dir, "save.json")
 }
 
-func TestFileStore_aFailedSaveKeepsTheOldFileAndLeavesNoTemporaryOne(t *testing.T) {
+func TestFileStore_aFailedSaveKeepsTheOldFile(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("a directory cannot be made unwritable for this user")
+	}
 	dir := t.TempDir()
 	path := filepath.Join(dir, "save.json")
 	store := play.NewFileStore(path)
@@ -132,29 +135,36 @@ func TestFileStore_aFailedSaveKeepsTheOldFileAndLeavesNoTemporaryOne(t *testing.
 	if err != nil {
 		t.Fatalf("read the save: %v", err)
 	}
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+	changed := sampleSnapshot()
+	changed.Welcome = map[string]int{"RAV": 0}
+
+	if err := store.Save(changed); err == nil {
+		t.Fatal("Save in an unwritable directory returned nil error")
+	}
+
+	if after, err := os.ReadFile(path); err != nil || string(after) != string(before) {
+		t.Errorf("the save changed after a failed Save: err %v", err)
+	}
+	assertOnlyFile(t, dir, "save.json")
+}
+
+func TestFileStore_aFailedRenameLeavesNoTemporaryFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
 	// A directory in the way of the final name makes the rename, which comes last, fail.
-	blocked := play.NewFileStore(filepath.Join(dir, "blocked"))
-	if err := os.Mkdir(filepath.Join(dir, "blocked"), 0o700); err != nil {
+	if err := os.Mkdir(filepath.Join(dir, "save.json"), 0o700); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	if err := blocked.Save(sampleSnapshot()); err == nil {
+	if err := play.NewFileStore(filepath.Join(dir, "save.json")).Save(sampleSnapshot()); err == nil {
 		t.Fatal("Save over a directory returned nil error")
 	}
 
-	after, err := os.ReadFile(path)
-	if err != nil || string(after) != string(before) {
-		t.Errorf("the other save changed: err %v", err)
-	}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("read dir: %v", err)
-	}
-	for _, e := range entries {
-		if e.Name() != "save.json" && e.Name() != "blocked" {
-			t.Errorf("leftover file %q after a failed save", e.Name())
-		}
-	}
+	assertOnlyFile(t, dir, "save.json")
 }
 
 func assertOnlyFile(t *testing.T, dir, name string) {

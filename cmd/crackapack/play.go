@@ -140,6 +140,14 @@ while it is missing.`,
 			}
 			imageDir := filepath.Join(cacheRoot, imageCacheSubdir)
 			a.cardBack = images.NewCached(newCardBackSource(), imageDir)
+			if savePath == "" {
+				configRoot, err := os.UserConfigDir()
+				if err != nil {
+					return fmt.Errorf("crackapack play: save directory, pass --save: %w", err)
+				}
+				savePath = defaultSavePath(configRoot, demoData)
+			}
+			a.savePath, a.store = savePath, play.NewFileStore(savePath)
 			if demoData {
 				ds := demo.Build()
 				a.catFS, a.setCodes, a.suppCodes, a.images = ds.Files, ds.SetCodes, ds.SupplementaryCodes, ds.Images
@@ -206,6 +214,9 @@ while it is missing.`,
 // runPlay is the testable core of the play subcommand. It loads the sets, starts a game and serves
 // the web client on a.listener until ctx is cancelled.
 func runPlay(ctx context.Context, a playArgs) error {
+	if a.store == nil {
+		return errors.New("no store to save the game in")
+	}
 	sets, pools, err := loadPlayCatalogues(a.catFS, a.setCodes, a.suppCodes)
 	if err != nil {
 		return err
@@ -230,7 +241,7 @@ func runPlay(ctx context.Context, a playArgs) error {
 	fmt.Fprintf(a.stdout, "crackapack: save file %s\n", a.savePath)
 	saves := play.Saves{Store: a.store, Stream: stream, Failed: func(err error) { log.Error("save game", "path", a.savePath, "error", err) }}
 	if err := game.Persist(saves); err != nil {
-		return err
+		return fmt.Errorf("save file %q: %w", a.savePath, err)
 	}
 
 	srv := &http.Server{
