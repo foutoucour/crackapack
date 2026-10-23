@@ -1,0 +1,12 @@
+{{define "title"}}Sell {{.Name}}?{{end}}
+{{define "content"}}
+<h1>Sell {{if gt .Qty 1}}all {{.Qty}} copies{{else}}your last copy{{end}} of {{.Name}}{{if .Foil}} (foil){{end}}?</h1>
+<p class="lead">The Counter pays {{coins .Total}}, and the slot of the binder is empty afterwards.</p>
+<form method="post" action="/sell" class="actions">
+  {{template "cardFields" .}}
+  <input type="hidden" name="qty" value="{{.Qty}}">
+  <input type="hidden" name="confirm" value="yes">
+  <button type="submit" class="primary">Sell for {{coins .Total}}</button>
+  <a class="button" href="{{.BackHref}}">Keep {{if gt .Qty 1}}them{{else}}it{{end}}</a>
+</form>
+{{end}}

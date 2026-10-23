@@ -38,6 +38,16 @@ type Quote struct {
 	// LastInStock is, for a card out of stock, the last instant the Counter had a copy, and the zero
 	// time when it never had one.
 	LastInStock time.Time
+	// LastInStockAgo is how long before now LastInStock was, by the game's clock: zero for a card in
+	// stock and for one the Counter never had.
+	LastInStockAgo time.Duration
+}
+
+// Duplicates is what SellDuplicates would sell in a binder: the copies above a playset, and what
+// the Counter would pay for them.
+type Duplicates struct {
+	Copies int
+	Value  domain.Coins
 }
 
 // Purchase is what a card bought at the Counter cost, and the sets it unlocked by completing a
@@ -45,6 +55,13 @@ type Quote struct {
 type Purchase struct {
 	Paid     domain.Coins
 	Unlocked []UnlockedSet
+}
+
+// HasCounter reports whether the game has coins and a Counter, see OpenCounter.
+func (g *Game) HasCounter() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.economy != nil
 }
 
 // Balance is the player's coins, and zero in a game without a Counter.
@@ -73,7 +90,9 @@ func (g *Game) CounterQuote(id domain.CardID, finish domain.Finish) (Quote, erro
 	}
 	q := Quote{BuyPrice: prices.Asks, SellPrice: prices.Pays, InStock: e.counter.Stock(key) > 0}
 	if !q.InStock {
-		q.LastInStock, _ = e.counter.LastInStock(key)
+		if q.LastInStock, _ = e.counter.LastInStock(key); !q.LastInStock.IsZero() {
+			q.LastInStockAgo = e.now().Sub(q.LastInStock)
+		}
 	}
 	return q, nil
 }
@@ -138,22 +157,9 @@ func (g *Game) Sell(id domain.CardID, finish domain.Finish, qty int) (domain.Coi
 func (g *Game) SellDuplicates(setCode string) (domain.Coins, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	binder, ok := g.binders[setCode]
-	if !ok {
-		return 0, fmt.Errorf("sell the duplicates of %q: %w", setCode, ErrUnknownSet)
-	}
-	if err := g.syncCounter(); err != nil {
-		return 0, err
-	}
-	surplus, err := g.collection.DuplicatesAbove(domain.PlaysetSize)
+	lines, err := g.duplicateLines(setCode)
 	if err != nil {
 		return 0, fmt.Errorf("sell the duplicates of %q: %w", setCode, err)
-	}
-	var lines []domain.TradeLine
-	for _, s := range surplus {
-		if _, inBinder := binder.Cards[s.Key.ID]; inBinder {
-			lines = append(lines, domain.TradeLine{Key: s.Key, Qty: s.Quantity})
-		}
 	}
 	if len(lines) == 0 {
 		return 0, fmt.Errorf("sell the duplicates of %q: %w", setCode, ErrNothingToSell)
@@ -163,6 +169,74 @@ func (g *Game) SellDuplicates(setCode string) (domain.Coins, error) {
 		return 0, fmt.Errorf("sell the duplicates of %q: %w", setCode, err)
 	}
 	return paid, nil
+}
+
+// Duplicates previews SellDuplicates for setCode: the copies it would sell and what it would pay,
+// zero of both when the binder holds nothing above a playset. It returns ErrUnknownSet,
+// ErrNotTraded or ErrNoCounter, wrapped, and changes nothing.
+func (g *Game) Duplicates(setCode string) (Duplicates, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	lines, err := g.duplicateLines(setCode)
+	if err != nil {
+		return Duplicates{}, fmt.Errorf("duplicates of %q: %w", setCode, err)
+	}
+	var d Duplicates
+	for _, l := range lines {
+		prices, err := g.economy.counter.Quote(l.Key)
+		if err != nil {
+			return Duplicates{}, fmt.Errorf("duplicates of %q: %w", setCode, err)
+		}
+		if prices.Pays == 0 {
+			return Duplicates{}, fmt.Errorf("duplicates of %q: %w", setCode, ErrNotTraded)
+		}
+		d.Copies += l.Qty
+		d.Value += prices.Pays * domain.Coins(l.Qty)
+	}
+	return d, nil
+}
+
+// SaleEmptiesSlot reports whether selling qty copies of the card id in finish would leave the
+// player holding no copy of it, in either finish. It is false for a sale that Sell would refuse.
+func (g *Game) SaleEmptiesSlot(id domain.CardID, finish domain.Finish, qty int) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if _, ok := g.cards[id]; !ok {
+		return false
+	}
+	have := g.collection.Quantity(domain.CardKey{ID: id, Finish: finish})
+	return qty >= 1 && qty == have && g.collection.Copies(id) == have
+}
+
+// Card returns the card id of any catalogue of the game.
+func (g *Game) Card(id domain.CardID) (domain.Card, bool) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	card, ok := g.cards[id]
+	return card, ok
+}
+
+// duplicateLines is the sale of the copies above a playset of every card of the binder of
+// setCode, the pools' cards included. It returns ErrUnknownSet and ErrNoCounter. g.mu must be held.
+func (g *Game) duplicateLines(setCode string) ([]domain.TradeLine, error) {
+	binder, ok := g.binders[setCode]
+	if !ok {
+		return nil, ErrUnknownSet
+	}
+	if err := g.syncCounter(); err != nil {
+		return nil, err
+	}
+	surplus, err := g.collection.DuplicatesAbove(domain.PlaysetSize)
+	if err != nil {
+		return nil, err
+	}
+	var lines []domain.TradeLine
+	for _, s := range surplus {
+		if _, inBinder := binder.Cards[s.Key.ID]; inBinder {
+			lines = append(lines, domain.TradeLine{Key: s.Key, Qty: s.Quantity})
+		}
+	}
+	return lines, nil
 }
 
 // sellLot sells lines, which the player holds, to the Counter in one payment, and saves. g.mu must

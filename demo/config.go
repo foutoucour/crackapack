@@ -10,7 +10,9 @@ const demSeed uint64 = 42
 //
 // The Counter opens five boosters a day and three NPCs sell it their surplus, so that its stock
 // moves from one day to the next, also while the demo is closed. The mythics start out of stock,
-// so that a new demo shows both a card in stock and one the Counter never had.
+// so that a new demo shows both a card in stock and one the Counter never had. The uncommons start
+// out of stock too, and a copy that reaches the Counter's shelf stays a day: sell an uncommon, and
+// the next day its slot says when the Counter last had it.
 const playConfigYAML = `
 unlock:
   start_sets: 1
@@ -22,7 +24,9 @@ counter_supply:
   boosters_per_day: 5
 npcs:
   population: 3
+counter_shelf_days: 1
 initial_stock:
+  uncommon: 0
   mythic: 0
 `
 

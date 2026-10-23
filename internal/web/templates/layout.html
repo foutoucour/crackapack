@@ -23,6 +23,12 @@
       {{if .NextIn}}<span class="energy-note">+1 in {{duration .NextIn}}</span>{{end}}
     </div>
     {{end}}
+    {{if hasCounter}}
+    <div class="coins" role="status">
+      <span class="coins-label">Coins</span>
+      <strong>{{balance}}</strong>
+    </div>
+    {{end}}
   </header>
   {{if saveFailed}}
   <p class="notice" role="alert">Your progress could not be saved, so closing the game now would lose
@@ -40,3 +46,9 @@
   </footer>
 </body>
 </html>{{end}}
+
+{{define "unlocked"}}
+<p class="unlock" role="status">Unlocked: {{range $i, $s := .}}{{if $i}}, {{end}}{{$s.Name}}{{end}}. <a href="/">Open them from your boosters</a>.</p>
+{{end}}
+
+{{define "cardFields"}}<input type="hidden" name="set" value="{{.Set}}"><input type="hidden" name="card" value="{{.ID}}"><input type="hidden" name="finish" value="{{.Finish}}">{{if .Filter}}<input type="hidden" name="rarity" value="{{.Filter}}">{{end}}{{end}}

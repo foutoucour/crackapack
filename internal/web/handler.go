@@ -31,6 +31,8 @@ type handler struct {
 	images images.Source
 	log    *slog.Logger
 	pages  map[string]*template.Template
+	// notices tells the result of a purchase or a sale on the page it redirects to.
+	notices noticeBox
 }
 
 // NewHandler returns the web client of game. Card pictures come from pics, and are served from
@@ -44,11 +46,15 @@ func NewHandler(game *play.Game, pics images.Source, log *slog.Logger) http.Hand
 	funcs := template.FuncMap{
 		"energy":   func() energyView { return newEnergyView(h.game.Energy()) },
 		"duration": humanDuration,
+		// The coins show in the header of a game that has a Counter.
+		"hasCounter": h.game.HasCounter,
+		"balance":    h.game.Balance,
+		"coins":      coinsText,
 		// A save that failed is told on every page until one goes through.
 		"saveFailed": func() bool { return h.game.SaveError() != nil },
 	}
 	// Each page is parsed together with the layout, since pages define the same blocks.
-	for _, name := range []string{"home", "pack", "collection", "error"} {
+	for _, name := range []string{"home", "pack", "collection", "confirm", "error"} {
 		h.pages[name] = template.Must(template.New(name).Funcs(funcs).ParseFS(assets, "templates/layout.html", "templates/"+name+".html"))
 	}
 
@@ -62,6 +68,9 @@ func NewHandler(game *play.Game, pics images.Source, log *slog.Logger) http.Hand
 	mux.HandleFunc("POST /open", h.open)
 	mux.HandleFunc("GET /pack", h.pack)
 	mux.HandleFunc("GET /collection", h.collection)
+	mux.HandleFunc("POST /buy", h.buy)
+	mux.HandleFunc("POST /sell", h.sell)
+	mux.HandleFunc("POST /sell-duplicates", h.sellDuplicates)
 	mux.HandleFunc("GET /card-image/{id}", h.cardImage)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
@@ -122,7 +131,23 @@ func (h *handler) collection(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, http.StatusBadRequest, "Unknown rarity: pick one of the filters above the binder.")
 		return
 	}
-	h.render(w, http.StatusOK, "collection", newCollectionView(binder, binders, rarity))
+	var quotes counterQuoter
+	if h.game.HasCounter() {
+		quotes = h.game
+	}
+	view, err := newCollectionView(binder, binders, rarity, quotes)
+	if err != nil {
+		h.playFailed(w, err)
+		return
+	}
+	if quotes != nil {
+		if view.Duplicates, err = h.duplicatesOf(binder.SetCode, rarity); err != nil {
+			h.playFailed(w, err)
+			return
+		}
+	}
+	view.Notice = h.notices.take()
+	h.render(w, http.StatusOK, "collection", view)
 }
 
 func (h *handler) cardImage(w http.ResponseWriter, r *http.Request) {

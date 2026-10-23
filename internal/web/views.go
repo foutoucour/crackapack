@@ -44,6 +44,9 @@ func newHomeView(packs []play.Pack) homeView {
 
 type errorView struct {
 	Message string
+	// BackHref and BackLabel are the way out of the page, the home page when they are empty.
+	BackHref  string
+	BackLabel string
 }
 
 type packView struct {

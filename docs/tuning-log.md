@@ -18,6 +18,23 @@ goal band changes. Newest first. Each entry says:
 - how the goals read before and after, on the same scenarios, so the entries compare;
 - what the run does not tell.
 
+## 2026-10-23 – The demo's Counter shows an item out of stock, no search run
+
+**Trigger:** the Counter's pages say when a card was last in stock, and the demo had no way to reach
+that state: a card leaves the Counter's stock only when a limited shelf lets it go, and the demo's
+shelf kept cards forever. The demo's own config (`demo/config.go`) changed. `config.defaults()`, the
+search and the game's files did not.
+
+| Key | Demo before | Demo now |
+|-----|------------:|---------:|
+| `counter_shelf_days` | -1 | 1 |
+| `initial_stock.uncommon` | 8 | 0 |
+
+- Sell an uncommon of the demo and the Counter has it for a day, then the slot says when it last had it.
+  The mythics already started out of stock, so they read "never seen".
+- The goals, which the demo does not run, are unaffected. A test of the `play` command sells the
+  uncommons of a booster, moves the clock two days and reads the line.
+
 ## 2026-10-23 – A scarce Counter for the game, no search run
 
 **Trigger:** with `tune/base.yaml` alone the game's Counter holds every printing from the first day and

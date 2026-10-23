@@ -374,8 +374,8 @@ The stack is server-rendered `html/template`, see
   timeshifted cards in Time Spiral's binder, counted in its progress. Stats: an overview at the top
   (cards held, binders complete, sets unlocked), the progress of each binder by colour, and a mark on
   a binder past the unlock threshold, see [Collection and binders](core-features.md#collection-and-binders).
-  Left: the collection's value, the card page, filters (colour among them), selling the
-  duplicates, and the master set (foil as slots of their own).
+  Left: the collection's value, the card page, filters (colour among them), and the master set
+  (foil as slots of their own).
 - [x] Saves: the collection, the welcome boosters left, the energy and the booster stream are saved
   to one JSON file after every opening and loaded on start, and the energy recharges for the time the
   game was closed, see
@@ -388,13 +388,21 @@ The stack is server-rendered `html/template`, see
   collection. Left: a `--config` for `play`, so the `unlock` keys can change without the code; and
   the cards a set's boosters draw from another openable set, such as Kaladesh's in Aether Revolt,
   which open but do not count in its binder.
-- [x] Coins and the Counter in `play.Game`, with no page yet: the welcome bonus, selling any copy or
-  everything above a playset of a binder, buying a card in stock, quotes that never show the stock
-  and tell when a card was last in stock, and a stock that the supply and the NPCs refill on the days
-  caught up, saved with the game, see [The Counter](core-features.md#the-counter). Left: the pages
-  and the coins in the header (next), the daily reward, the coin top-up and the coin fee above the
-  energy cap, and a `--config` for `play`.
-- [ ] The Counter's pages, trades with NPCs, quests and the profile.
+- [x] Coins and the Counter in `play.Game`: the welcome bonus, selling any copy or everything above
+  a playset of a binder, buying a card in stock, quotes that never show the stock and tell when a
+  card was last in stock, and a stock that the supply and the NPCs refill on the days caught up,
+  saved with the game, see [The Counter](core-features.md#the-counter). Left: the daily reward, the
+  coin top-up and the coin fee above the energy cap, and a `--config` for `play`.
+- [x] The Counter in the binders: the coins in the header, on a held card a Sell button with its
+  price, a quantity and a confirmation page when the sale empties the slot, a Sell duplicates button
+  that shows what it pays, and on an empty slot the price with a Buy button, or when the Counter has
+  no copy "last in stock 5 minutes ago" or "never seen at the Counter". No script is needed, and the
+  stock is never shown. The actions are on each binder page, not on the overview, see
+  [The Counter](core-features.md#the-counter). The page is checked by its HTML in tests and by a
+  screenshot of headless Chrome, with no browser test. Left: buying more copies of a held card (a
+  Buy button shows on empty slots only), and a way to see the Counter's prices without opening a
+  binder.
+- [ ] Trades with NPCs, quests and the profile.
 - [x] Card pictures, downloaded from Scryfall on demand and cached, see
   [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md). The demo draws its own.
   Left: a cache that can be refreshed, and the two faces of a double-faced card.

@@ -237,7 +237,8 @@ coins into cards without an NPC.
   startup.
 - **Bulk sale:** "sell everything above the playset" in one click.
 
-In the game, the Counter's rules live in `play.Game`, with no page of their own yet:
+In the game, the Counter's rules live in `play.Game`, and the player trades from the binders, on
+the collection page, with no page of its own:
 - **Coins:** a new game starts with the welcome bonus. A save from before coins existed gets it too.
 - **Selling:** any copy, the only one included, or every copy above a playset of the cards of a set's
   binder, foils kept longest. A sale never locks a set again, see
@@ -256,7 +257,16 @@ In the game, the Counter's rules live in `play.Game`, with no page of their own 
 - **Prices:** from `--prices`. Without a snapshot every card is worth the fallback price, one cent, as
   a card the snapshot lacks is in the simulation, so every card costs one coin and pays one.
 - **Refusals** change nothing: not enough coins, out of stock, nothing to sell, a locked set, an
-  unknown card, or a treasury that cannot pay.
+  unknown card, or a treasury that cannot pay. The page says which, with a link back to the slot.
+- **In the binder:** the coins show in the header next to the energy. A held card has a Sell
+  button with the price of a copy, per finish, and a quantity when more than one copy is held. A sale
+  that empties the slot, with no copy left in either finish, asks first on a page of its own, so
+  that no script is needed. The binder offers Sell duplicates with the copies and the total it
+  pays, and says so when there is nothing above a playset. An empty slot shows the card's name, its
+  price and a Buy button, or why it cannot be bought: the Counter has no copy and when it last had
+  one ("last in stock 5 minutes ago"), it never had one ("never seen at the Counter"), or it does
+  not trade the card. A locked set's binder only sells. The result of a purchase or a sale shows on
+  the binder it returns to, with the sets it unlocked.
 
 Both prices derive from one reference, so buying a card and selling it back loses half of its
 value at the default rates, and never gains at any rate the configuration accepts. The 60% and 120%

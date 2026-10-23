@@ -1,5 +1,11 @@
 {{define "title"}}Your collection{{end}}
 {{define "content"}}
+{{if or .Notice.Text .Notice.Unlocked}}
+<div class="results">
+  {{with .Notice.Text}}<p class="sale-notice" role="status">{{.}}</p>{{end}}
+  {{if .Notice.Unlocked}}{{template "unlocked" .Notice.Unlocked}}{{end}}
+</div>
+{{end}}
 <section class="overview" aria-label="Collection overview">
   <dl>
     <div><dt>Cards held</dt><dd>{{.Overview.Owned}} / {{.Overview.Total}}</dd></div>
@@ -41,6 +47,22 @@
 </section>
 {{end}}
 
+{{if .Locked}}{{if .Counter}}<p class="counter-note">This set is locked, so its cards cannot be bought. What you hold of it can still be sold.</p>{{end}}{{end}}
+
+{{if .Duplicates.Offered}}
+<section class="duplicates" aria-label="Sell duplicates">
+  {{if .Duplicates.Copies}}
+  <form method="post" action="/sell-duplicates">
+    <input type="hidden" name="set" value="{{.Duplicates.Set}}">{{if .Duplicates.Filter}}<input type="hidden" name="rarity" value="{{.Duplicates.Filter}}">{{end}}
+    <p>{{.Duplicates.Copies}} {{if eq .Duplicates.Copies 1}}copy{{else}}copies{{end}} above a playset of four, {{coins .Duplicates.Value}} from the Counter.</p>
+    <button type="submit">Sell duplicates for {{coins .Duplicates.Value}}</button>
+  </form>
+  {{else}}
+  <p>You have no duplicates above a playset in this binder.</p>
+  {{end}}
+</section>
+{{end}}
+
 {{if .Slots}}{{template "slots" .Slots}}{{end}}
 
 {{range .Pools}}
@@ -53,21 +75,52 @@
 
 {{define "slots"}}
 <ol class="binder" data-binder>
-  {{range .}}
-  {{if .Held}}
-  <li class="card {{.Colour}} {{.Rarity}}{{if .ImageID}} has-image{{end}}" data-card data-rarity="{{.Rarity}}">
-    {{if .ImageID}}<img src="/card-image/{{.ImageID}}" class="art" alt="{{.Name}}" width="488" height="680" loading="lazy">{{end}}
-    <div class="face">
-      <span class="name">{{.Name}}</span>
-      <span class="meta">{{.Rarity}}</span>
-      <span class="tag count">×{{.Regular}}</span>
-      {{if .Foil}}<span class="tag foil-tag">Foil ×{{.Foil}}</span>{{end}}
+  {{range $slot := .}}
+  <li class="entry" id="c-{{.ID}}">
+    {{if .Held}}
+    <div class="card {{.Colour}} {{.Rarity}}{{if .ImageID}} has-image{{end}}" data-card data-rarity="{{.Rarity}}">
+      {{if .ImageID}}<img src="/card-image/{{.ImageID}}" class="art" alt="{{.Name}}" width="488" height="680" loading="lazy">{{end}}
+      <div class="face">
+        <span class="name">{{.Name}}</span>
+        <span class="meta">{{.Rarity}}</span>
+        <span class="tag count">×{{.Regular}}</span>
+        {{if .Foil}}<span class="tag foil-tag">Foil ×{{.Foil}}</span>{{end}}
+      </div>
+      <button type="button" class="view" aria-label="View {{.Name}}"></button>
     </div>
-    <button type="button" class="view" aria-label="View {{.Name}}"></button>
+    {{else}}
+    <div class="slot empty"><span class="sr-only">Empty slot, card number </span><span class="number">#{{.Number}}</span></div>
+    {{end}}
+    {{if or .Sales .Buy.Price .Buy.Note}}
+    <div class="counter">
+      {{range .Sales}}
+      {{if .Traded}}
+      <form method="post" action="/sell" class="sell">
+        {{template "cardFields" .}}
+        {{if gt .Copies 1}}<label>Quantity <input type="number" name="qty" value="1" min="1" max="{{.Copies}}" inputmode="numeric"></label>{{else}}<input type="hidden" name="qty" value="1">{{end}}
+        <button type="submit">Sell{{if .Foil}} foil{{end}}<span class="sr-only"> {{$slot.Name}}</span> for {{coins .Price}}{{if gt .Copies 1}} each{{end}}</button>
+      </form>
+      {{else}}
+      <p class="shelf-note">Not traded{{if .Foil}} (foil){{end}}<span class="sr-only"> by the Counter: {{$slot.Name}}</span></p>
+      {{end}}
+      {{end}}
+      {{with .Buy}}
+      {{if or .Price .Note}}
+      <p class="shelf-name">{{$slot.Name}}</p>
+      {{if .Buyable}}
+      <form method="post" action="/buy" class="buy">
+        {{template "cardFields" .}}
+        <button type="submit">Buy<span class="sr-only"> {{$slot.Name}}</span> for {{coins .Price}}</button>
+      </form>
+      {{else}}
+      {{if .Price}}<p class="shelf-price">{{coins .Price}}</p>{{end}}
+      <p class="shelf-note">{{.Note}}</p>
+      {{end}}
+      {{end}}
+      {{end}}
+    </div>
+    {{end}}
   </li>
-  {{else}}
-  <li class="slot empty"><span class="sr-only">Empty slot, card number </span><span class="number">#{{.Number}}</span></li>
-  {{end}}
   {{end}}
 </ol>
 {{end}}

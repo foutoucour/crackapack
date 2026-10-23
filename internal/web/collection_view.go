@@ -20,6 +20,12 @@ type collectionView struct {
 	Colours       []groupView
 	Slots         []slotView
 	Pools         []poolView
+	// Counter is true in a game with a Counter, whose prices the slots show. Locked is true when
+	// the binder's set cannot be opened yet, so that none of its cards can be bought.
+	Counter    bool
+	Locked     bool
+	Duplicates duplicatesView
+	Notice     noticeView
 }
 
 // tabView is one entry of the switcher between binders.
@@ -60,6 +66,7 @@ type poolView struct {
 
 // slotView is one slot of a binder: a card with its copies, or an empty slot when it has none.
 type slotView struct {
+	ID      domain.CardID
 	Name    string
 	Number  string
 	Rarity  string
@@ -68,6 +75,10 @@ type slotView struct {
 	// Regular and Foil are the copies held, by finish.
 	Regular int
 	Foil    int
+	// Sales are what the Counter pays for the copies held, one per finish, and Buy what it offers
+	// for an empty slot. Both are empty in a game without a Counter.
+	Sales []saleView
+	Buy   buyView
 }
 
 // Held reports whether the player holds a copy of the card, in either finish.
@@ -79,21 +90,17 @@ func binderRarities() []domain.Rarity {
 }
 
 // newCollectionView builds the page of binder. rarity, when not empty, keeps only the slots of that
-// rarity, while the progress stays the whole binder's.
-func newCollectionView(binder play.Binder, binders []play.BinderSummary, rarity string) collectionView {
+// rarity, while the progress stays the whole binder's. The slots show the prices of quotes, which
+// is nil in a game without a Counter.
+func newCollectionView(binder play.Binder, binders []play.BinderSummary, rarity string, quotes counterQuoter) (collectionView, error) {
 	view := collectionView{
+		Counter:       quotes != nil,
 		Overview:      play.OverviewOf(binders),
 		SetName:       binder.SetName,
 		Owned:         binder.Progress.Owned,
 		Total:         binder.Progress.Total,
 		Playsets:      binder.Progress.Playsets,
 		PastThreshold: binder.PastThreshold,
-		Slots:         newSlotViews(binder.Slots, rarity),
-	}
-	for _, pool := range binder.Pools {
-		if slots := newSlotViews(pool.Slots, rarity); len(slots) > 0 {
-			view.Pools = append(view.Pools, poolView{Name: pool.Name, Slots: slots})
-		}
 	}
 	for _, b := range binders {
 		view.Tabs = append(view.Tabs, tabView{
@@ -101,6 +108,24 @@ func newCollectionView(binder play.Binder, binders []play.BinderSummary, rarity 
 			Owned: b.Progress.Owned, Total: b.Progress.Total,
 			Current: b.SetCode == binder.SetCode, Locked: b.Locked,
 		})
+		if b.SetCode == binder.SetCode {
+			view.Locked = b.Locked
+		}
+	}
+
+	shelf := shelf{set: binder.SetCode, filter: rarity, quotes: quotes, locked: view.Locked}
+	var err error
+	if view.Slots, err = newSlotViews(binder.Slots, rarity, shelf); err != nil {
+		return collectionView{}, err
+	}
+	for _, pool := range binder.Pools {
+		slots, err := newSlotViews(pool.Slots, rarity, shelf)
+		if err != nil {
+			return collectionView{}, err
+		}
+		if len(slots) > 0 {
+			view.Pools = append(view.Pools, poolView{Name: pool.Name, Slots: slots})
+		}
 	}
 
 	view.Filters = []filterView{{Label: "All", Href: collectionHref(binder.SetCode, ""), Current: rarity == ""}}
@@ -117,7 +142,7 @@ func newCollectionView(binder play.Binder, binders []play.BinderSummary, rarity 
 			view.Colours = append(view.Colours, groupView{Label: colourGroupLabel(g), Owned: p.Owned, Total: p.Total})
 		}
 	}
-	return view
+	return view, nil
 }
 
 // collectionHref is the address of a binder, filtered on rarity when it is not empty.
@@ -129,13 +154,14 @@ func collectionHref(setCode, rarity string) string {
 	return "/collection?" + q.Encode()
 }
 
-func newSlotViews(cards []play.BinderCard, rarity string) []slotView {
+func newSlotViews(cards []play.BinderCard, rarity string, shelf shelf) ([]slotView, error) {
 	out := make([]slotView, 0, len(cards))
 	for _, c := range cards {
 		if rarity != "" && string(c.Card.Rarity) != rarity {
 			continue
 		}
-		out = append(out, slotView{
+		slot := slotView{
+			ID:      c.Card.ID,
 			Name:    c.Card.Name,
 			Number:  c.Card.Number,
 			Rarity:  string(c.Card.Rarity),
@@ -143,9 +169,13 @@ func newSlotViews(cards []play.BinderCard, rarity string) []slotView {
 			ImageID: c.Card.ScryfallID,
 			Regular: c.Regular,
 			Foil:    c.Foil,
-		})
+		}
+		if err := shelf.apply(&slot, c); err != nil {
+			return nil, err
+		}
+		out = append(out, slot)
 	}
-	return out
+	return out, nil
 }
 
 func colourGroupLabel(g domain.ColourGroup) string {
