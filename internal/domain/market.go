@@ -272,8 +272,8 @@ func (m *Market) record(a MarketAnswer, outcome MarketOutcome, at time.Time) {
 	}
 }
 
-// close drops the request or listing id with its answers and the answers to come.
-func (m *Market) close(id MarketID) {
+// end drops the request or listing id with its answers and the answers to come.
+func (m *Market) end(id MarketID) {
 	m.requests = slices.DeleteFunc(m.requests, func(r MarketRequest) bool { return r.ID == id })
 	m.listings = slices.DeleteFunc(m.listings, func(l MarketListing) bool { return l.ID == id })
 	m.answers = slices.DeleteFunc(m.answers, func(a MarketAnswer) bool { return a.To == id })

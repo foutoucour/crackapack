@@ -321,7 +321,7 @@ trades:
 }
 
 // The market wants answers at once from some NPCs and the next day from others, see
-// docs/simulation.md#the-market.
+// docs/core-features.md#the-market.
 func TestLoad_shippedArchetypesAnswerAtOnceAndAfterADay(t *testing.T) {
 	t.Parallel()
 	cfg, err := config.Load(strings.NewReader("{}"))

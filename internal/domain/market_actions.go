@@ -21,7 +21,7 @@ func (m *Market) AskAround(card CardKey, now time.Time) (MarketID, error) {
 		if m.Pending(r.ID) > 0 || slices.ContainsFunc(m.answers, func(a MarketAnswer) bool { return a.To == r.ID }) {
 			return 0, fmt.Errorf("%w: %s", ErrAlreadyAsked, card.ID)
 		}
-		m.close(r.ID)
+		m.end(r.ID)
 		break
 	}
 	var holders []*NPC
@@ -72,7 +72,7 @@ func (m *Market) Unlist(id MarketID) error {
 	if _, ok := m.listing(id); !ok {
 		return fmt.Errorf("%w: listing %d", ErrMarketNotFound, id)
 	}
-	m.close(id)
+	m.end(id)
 	return nil
 }
 
@@ -81,7 +81,7 @@ func (m *Market) Withdraw(id MarketID) error {
 	if _, ok := m.request(id); !ok {
 		return fmt.Errorf("%w: request %d", ErrMarketNotFound, id)
 	}
-	m.close(id)
+	m.end(id)
 	return nil
 }
 
@@ -254,7 +254,7 @@ func (m *Market) settle(a MarketAnswer, d deal, at time.Time) error {
 	case err == nil:
 		npc.declineStreak = 0
 		m.record(a, MarketAccepted, at)
-		m.close(a.To)
+		m.end(a.To)
 	case errors.Is(err, ErrPlayerLacksCard), errors.Is(err, ErrNPCLacksCard):
 		m.dropAnswer(a.ID)
 		m.record(a, MarketFailed, at)

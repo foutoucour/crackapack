@@ -219,6 +219,32 @@ func TestCrowdTickUnfocusedNPCsOpenEverySet(t *testing.T) {
 	}
 }
 
+// A crowd told to open only some sets opens only those, unless an NPC focuses on another, and
+// every set again once told none.
+func TestCrowdOpenOnly(t *testing.T) {
+	t.Parallel()
+	sets := crowdSets()
+	crowd, npcs, _ := newTestCrowd(t, 1, fixedSpec(100, domain.PlaysetSize), sets, 5)
+	crowd.OpenOnly(func(code string) bool { return code == sets[1].Code })
+	runDays(t, crowd, 1)
+	for key := range npcs[0].Collection().Snapshot() {
+		if _, ok := sets[1].Cards[key.ID]; !ok {
+			t.Fatalf("the NPC holds %s, from a set it was not to open", key.ID)
+		}
+	}
+	crowd.OpenOnly(func(string) bool { return false })
+	runDays(t, crowd, 1)
+	held := false
+	for key := range npcs[0].Collection().Snapshot() {
+		if _, ok := sets[0].Cards[key.ID]; ok {
+			held = true
+		}
+	}
+	if !held {
+		t.Error("told no set, the NPC still opens none of the first set")
+	}
+}
+
 func TestCrowdTickIsReproducibleFromTheSeed(t *testing.T) {
 	t.Parallel()
 

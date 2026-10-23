@@ -15,8 +15,10 @@ plays every set in scope, unlocked in stages as your binders fill. The game is s
 opening, so a restart picks it up where it was. The game has coins and a Counter that stocks itself
 each day, also while the game is closed. You trade at it from the binders: the coins show in the
 header, a held card sells for its price, a missing one is bought when the Counter has a copy, and the
-duplicates above a playset sell in one click. The following are not built yet: trades with NPCs in the
-UI, and catalogue sync.
+duplicates above a playset sell in one click. The game's NPCs trade with you on a market: ask around
+for a card and they answer with their prices, list a card and they make offers, each at the pace of
+its personality, some at once and some the next day. The market has no page yet. The following are
+not built yet: the market's pages, and catalogue sync.
 
 ## Open your first boosters
 

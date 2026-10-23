@@ -204,10 +204,7 @@ func TestPersist_aVersion1SaveGetsTheWelcomeBonusAndAFreshCounter(t *testing.T) 
 
 func TestPersist_aCounterThatDoesNotFitIsRefused(t *testing.T) {
 	t.Parallel()
-	crowd := emptyCounter()
-	crowd.Crowd = domain.PopulationParams{Size: 2, Archetypes: map[string]domain.ArchetypeSpec{
-		"npc": {Share: 1, MinBoostersPerDay: 1, MaxBoostersPerDay: 1, KeepCopies: 1},
-	}}
+	market := marketRules()
 	tests := []struct {
 		name  string
 		rules play.CounterRules
@@ -217,9 +214,20 @@ func TestPersist_aCounterThatDoesNotFitIsRefused(t *testing.T) {
 		{name: "a negative stock", rules: counterRules(), edit: func(s *play.CounterSnapshot) {
 			s.Stock = append(s.Stock, play.CardCount{ID: "S-00", Finish: domain.FinishNonFoil, Quantity: -1})
 		}},
-		{name: "a crowd of another size", rules: crowd, edit: func(s *play.CounterSnapshot) { s.Crowd.NPCs = s.Crowd.NPCs[:1] }},
 		{name: "a crowd the game does not have", rules: counterRules(), edit: func(s *play.CounterSnapshot) {
 			s.Crowd = &play.CrowdSnapshot{Rand: play.OpenerSnapshot{Seed: 8, State: []byte("x")}}
+		}},
+		{name: "a market the game does not have", rules: counterRules(), edit: func(s *play.CounterSnapshot) {
+			s.Market = &play.MarketSnapshot{NextID: 1}
+		}},
+		{name: "cards of an NPC that do not read", rules: market, edit: func(s *play.CounterSnapshot) { s.Crowd.NPCs[0].Held = "S-00=0" }},
+		{name: "a shelf of an NPC that does not read", rules: market, edit: func(s *play.CounterSnapshot) { s.Crowd.NPCs[0].Shelf = "S-00" }},
+		{name: "an answer of an unknown kind", rules: market, edit: func(s *play.CounterSnapshot) {
+			s.Market.Answers = append(s.Market.Answers, play.AnswerSnapshot{ID: 1, Kind: "bid"})
+		}},
+		{name: "a listing of a card the player lacks", rules: market, edit: func(s *play.CounterSnapshot) {
+			s.Market.NextID = 2
+			s.Market.Listings = []play.ListingSnapshot{{ID: 1, Card: "S-00", Finish: domain.FinishNonFoil, Price: 5}}
 		}},
 	}
 	for _, tt := range tests {
@@ -276,5 +284,29 @@ func TestPersist_aGameWithoutACounterKeepsTheCounterOfTheSave(t *testing.T) {
 	mustOpen(t, plain, "S")
 	if got := store.last(t).Counter; !reflect.DeepEqual(got, saved) {
 		t.Errorf("Counter after a game without one = %+v, want %+v", got, saved)
+	}
+}
+
+// The Counter's limited shelf is written compactly, and a save from before, which lists its copies
+// one batch at a time, still loads.
+func TestPersist_theCountersShelfIsCompactAndAnOlderOneLoads(t *testing.T) {
+	t.Parallel()
+	rules := emptyCounter()
+	rules.Params.ShelfLife = domain.VanishAfterDays(2)
+	clock := playtest.NewClock()
+	store := &memStore{}
+	g := counterGame(t, store, clock, rules, counterSet())
+	mustOpen(t, g, "S")
+	mustSell(t, g, "S-00", 1)
+	snap := store.last(t)
+	if snap.Counter.Shelved == "" || snap.Counter.Shelf != nil {
+		t.Fatalf("saved shelf = %q and %+v, want it compact only", snap.Counter.Shelved, snap.Counter.Shelf)
+	}
+
+	snap.Counter.Shelved = ""
+	snap.Counter.Shelf = []play.ShelfCount{{ID: "S-00", Finish: domain.FinishNonFoil, Tick: 0, Quantity: 1}}
+	loaded := counterGame(t, &memStore{snap: snap, found: true}, clock, rules, counterSet())
+	if q := mustQuote(t, loaded, cheap()); !q.InStock {
+		t.Errorf("quote after loading the older shelf = %+v, want the copy in stock", q)
 	}
 }

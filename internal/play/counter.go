@@ -131,8 +131,8 @@ func (g *Game) Buy(id domain.CardID, finish domain.Finish) (Purchase, error) {
 
 // Sell sells qty copies of the card id in finish to the Counter, the only copy included, and
 // returns the coins paid. It returns ErrUnknownCard, ErrNothingToSell when the player holds fewer
-// than qty copies or qty is not positive, ErrCounterBroke, ErrNotTraded or ErrNoCounter, wrapped,
-// and then changes nothing.
+// than qty copies or qty is not positive, ErrReserved when the market holds some of them,
+// ErrCounterBroke, ErrNotTraded or ErrNoCounter, wrapped, and then changes nothing.
 // A sale never locks a set again: an unlock is permanent.
 func (g *Game) Sell(id domain.CardID, finish domain.Finish, qty int) (domain.Coins, error) {
 	g.mu.Lock()
@@ -141,8 +141,12 @@ func (g *Game) Sell(id domain.CardID, finish domain.Finish, qty int) (domain.Coi
 	if err != nil {
 		return 0, fmt.Errorf("sell %q: %w", id, err)
 	}
-	if have := g.collection.Quantity(key); qty < 1 || qty > have {
+	have := g.collection.Quantity(key)
+	if qty < 1 || qty > have {
 		return 0, fmt.Errorf("sell %d of %q, the player holds %d: %w", qty, id, have, ErrNothingToSell)
+	}
+	if held := g.reserved(key); qty > have-held {
+		return 0, fmt.Errorf("sell %d of %q, the market holds %d of %d: %w", qty, id, held, have, ErrReserved)
 	}
 	paid, err := g.sellLot([]domain.TradeLine{{Key: key, Qty: qty}})
 	if err != nil {
@@ -152,7 +156,7 @@ func (g *Game) Sell(id domain.CardID, finish domain.Finish, qty int) (domain.Coi
 }
 
 // SellDuplicates sells the copies above a playset of every card of the binder of setCode, keeping
-// the foils longest, and returns the coins paid. It returns ErrUnknownSet, ErrNothingToSell,
+// the foils longest and the copies the market holds, and returns the coins paid. It returns ErrUnknownSet, ErrNothingToSell,
 // ErrCounterBroke, ErrNotTraded or ErrNoCounter, wrapped, and then changes nothing.
 func (g *Game) SellDuplicates(setCode string) (domain.Coins, error) {
 	g.mu.Lock()
@@ -232,8 +236,12 @@ func (g *Game) duplicateLines(setCode string) ([]domain.TradeLine, error) {
 	}
 	var lines []domain.TradeLine
 	for _, s := range surplus {
-		if _, inBinder := binder.Cards[s.Key.ID]; inBinder {
-			lines = append(lines, domain.TradeLine{Key: s.Key, Qty: s.Quantity})
+		if _, inBinder := binder.Cards[s.Key.ID]; !inBinder {
+			continue
+		}
+		// The copies the market holds are never sold.
+		if qty := min(s.Quantity, g.collection.Quantity(s.Key)-g.reserved(s.Key)); qty > 0 {
+			lines = append(lines, domain.TradeLine{Key: s.Key, Qty: qty})
 		}
 	}
 	return lines, nil

@@ -175,6 +175,9 @@ func (g *Game) unlockEarned() []UnlockedSet {
 			out = append(out, UnlockedSet{Code: code, Name: unlockedCat.Name})
 		}
 	}
+	if len(out) > 0 {
+		g.openCrowdSets(g.economy)
+	}
 	return out
 }
 

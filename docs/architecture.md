@@ -55,7 +55,9 @@ values and records per-day metrics. The domain never imports sim.
 The domain also holds the trades: `Exchange` prices and executes offers between the player and the
 crowd, `Valuer` gives the Counter and the Exchange the same reference value, and a `TradeBehaviour`
 per archetype picks wishes, the margin and proposals. `internal/sim` composes them behind
-`trades.enabled` and exposes them to player policies through `Session`.
+`trades.enabled` and exposes them to player policies through `Session`. `Market` is the game's way to
+trade: requests, listings and answers due at instants the caller gives, on the Exchange's acceptance
+rule and atomic transfer, see [The market](core-features.md#the-market).
 
 `internal/images` fetches card pictures from Scryfall, one at a time, and keeps them in the image
 cache, see [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md).
@@ -64,7 +66,8 @@ cache, see [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md).
 opening them costs, which recharges from an injected clock, the collection they fill, and the stages
 that unlock the sets, see [Stages](core-features.md#stages). It holds the coins and the Counter too,
 and catches up the Counter's supply and NPCs on the days gone by, with the domain objects the
-simulation uses, see [The Counter](core-features.md#the-counter). `internal/config` maps the config to
+simulation uses, see [The Counter](core-features.md#the-counter), and the market, whose answers it
+delivers in time with those days. `internal/config` maps the config to
 those objects' parameters for both. It also
 defines the save of that state: a `Snapshot` and a `Store` interface, with a JSON file
 implementation, see [ADR-0052](adr/0052-the-game-is-saved-in-one-versioned-json-file.md). It sits

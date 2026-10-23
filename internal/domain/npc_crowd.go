@@ -46,6 +46,8 @@ type Crowd struct {
 	opener  *Opener
 	counter *Counter
 	rng     *rand.Rand
+	// open are the sets an NPC with no focus set opens, all of sets when empty, see OpenOnly.
+	open []SetCatalogue
 
 	tick      int // ticks elapsed since the crowd was built
 	holdTicks int // how long surplus waits on a shelf; zero sells it at once
@@ -148,6 +150,12 @@ func (c *Crowd) Tick() (CrowdTick, error) {
 	return total, nil
 }
 
+// NPC returns the NPC id, and false for an ID the crowd does not have.
+func (c *Crowd) NPC(id int) (*NPC, bool) {
+	npc, ok := c.byID[id]
+	return npc, ok
+}
+
 // CardsHeld returns the number of cards in all NPC collections and on all shelves.
 func (c *Crowd) CardsHeld() int { return c.held }
 
@@ -190,5 +198,15 @@ func (c *Crowd) pickSet(npc *NPC) SetCatalogue {
 	if npc.FocusSet != "" {
 		return c.setByID[npc.FocusSet]
 	}
-	return c.sets[c.rng.IntN(len(c.sets))]
+	sets := c.sets
+	if len(c.open) > 0 {
+		sets = c.open
+	}
+	return sets[c.rng.IntN(len(sets))]
+}
+
+// OpenOnly makes the NPCs with no focus set open only the sets for which open is true, and every
+// set again when it is true of none. An NPC with a focus set keeps opening it.
+func (c *Crowd) OpenOnly(open func(code string) bool) {
+	c.open = slices.DeleteFunc(slices.Clone(c.sets), func(cat SetCatalogue) bool { return !open(cat.Code) })
 }

@@ -140,6 +140,11 @@ You start with 200 coins. The Counter buys any card at 60% of its price and sell
 stocks itself each day, also while the game is closed, up to the last 30 days. The prices come from
 --prices too: without it every card is worth the fallback price of one cent.
 
+The game's NPCs open the sets you can open and trade with you on the market: ask around for a card and
+the NPCs that have it ask a price, or list a card and the NPCs that want it make offers in coins or
+cards. Each answers at the pace of its personality, some at once and some the next day, also while
+the game is closed. The market has no page yet.
+
 Card pictures are downloaded from Scryfall the first time a card shows, one at a time, and kept
 in the user cache directory. A card whose picture cannot be downloaded shows as text. The back of
 the cards is downloaded once too, also with --demo, and an in-house drawing stands in for it
@@ -346,8 +351,9 @@ func startGame(a playArgs, log *slog.Logger) (*play.Game, *play.Stream, error) {
 }
 
 // counterRules is the Counter of cfg, valuing the cards by prices, as the simulation builds it: the
-// rates, the stock and the shelf, the treasury, the supply and the NPCs. The NPCs do not trade, and
-// the Counter's coin fee on dear boosters is not played: both wait for the market.
+// rates, the stock and the shelf, the treasury, the supply and the NPCs. The game's NPCs always trade
+// on its market, whatever trades.enabled, the simulation's switch, says. The Counter's coin fee on
+// dear boosters is not played.
 func counterRules(cfg config.Config, prices domain.PriceSnapshot) (play.CounterRules, error) {
 	if cfg.CounterSupply.CoinsPerEnergy > 0 {
 		return play.CounterRules{}, errors.New("counter_supply.coins_per_energy: the Counter's coin fee on dear boosters is not played yet")
@@ -369,11 +375,22 @@ func counterRules(cfg config.Config, prices domain.PriceSnapshot) (play.CounterR
 		rules.Supply.Energy = &energy
 	}
 	if cfg.NPCs.Population > 0 {
+		if cfg.NPCs.SurplusHoldDays < 1 {
+			return play.CounterRules{}, fmt.Errorf("npcs.surplus_hold_days is %d: the market needs NPCs that hold their surplus a day at least", cfg.NPCs.SurplusHoldDays)
+		}
 		rules.Crowd = domain.PopulationParams{
 			Size:         cfg.NPCs.Population,
-			Archetypes:   cfg.NPCs.ArchetypeSpecs(false),
+			Archetypes:   cfg.NPCs.ArchetypeSpecs(true),
 			Valuer:       domain.NewValuer(prices, cfg.FallbackPrice),
 			MaxMarginPct: cfg.NPCs.MaxMarginPct,
+		}
+		rules.Market = &play.MarketRules{
+			SurplusHoldDays: cfg.NPCs.SurplusHoldDays,
+			Params: domain.MarketParams{
+				Expiry:          time.Duration(cfg.Trades.OfferExpiryDays) * 24 * time.Hour,
+				MaxCardsPerSide: cfg.Trades.MaxCardsPerSide,
+				CoinRate:        cfg.CoinRate,
+			},
 		}
 	}
 	return rules, nil

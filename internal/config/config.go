@@ -283,7 +283,7 @@ type ArchetypeConfig struct {
 
 	// ResponseDelayHours is how long an NPC of the archetype takes to answer the player on the
 	// market: an asking price, an offer on a listing or its reply to a counter. In [0, 48], 0
-	// answering at once, see docs/simulation.md#the-market.
+	// answering at once, see docs/core-features.md#the-market.
 	ResponseDelayHours int `yaml:"response_delay_hours"`
 
 	// Colors are the Magic colours the archetype wishes for, from domain.ValidColors. Empty

@@ -1,7 +1,6 @@
 package play
 
 import (
-	"cmp"
 	"errors"
 	"fmt"
 	"maps"
@@ -25,15 +24,21 @@ func (g *Game) snapshotCounter() (*CounterSnapshot, error) {
 		Tick:     state.Tick,
 		Stock:    cardCounts(state.Stock),
 	}
-	for _, key := range slices.SortedFunc(maps.Keys(state.Shelf), compareKeys) {
-		for _, b := range state.Shelf[key] {
-			snap.Shelf = append(snap.Shelf, ShelfCount{ID: key.ID, Finish: key.Finish, Tick: b.Tick, Quantity: b.Qty})
+	shelf := make(map[domain.CardKey][]int, len(state.Shelf))
+	for key, batches := range state.Shelf {
+		for _, b := range batches {
+			for range b.Qty {
+				shelf[key] = append(shelf[key], b.Tick)
+			}
 		}
+	}
+	var err error
+	if snap.Shelved, err = encodeShelf(shelf); err != nil {
+		return nil, fmt.Errorf("counter: shelf: %w", err)
 	}
 	for _, key := range slices.SortedFunc(maps.Keys(state.LastInStock), compareKeys) {
 		snap.LastInStock = append(snap.LastInStock, LastInStock{ID: key.ID, Finish: key.Finish, At: state.LastInStock[key]})
 	}
-	var err error
 	if e.supply != nil {
 		s := e.supply.State()
 		snap.Supply = &SupplySnapshot{Credit: s.Credit, Reserve: s.Energy.Reserve, Savings: s.Energy.Savings, SavingsTick: s.Energy.SavingsTick, Next: s.Next}
@@ -42,17 +47,12 @@ func (g *Game) snapshotCounter() (*CounterSnapshot, error) {
 		}
 	}
 	if e.crowd != nil {
-		s, err := e.crowd.State()
-		if err != nil {
+		if snap.Crowd, err = snapshotCrowd(e); err != nil {
 			return nil, err
 		}
-		snap.Crowd = &CrowdSnapshot{Tick: s.Tick, NPCs: make([]NPCSnapshot, len(s.NPCs))}
-		for i, n := range s.NPCs {
-			snap.Crowd.NPCs[i] = NPCSnapshot{Credit: n.Credit, Cards: cardCounts(n.Cards)}
-		}
-		if snap.Crowd.Rand, err = streamSnapshot(e.crowdStream); err != nil {
-			return nil, err
-		}
+	}
+	if e.market != nil {
+		snap.Market = snapshotMarket(e.market)
 	}
 	return snap, nil
 }
@@ -61,7 +61,7 @@ func (g *Game) snapshotCounter() (*CounterSnapshot, error) {
 // restoreUnlocks: the economy is built anew on the streams of the save and set to what it holds.
 // A part the save lacks, such as the crowd of a save from before the game had one, is the new
 // game's; a part the game does not have is an error. g.mu must be held.
-func (g *Game) restoreCounter(snap CounterSnapshot) (commit func(), err error) {
+func (g *Game) restoreCounter(snap CounterSnapshot, collection *domain.Collection) (commit func(), err error) {
 	old := g.economy
 	if old == nil {
 		return func() { g.carriedCounter = &snap }, nil
@@ -78,18 +78,13 @@ func (g *Game) restoreCounter(snap CounterSnapshot) (commit func(), err error) {
 	}
 	// The crowd draws who its NPCs are from the start of its stream, which then goes on from where
 	// the save left it.
-	e, err := g.newEconomy(old.rules, NewStream(supplySeed), NewStream(crowdSeed))
+	e, err := g.newEconomy(old.rules, NewStream(supplySeed), NewStream(crowdSeed), collection)
 	if err != nil {
 		return nil, err
 	}
 	if snap.Supply != nil {
 		if err := e.supplyStream.Restore(supplySeed, snap.Supply.Rand.State); err != nil {
 			return nil, fmt.Errorf("counter: supply: %w", err)
-		}
-	}
-	if snap.Crowd != nil {
-		if err := e.crowdStream.Restore(crowdSeed, snap.Crowd.Rand.State); err != nil {
-			return nil, fmt.Errorf("counter: crowd: %w", err)
 		}
 	}
 	if err := e.journal.Restore(snap.Balances); err != nil {
@@ -105,7 +100,16 @@ func (g *Game) restoreCounter(snap CounterSnapshot) (commit func(), err error) {
 	if err := restoreSupply(e, snap.Supply); err != nil {
 		return nil, err
 	}
-	if err := restoreCrowd(e, snap.Crowd); err != nil {
+	reset, err := restoreCrowd(e, snap.Crowd)
+	if err != nil {
+		return nil, err
+	}
+	if reset {
+		if err := e.warmUp(); err != nil {
+			return nil, err
+		}
+	}
+	if err := restoreMarket(e, snap.Market, reset); err != nil {
 		return nil, err
 	}
 	// A save from the future, written while the clock was ahead, would stop the catch-up until the
@@ -131,24 +135,6 @@ func restoreSupply(e *economy, snap *SupplySnapshot) error {
 	})
 }
 
-func restoreCrowd(e *economy, snap *CrowdSnapshot) error {
-	switch {
-	case snap == nil:
-		return nil
-	case e.crowd == nil:
-		return errors.New("counter: the save has NPCs, and this game has none")
-	}
-	state := domain.CrowdState{Tick: snap.Tick, NPCs: make([]domain.NPCState, len(snap.NPCs))}
-	for i, n := range snap.NPCs {
-		cards, err := cardMap(n.Cards)
-		if err != nil {
-			return fmt.Errorf("counter: NPC %d: %w", i, err)
-		}
-		state.NPCs[i] = domain.NPCState{Credit: n.Credit, Cards: cards}
-	}
-	return e.crowd.Restore(state)
-}
-
 // counterState is the domain's form of the Counter part of snap.
 func counterState(snap CounterSnapshot) (domain.CounterState, error) {
 	stock, err := cardMap(snap.Stock)
@@ -161,9 +147,25 @@ func counterState(snap CounterSnapshot) (domain.CounterState, error) {
 		Shelf:       make(map[domain.CardKey][]domain.ShelfBatch),
 		LastInStock: make(map[domain.CardKey]time.Time, len(snap.LastInStock)),
 	}
+	if snap.Shelf != nil && snap.Shelved != "" {
+		return domain.CounterState{}, errors.New("counter: the shelf is listed both by batch and compactly")
+	}
 	for _, c := range snap.Shelf {
 		key := domain.CardKey{ID: c.ID, Finish: c.Finish}
 		s.Shelf[key] = append(s.Shelf[key], domain.ShelfBatch{Tick: c.Tick, Qty: c.Quantity})
+	}
+	shelved, err := decodeShelf(snap.Shelved)
+	if err != nil {
+		return domain.CounterState{}, fmt.Errorf("counter: shelf: %w", err)
+	}
+	for key, ticks := range shelved {
+		for _, tick := range ticks {
+			if batches := s.Shelf[key]; len(batches) > 0 && batches[len(batches)-1].Tick == tick {
+				batches[len(batches)-1].Qty++
+				continue
+			}
+			s.Shelf[key] = append(s.Shelf[key], domain.ShelfBatch{Tick: tick, Qty: 1})
+		}
 	}
 	for _, c := range snap.LastInStock {
 		s.LastInStock[domain.CardKey{ID: c.ID, Finish: c.Finish}] = c.At
@@ -191,10 +193,6 @@ func cardMap(counts []CardCount) (map[domain.CardKey]int, error) {
 		out[key] = c.Quantity
 	}
 	return out, nil
-}
-
-func compareKeys(a, b domain.CardKey) int {
-	return cmp.Or(cmp.Compare(a.ID, b.ID), cmp.Compare(a.Finish, b.Finish))
 }
 
 func streamSnapshot(s *Stream) (OpenerSnapshot, error) {

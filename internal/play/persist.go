@@ -197,7 +197,7 @@ func (g *Game) restore(snap Snapshot, stream *Stream) error {
 	commitCounter := func() {}
 	if snap.Counter != nil {
 		var err error
-		if commitCounter, err = g.restoreCounter(*snap.Counter); err != nil {
+		if commitCounter, err = g.restoreCounter(*snap.Counter, collection); err != nil {
 			return err
 		}
 	}
@@ -209,6 +209,7 @@ func (g *Game) restore(snap Snapshot, stream *Stream) error {
 	g.collection, g.packs, g.energy, g.lastTick = collection, packs, energy, lastTick
 	commitUnlocks()
 	commitCounter()
+	g.openCrowdSets(g.economy)
 	if snap.LastOpening != nil {
 		g.last = g.restoreOpening(*snap.LastOpening)
 	}

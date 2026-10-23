@@ -204,17 +204,20 @@ The current values of the keys are in the [tuning log](tuning-log.md).
 
 ## Economy: coins, sources and sinks
 
-Coins flow between the player and the Counter. NPCs hold no coins, see
-[Specs review](specs-review.md#positioning-and-decisions). The main settings are the Counter's rates
-and the rewards.
+Coins flow between the player and the Counter, and on the market between the player and the NPCs.
+NPCs hold no coins, see [Specs review](specs-review.md#positioning-and-decisions): the coins an NPC
+pays for a card enter through the market's account, see
+[ADR-0060](adr/0060-an-npc-pays-coins-for-a-card-on-the-market.md). The main settings are the
+Counter's rates and the rewards.
 
 | Flow | Direction for the player | Starting value |
 | --- | --- | --- |
 | Welcome bonus | Source | 200 coins |
 | Daily reward | Source | 100 coins / day |
 | Sales to the Counter | Source | 60% of the reference value |
+| Sales to NPCs on the market | Source | Up to the reference value less the NPC's margin |
 | Quests, milestones, mini-games | Source | See [Retention](retention.md) |
-| Coin top-ups in trades | Sink | Difference in reference value |
+| Coin top-ups in trades, and purchases from NPCs on the market | Sink | Difference in reference value, or the NPC's asking price |
 | Purchases from the Counter | Sink | 120% of the reference value |
 | Foils from the Counter | Sink | `counter_foil_pct` of the card's reference value, then 120% |
 
@@ -258,6 +261,8 @@ the collection page, with no page of its own:
   a card the snapshot lacks is in the simulation, so every card costs one coin and pays one.
 - **Refusals** change nothing: not enough coins, out of stock, nothing to sell, a locked set, an
   unknown card, or a treasury that cannot pay. The page says which, with a link back to the slot.
+- **Cards on the market:** the Counter does not buy a copy held for a listing or a counter on the
+  market, see [The market](#the-market). Selling the duplicates keeps those copies.
 - **In the binder:** the coins show in the header next to the energy. A held card has a Sell
   button with the price of a copy, per finish, and a quantity when more than one copy is held. A sale
   that empties the slot, with no copy left in either finish, asks first on a page of its own, so
@@ -295,6 +300,43 @@ Trades let the player complete a binder by negotiating with NPCs.
 - A trade that removes the last copy of a card can cost a collection milestone, see
   [Retention](retention.md#collection-goals-and-badges).
 
+The rules above are those of the simulation's Exchange. The game trades on a market instead.
+
+### The market
+
+In the game the player starts trades, as on Reverb or eBay, see
+[ADR-0058](adr/0058-the-player-trades-on-a-market-of-requests-and-listings.md). The rules live in
+`domain.Market`, and `play.Game` exposes them: `AskAround`, `Withdraw`, `List`, `Unlist`,
+`AcceptAnswer`, `DeclineAnswer`, `CounterAnswer` and `Market`, the view. The pages come next.
+
+- **Hunt:** the player asks around for a card. Every NPC that has it on its shelf answers with its
+  asking price, the card's reference value plus its margin, in coins. Asking around for a card of a
+  locked set is refused, as buying it is.
+- **Sell:** the player lists one copy of a card at an asking price, and the copy is reserved until it
+  is sold or unlisted. The NPCs that wish for the card, and the speculators that lack it, offer the
+  cards of their shelf the player lacks, worth no more than the card once their margin is paid, or
+  else coins: the card's value less their margin, never above the asking price.
+- **Answers** come after the NPC's response delay, set by its archetype: some at once, some hours or
+  a day later, see [ADR-0059](adr/0059-an-npc-answers-on-the-market-after-the-delay-of-its-archetype.md).
+  The game delivers them when it loads and on every market call, with the instant they fell due, so
+  a player who comes back later finds them waiting.
+- **Accept** trades at once, atomically, and ends the request or the listing with its other answers.
+  **Decline** ends the answer. **Counter** once: on an asking price the player offers coins and cards,
+  which are reserved until the reply; on an offer it asks for coins. The NPC replies once, after its
+  delay, by the acceptance rule and its traits' vetoes. A refused counter ends the answer.
+- **Lapse:** an answer the player leaves alone ends `trades.offer_expiry_days` after it came. A
+  countered answer waits for its reply.
+- **What the player sees:** the requests, the listings, the answers with who made them and their
+  terms, how many NPCs asked have still to answer a request but not who, and the latest answers that
+  ended: accepted, refused, lapsed, or failed because the NPC no longer had its card.
+- **The NPCs:** the game's crowd, its size and how long it keeps its surplus are in the
+  [tuning log](tuning-log.md). Its NPCs always trade, whatever `trades.enabled`, the simulation's
+  switch, says. They open the sets the player can open,
+  see [ADR-0063](adr/0063-the-npcs-of-the-game-open-the-sets-the-player-can-open.md), and a new
+  game's NPCs have played most of a hold already, see
+  [ADR-0064](adr/0064-a-new-games-npcs-have-most-of-a-hold-behind-them.md). They are saved with the
+  game, see [ADR-0061](adr/0061-the-npcs-are-saved-in-the-games-file-in-a-compact-form.md).
+
 ## NPCs and simulation
 
 A crowd of NPCs with real collections makes the game feel alive. They open boosters with the same
@@ -330,14 +372,15 @@ An archetype tied to Magic colours wishes only for cards in those colours.
 - **Real collections**, stored as quantities (NPC, printing, foil, quantity). NPCs sell surplus
   cards to the Counter, which bounds the database.
 - **What an NPC does in a tick:** opens boosters, sells surplus to the Counter and proposes trades.
-  It never pays or receives coins. The simulation runs supply and trades, see
+  It holds no coins: what it pays a player on the game's market comes from the market's account, see
+  [ADR-0060](adr/0060-an-npc-pays-coins-for-a-card-on-the-market.md). The simulation runs supply and trades, see
   [NPC crowd](simulation.md#npc-crowd) and [Trades](simulation.md#trades).
 - **Time step:** one tick every 10 minutes of game time.
 - **Offline catch-up:** the whole days gone by are simulated when the game loads or the Counter is
   used, capped at `catch_up_days`, see
   [ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md). The game's
-  NPCs do not trade yet.
-- **Coin ledger:** double-entry, covers the player and the Counter. NPCs have no account.
+  NPCs trade on the market, see [The market](#the-market).
+- **Coin ledger:** double-entry, covers the player, the Counter and the market. NPCs have no account.
 - **Volume:** 500 NPCs × 10 boosters a day ≈ 75,000 cards drawn a day, stored in SQLite.
 
 ## Deferred: auction house

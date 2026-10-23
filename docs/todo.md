@@ -335,9 +335,12 @@ These need the SQLite store, which does not exist yet.
 - [ ] NPC collections stored as quantities, with an index on (printing, NPC), see
   [Technical](specs-review.md#technical).
 - [ ] Offline catch-up in batches with grouped writes. The game replays the missed days in memory, up
-  to `catch_up_days`, and saves the crowd in its one JSON file, see
-  [ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md). That file
-  reaches 4.8 MB after 30 days with 9 NPCs on the 107 sets, and every save rewrites it.
+  to `catch_up_days`, and saves the crowd compactly in its one JSON file, see
+  [ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md) and
+  [ADR-0061](adr/0061-the-npcs-are-saved-in-the-games-file-in-a-compact-form.md). With the game's 12
+  NPCs the file is 1.6 MB after 30 days and 2.0 MB after 90, see the
+  [tuning log](tuning-log.md), and every save rewrites it. It grows as more sets unlock. A dictionary
+  of the card IDs, written once for the crowd and the Counter's shelf, would cut it by more than half.
 - [ ] NPC names and avatars. The simulation has no use for them.
 
 ### After V1
@@ -402,7 +405,14 @@ The stack is server-rendered `html/template`, see
   screenshot of headless Chrome, with no browser test. Left: buying more copies of a held card (a
   Buy button shows on empty slots only), and a way to see the Counter's prices without opening a
   binder.
-- [ ] Trades with NPCs, quests and the profile.
+- [x] The market in `play.Game`, with no page yet: ask around for a card and get the NPCs' asking
+  prices, list a card and get their offers in coins or cards, accept, decline or counter once, with
+  answers after each archetype's delay, saved with the game, see
+  [The market](core-features.md#the-market). The real game has a crowd that trades. Left: the pages
+  (the next step), the NPCs' names, an unlock message for a trade that completes a binder while the
+  player is away, offers on a listing from NPCs who come to want the card after it was listed, and
+  a simulation of what the market does to the coins and the Counter's stock.
+- [ ] Quests and the profile.
 - [x] Card pictures, downloaded from Scryfall on demand and cached, see
   [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md). The demo draws its own.
   Left: a cache that can be refreshed, and the two faces of a double-faced card.

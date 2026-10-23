@@ -27,9 +27,12 @@ type CounterRules struct {
 	Treasury, DailyFloat domain.Coins
 	// Supply is the boosters the Counter opens to stock itself. The zero value opens none.
 	Supply SupplyRules
-	// Crowd is the NPCs who sell the Counter the copies above what they keep. Size 0 is none. Its
-	// archetypes must not trade: the state of a crowd that trades is not saved yet.
+	// Crowd is the NPCs who sell the Counter the copies above what they keep, and who trade on the
+	// market when there is one. Size 0 is none.
 	Crowd domain.PopulationParams
+	// Market is how the NPCs trade with the player, nil in a game without a market. It needs a
+	// crowd.
+	Market *MarketRules
 	// CatchUpDays is the most days caught up when the game is played again: the most recent ones,
 	// the days before them being skipped, so that a long time away cannot hold up the game.
 	CatchUpDays int
@@ -45,6 +48,14 @@ type SupplyRules struct {
 	Energy *domain.EnergyParams
 }
 
+// MarketRules is how the market of a game trades, see docs/core-features.md#trades-with-npcs.
+type MarketRules struct {
+	// SurplusHoldDays is how long an NPC keeps the copies above what it keeps on its shelf, where
+	// the market can trade them, before it sells them to the Counter. It is at least 1.
+	SurplusHoldDays int
+	Params          domain.MarketParams
+}
+
 // economy is the coins of a game and the Counter's side of it: the ledger, the Counter, and the
 // supply and the crowd that stock it, each on a random stream of its own that the save keeps.
 // Every method needs the lock of its Game.
@@ -57,6 +68,8 @@ type economy struct {
 	supplyStream *Stream
 	crowd        *domain.Crowd
 	crowdStream  *Stream
+	// market is nil in a game without one.
+	market *domain.Market
 	// syncedAt is the start of the first day not caught up yet.
 	syncedAt time.Time
 	// at is the instant of the tick a catch-up is replaying, which the Counter remembers a card
@@ -74,8 +87,12 @@ func (g *Game) OpenCounter(rules CounterRules, supply, crowd *Stream) error {
 	if rules.CatchUpDays < 1 {
 		return fmt.Errorf("play: the Counter catches up on %d days, want at least 1", rules.CatchUpDays)
 	}
-	e, err := g.newEconomy(rules, supply, crowd)
+	e, err := g.newEconomy(rules, supply, crowd, g.collection)
 	if err != nil {
+		return err
+	}
+	g.openCrowdSets(e)
+	if err := e.warmUp(); err != nil {
 		return err
 	}
 	if rules.WelcomeBonus > 0 {
@@ -90,10 +107,11 @@ func (g *Game) OpenCounter(rules CounterRules, supply, crowd *Stream) error {
 	return nil
 }
 
-// newEconomy builds the Counter of the game's sets and pools, with its supply and crowd on the
-// streams given, as they stand at the start of a game: the crowd draws who its NPCs are from crowd.
-// The ledger is empty. g.mu must be held.
-func (g *Game) newEconomy(rules CounterRules, supplyStream, crowdStream *Stream) (*economy, error) {
+// newEconomy builds the Counter of the game's sets and pools, with its supply, its crowd and its
+// market on the streams given, as they stand at the start of a game: the crowd draws who its NPCs
+// are from crowd. The market trades with the player's collection. The ledger is empty. g.mu must be
+// held.
+func (g *Game) newEconomy(rules CounterRules, supplyStream, crowdStream *Stream, collection *domain.Collection) (*economy, error) {
 	journal := domain.NewJournal()
 	if rules.Params.Treasury {
 		journal = domain.NewJournal(domain.AccountPlayer, domain.AccountCounterTreasury)
@@ -114,10 +132,20 @@ func (g *Game) newEconomy(rules CounterRules, supplyStream, crowdStream *Stream)
 		if err != nil {
 			return nil, fmt.Errorf("play: %w", err)
 		}
-		if e.crowd, err = domain.NewCrowd(npcs, g.sets, newClassicOpener(rng), counter, rng); err != nil {
+		var opts []domain.CrowdOption
+		if rules.Market != nil {
+			opts = append(opts, domain.WithSurplusHold(rules.Market.SurplusHoldDays))
+		}
+		if e.crowd, err = domain.NewCrowd(npcs, g.sets, newClassicOpener(rng), counter, rng, opts...); err != nil {
 			return nil, fmt.Errorf("play: %w", err)
 		}
-		if _, err := e.crowd.State(); err != nil {
+	}
+	if rules.Market != nil {
+		if e.crowd == nil {
+			return nil, errors.New("play: a market needs NPCs to trade with")
+		}
+		valuer := domain.NewValuer(rules.Prices, rules.Params.FallbackPrice)
+		if e.market, err = domain.NewMarket(rules.Market.Params, e.crowd, collection, journal, valuer); err != nil {
 			return nil, fmt.Errorf("play: %w", err)
 		}
 	}
@@ -156,6 +184,31 @@ func newClassicOpener(rng *rand.Rand) *domain.Opener {
 	return domain.NewOpener(map[domain.BoosterLayout]domain.BoosterGenerator{domain.BoosterLayoutClassic: domain.NewClassicGenerator()}, rng)
 }
 
+// openCrowdSets makes the NPCs of e open only the sets the player can open, see
+// docs/adr/0063-the-npcs-of-the-game-open-the-sets-the-player-can-open.md. g.mu must be held.
+func (g *Game) openCrowdSets(e *economy) {
+	if e != nil && e.crowd != nil {
+		e.crowd.OpenOnly(func(code string) bool { return !g.locked(code) })
+	}
+}
+
+// warmUp plays the crowd of a new game with a market for the days of its hold but one, a day at
+// least, so that the NPCs' shelves hold cards to trade from the first minute. A copy leaves a shelf
+// once it has waited the whole hold, so the Counter gets none of their surplus before the game
+// starts.
+func (e *economy) warmUp() error {
+	if e.market == nil {
+		return nil
+	}
+	days := max(1, e.rules.Market.SurplusHoldDays-1)
+	for range days * domain.TicksPerDay {
+		if _, err := e.crowd.Tick(); err != nil {
+			return fmt.Errorf("play: warm the NPCs up: %w", err)
+		}
+	}
+	return nil
+}
+
 // instant is the clock of the Counter: the tick being replayed during a catch-up, now otherwise.
 func (e *economy) instant() time.Time {
 	if !e.at.IsZero() {
@@ -168,16 +221,24 @@ func (e *economy) instant() time.Time {
 // a treasury, then each tick the Counter's shelf, its supply and the NPCs, in that order. Only the
 // most recent CatchUpDays are played, and the days before them are skipped. A part of a day is
 // left for later. An error is a catalogue that does not hold a card its boosters draw.
+//
+// The market's answers due on a day are delivered before the day is played, so that they see the
+// NPCs as the day found them, as they would have live, and those due since the last whole day at
+// the end.
 func (e *economy) catchUp() error {
 	days := int(e.now().Sub(e.syncedAt) / gameDay)
 	if days <= 0 {
-		return nil
+		return e.advanceMarket(e.now())
 	}
 	played := min(days, e.rules.CatchUpDays)
 	first := e.syncedAt.Add(time.Duration(days-played) * gameDay)
 	defer func() { e.at = time.Time{} }()
 	for d := range played {
 		start := first.Add(time.Duration(d) * gameDay)
+		// The last instant of the day: a day is played once its end has come.
+		if err := e.advanceMarket(start.Add(gameDay - time.Nanosecond)); err != nil {
+			return err
+		}
 		if err := domain.FundTreasury(e.journal, e.rules.DailyFloat, "daily float"); err != nil {
 			return fmt.Errorf("play: catch up: %w", err)
 		}
@@ -197,5 +258,16 @@ func (e *economy) catchUp() error {
 		}
 	}
 	e.syncedAt = e.syncedAt.Add(time.Duration(days) * gameDay)
+	return e.advanceMarket(e.now())
+}
+
+// advanceMarket delivers the market's answers due by at, in a game with a market.
+func (e *economy) advanceMarket(at time.Time) error {
+	if e.market == nil {
+		return nil
+	}
+	if err := e.market.Advance(at); err != nil {
+		return fmt.Errorf("play: market: %w", err)
+	}
 	return nil
 }
