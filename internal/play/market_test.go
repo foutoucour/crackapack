@@ -476,3 +476,58 @@ func TestPersist_aSaveFromBeforeCoinsTradesItsCardsOnTheMarket(t *testing.T) {
 			held(loaded, "S", cheap()), loaded.Balance(), loaded.Reserved(dear().ID, dear().Finish))
 	}
 }
+
+// The view says what time it describes, so that a client counts the time to a reply or a lapse
+// without a clock of its own.
+func TestMarket_theViewSaysWhatTimeItIs(t *testing.T) {
+	t.Parallel()
+	clock := playtest.NewClock()
+	g := counterGame(t, &memStore{}, clock, marketRules(), counterSet())
+	clock.Advance(90 * time.Minute)
+
+	if got := mustMarket(t, g).Now; !got.Equal(clock.Now()) {
+		t.Errorf("Now = %v, want %v", got, clock.Now())
+	}
+}
+
+// Spare is what the player can put in a counter: the copies above a playset, whatever binder they
+// are in, but those the market holds.
+func TestSpare_theCopiesAbovePlaysetsThatTheMarketDoesNotHold(t *testing.T) {
+	t.Parallel()
+	clock := playtest.NewClock()
+	g := counterGame(t, &memStore{}, clock, marketRules(), counterSet())
+	spare, err := g.Spare()
+	if err != nil || len(spare) != 0 {
+		t.Fatalf("Spare of an empty collection = %v, %v, want none", spare, err)
+	}
+	for range 6 {
+		mustOpen(t, g, "S")
+	}
+	mustAsk(t, g, dear())
+	clock.Advance(slowDelay)
+	slow := answerOf(t, mustMarket(t, g), slowNPC)
+	if err := g.CounterAnswer(slow.ID, 0, []domain.TradeLine{{Key: cheap(), Qty: 5}}); err != nil {
+		t.Fatalf("CounterAnswer: %v", err)
+	}
+
+	spare, err = g.Spare()
+	if err != nil {
+		t.Fatalf("Spare: %v", err)
+	}
+	// One cheap copy is free above the five reserved, and two dear copies are above a playset.
+	got := map[domain.CardID]int{}
+	for _, l := range spare {
+		got[l.Card.ID] += l.Qty
+	}
+	if want := map[domain.CardID]int{cheap().ID: 1, dear().ID: 2}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Spare = %v, want %v", got, want)
+	}
+}
+
+func TestSpare_aGameWithoutAMarketHasNone(t *testing.T) {
+	t.Parallel()
+	g := counterGame(t, &memStore{}, playtest.NewClock(), counterRules(), counterSet())
+	if _, err := g.Spare(); !errors.Is(err, play.ErrNoMarket) {
+		t.Errorf("Spare error = %v, want ErrNoMarket", err)
+	}
+}

@@ -227,6 +227,31 @@ func (g *Game) duplicateLines(setCode string) ([]domain.TradeLine, error) {
 	if !ok {
 		return nil, ErrUnknownSet
 	}
+	return g.spareLines(func(id domain.CardID) bool {
+		_, inBinder := binder.Cards[id]
+		return inBinder
+	})
+}
+
+// Spare returns the copies above a playset of every card the player holds, but those the market
+// holds, in card order: what the player can put in a counter. It returns ErrNoMarket in a game
+// without a market.
+func (g *Game) Spare() ([]CardLine, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if _, err := g.syncMarket(); err != nil {
+		return nil, fmt.Errorf("spare cards: %w", err)
+	}
+	lines, err := g.spareLines(func(domain.CardID) bool { return true })
+	if err != nil {
+		return nil, fmt.Errorf("spare cards: %w", err)
+	}
+	return g.cardLines(lines), nil
+}
+
+// spareLines is the copies above a playset of the cards that include accepts, keeping the foils
+// longest and leaving the copies the market holds. It returns ErrNoCounter. g.mu must be held.
+func (g *Game) spareLines(include func(domain.CardID) bool) ([]domain.TradeLine, error) {
 	if err := g.syncCounter(); err != nil {
 		return nil, err
 	}
@@ -236,7 +261,7 @@ func (g *Game) duplicateLines(setCode string) ([]domain.TradeLine, error) {
 	}
 	var lines []domain.TradeLine
 	for _, s := range surplus {
-		if _, inBinder := binder.Cards[s.Key.ID]; !inBinder {
+		if !include(s.Key.ID) {
 			continue
 		}
 		// The copies the market holds are never sold.

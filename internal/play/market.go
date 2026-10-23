@@ -54,6 +54,9 @@ type MarketView struct {
 	Results []Result
 	// Waiting is the answers waiting for the player: open, and not countered.
 	Waiting int
+	// Now is the time the view describes, by the game's clock, to count the time to a reply or a
+	// lapse from.
+	Now time.Time
 }
 
 // Request is the player asking around for a card.
@@ -135,7 +138,7 @@ func (g *Game) Market() (MarketView, error) {
 	if err != nil {
 		return MarketView{}, err
 	}
-	var v MarketView
+	v := MarketView{Now: g.now()}
 	answers := m.Answers()
 	for _, r := range slices.Backward(m.Requests()) {
 		card := g.cards[r.Card.ID]
