@@ -29,6 +29,21 @@ const (
 	FocusSetOldest FocusSet = FocusSet(domain.FocusSetOldest)
 )
 
+// MarshalYAML encodes a FocusSet as the scalar UnmarshalYAML reads back, so a Config written as
+// YAML loads again.
+func (f FocusSet) MarshalYAML() (any, error) {
+	switch f {
+	case FocusSetRandom:
+		return true, nil
+	case FocusSetOldest:
+		return "oldest", nil
+	case FocusSetNone:
+		return false, nil
+	default:
+		return nil, fmt.Errorf("focus_set: unknown mode %d", f)
+	}
+}
+
 // UnmarshalYAML decodes a focus_set YAML scalar into a FocusSet. It accepts the boolean
 // forms that yaml.v3 recognises (true, false, yes, no, on, off, and their capitalisations)
 // and also the string "oldest".

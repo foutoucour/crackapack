@@ -268,9 +268,10 @@ run today. The other two wait for features that are not built. The
 
 - [ ] **Tuning system:** search many parameters at once and find, from simulation data, configs
   that give a good economy. A run is scored by a loss, and the search lowers it, the way training
-  lowers a loss. The goals and the Counter stock metrics are done. The rest of the design below is proposed and not
-  yet approved. Today the sweep varies only the coin rate, uses one seed and judges runs pass or fail,
-  which cannot rank two configs.
+  lowers a loss. Built as `crackapack tune`, see [The tuning system](simulation.md#the-tuning-system),
+  [ADR-0045](adr/0045-a-config-is-scored-by-its-distance-outside-the-bands.md) and
+  [ADR-0046](adr/0046-the-search-is-staged-and-validated-on-unseen-seeds.md). What is left is to
+  write the product's search space and goals files, and to run it on the 107 sets.
   - [x] **Goals and bands**, a manual decision. Each goal is a band on a metric, reusing the
     `between`, `at_most` and `at_least` targets. The sets they apply to are in
     [ADR-0039](adr/0039-the-product-covers-the-sets-from-mirage-under-60-dollars-a-booster.md):
@@ -280,27 +281,27 @@ run today. The other two wait for features that are not built. The
     - [x] Healthy Counter stock: [ADR-0042](adr/0042-the-counters-rares-are-scarce-but-not-gone.md).
     - [x] Fair prices at small scale:
       [ADR-0043](adr/0043-no-card-is-worth-less-than-one-coin-at-the-counter.md).
-  - [ ] **Search space file:** parameters addressed by their path in the config, such as
+  - [x] **Search space file:** parameters addressed by their path in the config, such as
     `counter_buy_pct` or `npcs.archetypes.casual.keep_copies`, each with a range, a type and a
     scale. A candidate is the base config with those paths overridden, then loaded through the
     normal validation. Invalid combinations score worst. Every config key added later can be tuned
     without new code.
-  - [ ] **Scenarios:** a player policy, a visit rate and a set list. Pace needs the 3 and 6 visit
+  - [x] **Scenarios:** a player policy, a visit rate and a set list. Pace needs the 3 and 6 visit
     rates, and each goal names the scenarios it applies to.
-  - [ ] **Loss:** the distance outside each band, normalised by the band's size, averaged over
+  - [x] **Loss:** the distance outside each band, normalised by the band's size, averaged over
     seeds and summed. A loss of 0 means every goal is met.
   - [x] **Counter stock metrics:** `rare_out_of_stock_pct` and `rare_stock_per_printing`, with the
     bands of [ADR-0042](adr/0042-the-counters-rares-are-scarce-but-not-gone.md). That ADR is still
     Proposed: no run has judged its numbers yet.
-  - [ ] **Parallel evaluation** across cores, reproducible from a search seed.
-  - [ ] **Search:** staged random search. A cheap stage on one seed keeps the best fraction, and the
+  - [x] **Parallel evaluation** across cores, reproducible from a search seed.
+  - [x] **Search:** staged random search. A cheap stage on one seed keeps the best fraction, and the
     full batch of seeds, policies and sets scores the survivors.
-  - [ ] **Validation:** re-score the best configs on seeds the search never used and report the gap
+  - [x] **Validation:** re-score the best configs on seeds the search never used and report the gap
     between the two scores, so a lucky seed or one play style cannot win.
-  - [ ] **Report:** the best configs, the feasible window of each parameter, which parameters move
+  - [x] **Report:** the best configs, the feasible window of each parameter, which parameters move
     the loss, every evaluated candidate in JSON, and the best config as YAML that `simulate` and
     `sweep` accept.
-  - [ ] **Demo:** a small search space ships with the feature, see
+  - [x] **Demo:** `crackapack demo --tune` ships a small search space and goals with the feature, see
     [Demo data ships with the feature](../.claude/skills/crackapack-conventions/SKILL.md#demo-data-ships-with-the-feature).
   - [ ] **Adaptive search:** an evolution strategy that starts from the survivors, once random
     search runs out of reach.

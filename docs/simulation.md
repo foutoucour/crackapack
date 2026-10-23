@@ -87,6 +87,24 @@ duplicate at any rate (`sub_coin_cards`, `unsold_duplicate_copies`). Why the rat
 leaves the milestones alone is explained in
 [What the sweep answers](specs-review.md#what-the-sweep-answers-about-the-coin-rate).
 
+### tune
+
+Search many config keys at once for a config whose runs fall inside the bands of the goals.
+Where `sweep` varies the coin rate alone and answers pass or fail, `tune` varies any numeric key
+and ranks configs by how far they miss. See [The tuning system](#the-tuning-system).
+
+```
+go run ./cmd/crackapack tune \
+  --config base.yaml \
+  --space space.yaml \
+  --goals goals.yaml \
+  --catalogue-dir ./catalogues \
+  --prices prices.json \
+  --out ./tune-out
+```
+
+`crackapack demo --tune` runs a small search on the synthetic dataset, with no files needed.
+
 ## Input files
 
 ### Fetching real data
@@ -728,6 +746,94 @@ To see the cost of a long run, `go test ./internal/sim -run '^$' -bench Benchmar
 runs 90 days with 500 NPCs with and without trades. To check the exploiter's cost at the
 formerly-slow config, run `go test ./internal/sim -run '^$' -bench BenchmarkExploiterHighSessionRate
 -benchmem` (144 sessions/day, 30 NPCs, 10 days).
+
+## The tuning system
+
+`tune` searches for a config that meets the goals, instead of a person adjusting numbers by hand.
+The design is in [ADR-0045](adr/0045-a-config-is-scored-by-its-distance-outside-the-bands.md).
+
+A **search space file** lists the keys to vary. A path names a key of the config as it is in YAML:
+dotted mapping keys, and `[n]` for a list item. Each key has a range, a type and a scale.
+
+```yaml
+params:
+  - {path: counter_buy_pct, type: int, min: 100, max: 200}
+  - {path: counter_supply.boosters_per_day, type: int, min: 1, max: 200, scale: log}
+  - {path: npcs.archetypes.casual.keep_copies, type: int, min: 1, max: 4}
+  - {path: "energy.cost_table[1].cost", type: int, min: 3, max: 12}
+```
+
+`type` is `int` or `float`, and a key that holds a whole number must be `int`. `scale` is `linear`,
+the default, or `log` for a range over orders of magnitude, which needs a positive `min`. Any
+numeric config key can be tuned without new code. A candidate is the base config with these keys
+replaced, loaded through the same validation as a config file: a combination the config refuses,
+such as a sell percentage above the buy percentage, scores the worst loss.
+
+A **goals file** lists scenarios and goals. A scenario is a player policy, a visit rate, a length and
+the sets in play. A goal is a band on a metric, judged on the runs of one scenario, with the same
+`between`, `at_most` and `at_least` comparisons as the targets of a config.
+
+```yaml
+scenarios:
+  - {name: pace-3, player: collector, sessions_per_day: 3, run_days: 40,
+     sets: [RAV, TSP], supplementary: [TSB], per_set: true}
+  - {name: pile, player: master-collector, sets: [RAV, TSP], supplementary: [TSB]}
+goals:
+  - {scenario: pace-3, metric: "days_to_100pct.{set}", comparison: between, min: 10, max: 18}
+  - {scenario: pile, metric: final_balance, comparison: at_most, max: 3000}
+  - {scenario: pile, metric: rare_out_of_stock_pct, comparison: between, min: 10, max: 50}
+```
+
+`per_set: true` runs each set alone, as [ADR-0040](adr/0040-a-binder-takes-about-two-weeks-for-a-set-played-alone.md)
+asks: one run per set, and `{set}` in a metric becomes the lower-cased set code. `sessions_per_day`
+and `run_days` replace the config's own for the scenario. The sets must be openable sets of the
+catalogue directory, so a pool such as TSB goes under `supplementary`.
+
+**Judge the stock and the coin goals on the whole scope.** What a set count does to the economy
+is large. The same config (a Counter that opens 40 boosters a day, 50 NPCs, the
+`master-collector`, 90 days) left 134 copies per rare printing and no rare out of stock on RAV and
+TSP, and 2.9 copies and 4.6% out of stock on the 106 sets of the scope. A search that scores
+`rare_out_of_stock_pct`, `rare_stock_per_printing` or `final_balance` on a few sets tunes for a
+world the product does not have. Give those goals a scenario with every set in scope, and keep
+`per_set` scenarios, which are cheap, for the pace goal. A run of 106 sets takes about 20 s and 140
+MB. Phyrexia: All Will Be One does not load yet, see the [TODO](todo.md), so the scope has 106 sets.
+
+**The loss.** Each band that a run misses adds the distance outside it, divided by the band's size:
+the width of a `between` band, otherwise the magnitude of its bound, and at least 1. So a metric of
+thousands of coins and one of a few days weigh alike, and `sub_coin_cards` at most 0 counts each
+card as 1. The loss of a candidate is the mean over the seeds of the sum over all runs and bands. A
+loss of 0 means every goal is met. A candidate whose config is refused, or whose run fails, scores
+1,000,000,000 and is never kept.
+
+**The search** is staged random search:
+
+1. The base config is scored on the search seeds, so a goal on a metric no run reports fails
+   at once, and so the report can say how far the best candidate improves on it.
+2. `--candidates` configs are drawn from the space and each runs the scenarios on one seed.
+3. The best `--keep` share of the valid ones runs on all `--seeds` seeds.
+4. The `--top` best of those run on `--validation-seeds` seeds that nothing before used, and the
+   report gives the gap between the two losses. A large positive gap means the config got lucky on
+   its seeds, or suits one play style.
+
+The same `--seed` draws the same candidates and the same simulation seeds, and gives the same report
+whatever `--workers` is. `--workers` is the number of simulations that run at once. It defaults to
+3 because a search keeps every core busy for minutes; run a large one niced.
+
+**The outputs** are in `--out`, and the report is printed as well:
+
+| File | Content |
+|------|---------|
+| `candidates.json` | Every candidate: its overrides, why it was invalid if it was, its loss at each stage, and the loss of each band for the survivors |
+| `best.yaml` | The best config as a full config file; `simulate` and `sweep` accept it with `--config` |
+| `report.txt` | The best candidates and their validation gap, the bands the best one still misses, the window each parameter takes among the candidates with loss 0 (or among the best quarter when none has), and what moves the loss |
+
+"What moves the loss" is the Spearman rank correlation between each parameter and the loss of the
+screened candidates: close to 0 means the parameter does not matter at this scale, and a sign tells
+the direction. It is a hint, not a proof: a parameter that matters in a narrow range can score low.
+
+`go run ./cmd/crackapack demo --tune` runs a search of 24 candidates on the synthetic dataset in
+a few seconds. Its pace bands are out of reach there, since a demo set is finished in 3 days whatever
+the config, and the report shows which bands that leaves unmet.
 
 ## Run diagram
 
