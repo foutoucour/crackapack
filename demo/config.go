@@ -222,19 +222,20 @@ params:
   - {path: counter_sell_pct, type: int, min: 40, max: 120}
   - {path: energy.recharge_per_tick, type: int, min: 1, max: 3}
   - {path: energy.reserve_cap, type: int, min: 4, max: 20}
-  - {path: "energy.cost_table[1].cost", type: int, min: 3, max: 12}
+  - {path: "energy.cost_table[1].cost", type: int, min: 4, max: 7}
 `
 
 // TuneGoalsYAML is the demo goals: the pace of each set played alone, at three and at six visits a
 // day, and a Counter whose rares are scarce but not gone. The bands are the product's, see
-// ADR-0040 and ADR-0042.
+// ADR-0050 and ADR-0049. The pace ceilings are the scenarios' run lengths, as the product's are,
+// scaled to the demo's 30 days.
 const TuneGoalsYAML = `
 scenarios:
-  - {name: pace-3-visits, player: collector, sessions_per_day: 3, sets: [DEM, DSP], supplementary: [DST], per_set: true}
-  - {name: pace-6-visits, player: collector, sessions_per_day: 6, sets: [DEM, DSP], supplementary: [DST], per_set: true}
+  - {name: pace-3-visits, player: collector, sessions_per_day: 3, run_days: 30, sets: [DEM, DSP], supplementary: [DST], per_set: true}
+  - {name: pace-6-visits, player: collector, sessions_per_day: 6, run_days: 15, sets: [DEM, DSP], supplementary: [DST], per_set: true}
 goals:
-  - {scenario: pace-3-visits, metric: "days_to_100pct.{set}", comparison: between, min: 10, max: 18}
-  - {scenario: pace-6-visits, metric: "days_to_100pct.{set}", comparison: between, min: 5, max: 9}
+  - {scenario: pace-3-visits, metric: "days_to_100pct.{set}", comparison: between, min: 10, max: 30}
+  - {scenario: pace-6-visits, metric: "days_to_100pct.{set}", comparison: between, min: 5, max: 15}
   - {scenario: pace-3-visits, metric: rare_out_of_stock_pct, comparison: between, min: 10, max: 50}
   - {scenario: pace-3-visits, metric: rare_stock_per_printing, comparison: between, min: 0.5, max: 3}
   - {scenario: pace-3-visits, metric: sub_coin_cards, comparison: at_most, max: 0}

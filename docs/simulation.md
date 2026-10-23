@@ -166,6 +166,8 @@ It also rejects:
 - A numeric key above its upper bound, see [ADR-0014](adr/0014-numeric-config-keys-have-upper-bounds.md).
 - A Counter energy whose `reserve_cap` cannot hold the dearest energy cost, savings not counting,
   see [ADR-0015](adr/0015-the-counters-reserve-must-hold-its-dearest-tier.md).
+- An energy cost table whose cost does not rise with the tier, see
+  [ADR-0048](adr/0048-a-dearer-energy-tier-costs-more-energy.md).
 - A null item in a sequence, a float where an integer is expected and an unknown rarity under
   `initial_stock`, see [ADR-0017](adr/0017-config-input-is-strict.md).
 
@@ -252,7 +254,7 @@ above the run horizon. Config validation keeps it from passing by accident: an `
 | `final_balance` | Player coin balance after the last day |
 | `total_refused_trades` | Sum of sell attempts refused by the Counter (ErrSubCoin) across all days; volume signal for stuck inventory |
 | `sub_coin_cards` | Distinct non-foil, non-basic-land cards, openable sets and supplementary pools included, that the Counter refuses to buy. The Counter pays at least one coin for any positive price, see [ADR-0044](adr/0044-the-counter-pays-at-least-one-coin-for-a-priced-card.md), so these are the cards with a price of zero; zero is the usual calibration target |
-| `rare_out_of_stock_pct` | Share, in percent, of the rare and mythic printings of the openable sets of which the Counter holds no copy after the last day, see [ADR-0042](adr/0042-the-counters-rares-are-scarce-but-not-gone.md) |
+| `rare_out_of_stock_pct` | Share, in percent, of the rare and mythic printings of the openable sets of which the Counter holds no copy after the last day, see [ADR-0049](adr/0049-a-rare-is-scarce-at-the-counter-and-still-reachable-by-trade.md) |
 | `rare_stock_per_printing` | Copies the Counter holds, per rare or mythic printing of the openable sets, after the last day |
 | `daily_reward_commons` | `floor(DailyReward / median_common_buy_coins)`; how many commons the daily reward buys at the Counter |
 | `unpriced_cards` | Distinct non-basic-land cards, supplementary pools included, absent from the price snapshot and therefore priced at `fallback_price`; a count close to the whole catalogue means the snapshot is keyed wrongly |
@@ -763,6 +765,8 @@ formerly-slow config, run `go test ./internal/sim -run '^$' -bench BenchmarkExpl
 
 `tune` searches for a config that meets the goals, instead of a person adjusting numbers by hand.
 The design is in [ADR-0045](adr/0045-a-config-is-scored-by-its-distance-outside-the-bands.md).
+What each search found, and what a change did to the goals, is recorded in the
+[tuning log](tuning-log.md).
 
 A **search space file** lists the keys to vary. A path names a key of the config as it is in YAML:
 dotted mapping keys, and `[n]` for a list item. Each key has a range, a type and a scale.
@@ -772,8 +776,12 @@ params:
   - {path: counter_buy_pct, type: int, min: 100, max: 200}
   - {path: counter_supply.boosters_per_day, type: int, min: 1, max: 200, scale: log}
   - {path: npcs.archetypes.casual.keep_copies, type: int, min: 1, max: 4}
-  - {path: "energy.cost_table[1].cost", type: int, min: 3, max: 12}
+  - {path: "energy.cost_table[1].cost", type: int, min: 4, max: 7}
 ```
+
+The range of a tier's cost stays between the costs of its neighbours, 3 and 8 by default, because a
+table whose cost does not rise is refused, see
+[ADR-0048](adr/0048-a-dearer-energy-tier-costs-more-energy.md).
 
 `type` is `int` or `float`, and a key that holds a whole number must be `int`. `scale` is `linear`,
 the default, or `log` for a range over orders of magnitude, which needs a positive `min`. Any
@@ -791,15 +799,33 @@ scenarios:
      sets: [RAV, TSP], supplementary: [TSB], per_set: true}
   - {name: pile, player: master-collector, sets: [RAV, TSP], supplementary: [TSB]}
 goals:
-  - {scenario: pace-3, metric: "days_to_100pct.{set}", comparison: between, min: 10, max: 18}
+  - {scenario: pace-3, metric: "days_to_100pct.{set}", comparison: between, min: 10, max: 40}
   - {scenario: pile, metric: final_balance, comparison: at_most, max: 3000}
   - {scenario: pile, metric: rare_out_of_stock_pct, comparison: between, min: 10, max: 50}
 ```
 
-`per_set: true` runs each set alone, as [ADR-0040](adr/0040-a-binder-takes-about-two-weeks-for-a-set-played-alone.md)
+`per_set: true` runs each set alone, as [ADR-0050](adr/0050-a-binder-is-never-fast-and-some-sets-are-slow-on-purpose.md)
 asks: one run per set, and `{set}` in a metric becomes the lower-cased set code. `sessions_per_day`
 and `run_days` replace the config's own for the scenario. The sets must be openable sets of the
 catalogue directory, so a pool such as TSB goes under `supplementary`.
+
+Twelve sets of the scope draw cards from another set's file, so played alone they stop on "hold N cards
+that no loaded catalogue has": AER (KLD), ARB (ALA), BNG (THS), CON (ALA), DGM (RTR and GTC), DKA
+(ISD), EMN (SOI), FRF (KTK), GTC (RTR), JOU (THS and BNG), OGW (BFZ) and WWK (ZEN). List those donor
+sets under `supplementary` of a per-set scenario. A per-set run drops its own set from the list, so
+KLD played alone does not also take KLD as a pool.
+
+**The product's files** are in `tune/`: `base.yaml` turns the Counter's supply on, `space.yaml` is the
+search space and `goals.yaml` holds the goals of ADR-0050, ADR-0041, ADR-0049 and ADR-0043 on the 107 sets of
+[ADR-0039](adr/0039-the-product-covers-the-sets-from-mirage-under-60-dollars-a-booster.md). They need
+the catalogues of the whole scope and the card pools `BRR`, `EXP`, `MP2`, `MPS`, `MUL`, `PRAETORS`,
+`STA`, `TSB` and `WOT` next to them. A candidate takes about a minute of CPU, so run the search niced:
+
+```
+nice -n 19 go run ./cmd/crackapack tune \
+  --config tune/base.yaml --space tune/space.yaml --goals tune/goals.yaml \
+  --catalogue-dir ./catalogues --prices prices.json --out ./tune-out
+```
 
 **Judge the stock and the coin goals on the whole scope.** What a set count does to the economy
 is large. The same config (a Counter that opens 40 boosters a day, 50 NPCs, the

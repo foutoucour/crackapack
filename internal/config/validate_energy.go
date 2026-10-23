@@ -10,7 +10,7 @@ import (
 // It returns an error naming the offending key on the first failure.
 //
 // In addition to the structural checks (positive recharge, non-negative savings
-// cap, non-empty ascending cost table), it verifies that every cost-table entry
+// cap, non-empty cost table ascending in both threshold and cost), it verifies that every cost-table entry
 // has a cost that the player can actually accumulate: cost must not exceed
 // reserve_cap + savings_cap, because that is the most energy the player can
 // ever hold.
@@ -56,6 +56,12 @@ func validateEnergy(e EnergyConfig) error {
 			return fmt.Errorf(
 				"config: energy.cost_table: entry %d threshold (%d) must be > entry %d threshold (%d); table must be sorted ascending",
 				i, e.CostTable[i].Threshold, i-1, e.CostTable[i-1].Threshold,
+			)
+		}
+		if e.CostTable[i].Cost <= e.CostTable[i-1].Cost {
+			return fmt.Errorf(
+				"config: energy.cost_table[%d].cost (%d) must be > entry %d cost (%d); a dearer booster must cost more energy",
+				i, e.CostTable[i].Cost, i-1, e.CostTable[i-1].Cost,
 			)
 		}
 	}

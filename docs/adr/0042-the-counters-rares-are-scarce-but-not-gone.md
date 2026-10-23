@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — 2026-10-16
+Superseded by [ADR-0049](0049-a-rare-is-scarce-at-the-counter-and-still-reachable-by-trade.md)
 
 ## Context
 

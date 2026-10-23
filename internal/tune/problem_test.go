@@ -1,6 +1,7 @@
 package tune_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -83,6 +84,30 @@ func TestProblemRuns_expandsAPerSetScenarioIntoOneRunPerSet(t *testing.T) {
 	pile := runs[2]
 	if pile.Name != "pile" || len(pile.Sets) != 2 || len(pile.Bands) != 2 {
 		t.Errorf("pile run = %+v, want both sets and both goals", pile)
+	}
+}
+
+// A set whose sheets borrow cards from a donor set plays alone with the donor as a card pool, and
+// the donor played alone must not also be its own pool, or its cards sit in two catalogues.
+func TestProblemRuns_aPerSetRunDropsItsOwnSetFromTheSupplementaryPools(t *testing.T) {
+	t.Parallel()
+	problem, err := tune.LoadProblem(strings.NewReader(`
+scenarios:
+  - {name: pace, player: collector, sets: [AER, KLD], supplementary: [MPS, KLD], per_set: true}
+goals:
+  - {scenario: pace, metric: "days_to_100pct.{set}", comparison: between, min: 10, max: 18}
+`))
+	if err != nil {
+		t.Fatalf("LoadProblem: %v", err)
+	}
+
+	runs := problem.Runs()
+
+	if got := runs[0].Supplementary; !slices.Equal(got, []string{"MPS", "KLD"}) {
+		t.Errorf("AER alone: supplementary = %v, want [MPS KLD]", got)
+	}
+	if got := runs[1].Supplementary; !slices.Equal(got, []string{"MPS"}) {
+		t.Errorf("KLD alone: supplementary = %v, want [MPS]", got)
 	}
 }
 

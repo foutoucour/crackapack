@@ -1,0 +1,142 @@
+# Tuning log
+
+The economy's config changes often. This log records each change to its values, or each search that
+proposed one, with what the change did to the goals. It is a history: an ADR records a decision that
+holds until it is superseded, and this log records values that the next search will replace.
+
+An ADR names a goal and its metric and leaves out the numbers of its band. The ADRs accepted before
+this rule, such as ADR-0041 and ADR-0043, still carry the numbers they were accepted with. The current bands are in
+[`tune/goals.yaml`](../tune/goals.yaml), and every change to one is an entry here.
+
+How the search works is in [The tuning system](simulation.md#the-tuning-system). The goals are the bands
+of ADR-0050, ADR-0041, ADR-0049 and ADR-0043, and the search files are in [`tune/`](../tune).
+
+**Add an entry** whenever a default of the config changes, a search runs on the product's files, or a
+goal band changes. Newest first. Each entry says:
+- what triggered it and whether the values were applied to `config.defaults()`;
+- the keys that changed, before and after;
+- how the goals read before and after, on the same scenarios, so the entries compare;
+- what the run does not tell.
+
+## 2026-10-23 – Counter stock goals read with trades, one new goal
+
+**Trigger:** the Counter is not the only route to a card, so the stock goals now count trades, see
+[ADR-0049](adr/0049-a-rare-is-scarce-at-the-counter-and-still-reachable-by-trade.md). A goal band is
+added, none of the existing ones moves.
+
+**Bands:**
+
+| Metric | Band | Source |
+|--------|------|--------|
+| `rare_out_of_stock_pct` | 10% to 50% | unchanged, set 2026-10-16 |
+| `rare_stock_per_printing` | 0.5 to 3 | unchanged, set 2026-10-16 |
+| `rare_unreachable_pct` | at most 10% | new, a first guess with no run behind it |
+
+**Status:** the metric `rare_unreachable_pct` is not built, so it is not in `tune/goals.yaml`. The two
+Counter goals there are still judged without trades.
+
+**What it does not show:** a reading of any of the three with trades on. The readings of the entry below
+were taken with trades off, and they do not carry over.
+
+## 2026-10-23 – Pace ceiling loosened, no search run
+
+**Trigger:** slow sets are welcome, so the pace goal keeps its floor and gives up its flat ceiling, see
+[ADR-0050](adr/0050-a-binder-is-never-fast-and-some-sets-are-slow-on-purpose.md). A goal band changed,
+not a default of the config.
+
+**Bands:** per set alone at 3 visits a day, 10 to 18 days became 10 to 40, the length of the run. At 6
+visits, 5 to 9 became 5 to 20.
+
+**Impact on the two configs of the entry below**, re-read at 3 visits a day for 40 days, seed 0, with no
+new search:
+
+| Sets of the 107 | Baseline | Candidate 23 |
+|-----------------|---------:|-------------:|
+| Under 10 days | 42 | 49 |
+| In the new band, 10 to 40 days | 49 | 43 |
+| Not finished in 40 days | 16 | 15 |
+
+**What it shows**
+- The fast sets are what is left to fix: 42 sets finish under the floor on the baseline.
+- Candidate 23 is worse than the baseline under the new bands as well, with more sets under the floor.
+- A loss under the new bands does not compare with one under the old: a wider band makes a set
+  outside it weigh less. The next search starts a new series.
+
+**What it does not show:** the six-visit readings, which were not taken, and any config tuned for the
+new bands.
+
+The run lengths of 40 and 20 days, and so the ceilings, are a first guess: about twice the old ceiling.
+
+## 2026-10-22 – First search on the 107 sets, not applied
+
+**Trigger:** the first run of the files in `tune/`, after the energy cost table had to rise, see
+[ADR-0048](adr/0048-a-dearer-energy-tier-costs-more-energy.md). Price snapshot of 2026-10-15.
+
+**Run:** 48 candidates over 13 keys, none refused. The best 12 scored on 2 seeds and the best 3
+validated on 2 fresh ones. About 45 minutes niced on 3 workers.
+
+**Status:** not applied. `config.defaults()` is unchanged.
+
+The best candidate, number 23, would change these defaults:
+
+| Key | Default | Candidate 23 |
+|-----|--------:|-------------:|
+| `counter_sell_pct` | 60 | 95 |
+| `counter_buy_pct` | 120 | 159 |
+| `counter_foil_pct` | 500 | 593 |
+| `counter_shelf_days` | -1 | 23 |
+| `counter_supply` | none | fixed, 60 a day |
+| `npcs.population` | 0 | 9 |
+| `initial_stock.rare` | 2 | 6 |
+| `daily_reward` | 100 | 25 |
+| `energy.recharge_per_tick` | 1 | 3 |
+| `energy.reserve_cap` | 10 | 18 |
+| `energy.cost_table[1].cost` | 5 | 7 |
+| `energy.cost_table[2].cost` | 8 | 10 |
+
+**Impact.** The baseline is the defaults with the Counter's fixed supply on, 13 boosters a day, as
+`tune/base.yaml` sets it. Pace is the `collector` at 3 visits a day for 40 days, each set alone. The
+other rows are the `master-collector` on the 107 sets for 90 days. Seed 0.
+
+| Reading | Band | Baseline | Candidate 23 |
+|---------|------|---------:|-------------:|
+| Search loss | 0 | 158.3 | 134.5 (137.2 on fresh seeds) |
+| Sets with a binder in 10 to 18 days | all 107 | 34 | 33 |
+| Sets faster than 10 days | none | 42 | 49 |
+| Sets slower than 18 days | none | 31 | 25 |
+| `final_balance` | at most 3,000 | 110 | 27 |
+| `rare_stock_per_printing` | 0.5 to 3 | 2.05 | 5.4 |
+| `rare_out_of_stock_pct` | 10 to 50 | 4.5 | 4.5 |
+| `daily_reward_commons` | 3 to 15 | 5 | 1 |
+| `sub_coin_cards` | 0 | 0 | 0 |
+
+**What it shows**
+- The baseline already meets every whole-scope band but the out-of-stock share. Candidate 23 loses two
+  of them, the copies per rare printing and the daily reward in commons, and gains nothing there.
+- Its lower loss comes from the pace of the slow sets. The loss weighs a set that never finishes, which
+  reads as 41 days, far above one that finishes too early, so the search leans toward speed.
+- The number of sets inside the pace band does not change.
+- Fourteen sets never finish in 40 days on either config: 10E, 7ED, 8ED, 9ED, AER, AKH, BFZ, FRF, HOU,
+  KLD, OGW, ONS, PLS and SHM. The baseline also leaves MIR and USG unfinished, and candidate 23 leaves
+  MIR. The causes were not studied.
+- Of the 12 scored candidates, 9 leave 4.5% of rare printings out of stock and 3 leave 65% to 77%. None
+  lands in the band, and twelve are too few to tell whether it can.
+
+**What it does not show:** a search with more candidates, a wider range for the three keys at the edge
+of theirs (`energy.recharge_per_tick`, `counter_supply.boosters_per_day`, `initial_stock.rare`), or a
+loss that does not favour speed so strongly.
+
+## 2026-10-16 – First search on 106 sets, not merged
+
+**Trigger:** the first tuning system, on the sets in scope before All Will Be One loaded. 40 candidates
+over 12 keys, on goals of its own, so its losses do not compare with the entry above.
+
+**Status:** not merged. It sat on the local branch `parked-tuned-defaults`, because the energy cost table
+it drew, 3, 9, 8 and 12, did not rise and broke the energy tests. That is what
+[ADR-0048](adr/0048-a-dearer-energy-tier-costs-more-energy.md) forbids.
+
+**Impact:** the loss went from 13.4 for the defaults of the time to 4.9, and 7.9 on fresh seeds. The
+pace of the old sets, such as Mirage and Urza's Saga, still missed its bands.
+
+Its candidate set the Counter to 62% and 142%, a daily reward of 23, a shelf of 22 days, a supply of 13
+boosters a day, 27 NPCs, an energy reserve of 19 recharging 2 a tick, and 9 energy for the middle tier.

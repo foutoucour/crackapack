@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — 2026-10-16
+Superseded by [ADR-0050](0050-a-binder-is-never-fast-and-some-sets-are-slow-on-purpose.md)
 
 ## Context
 
