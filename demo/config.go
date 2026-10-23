@@ -7,12 +7,23 @@ const demSeed uint64 = 42
 // playConfigYAML cuts the two demo sets into two stages of one, and lets a quarter of a binder
 // unlock the other set, so that the welcome boosters of the first reach it: a binder at 90% takes a
 // few dozen boosters.
+//
+// The Counter opens five boosters a day and three NPCs sell it their surplus, so that its stock
+// moves from one day to the next, also while the demo is closed. The mythics start out of stock,
+// so that a new demo shows both a card in stock and one the Counter never had.
 const playConfigYAML = `
 unlock:
   start_sets: 1
   stages: 1
   sets_per_unlock: 1
   binder_threshold: 0.25
+counter_supply:
+  mode: fixed
+  boosters_per_day: 5
+npcs:
+  population: 3
+initial_stock:
+  mythic: 0
 `
 
 // demoConfigYAML is the YAML configuration for the crackapack demo sweep.

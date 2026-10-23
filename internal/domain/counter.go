@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"time"
 )
 
 // CounterParams holds the Counter's configuration. The composition root fills
@@ -83,6 +84,24 @@ type Counter struct {
 	resold    map[CardKey][]shelfBatch
 	tick      int
 	cardIndex map[CardID]Card
+	// now and lastSeen are the memory of the shelf, see WithLastInStock: lastSeen holds, for each
+	// card out of stock that the Counter held, the instant its last copy left. now is nil when the
+	// Counter does not remember.
+	now      func() time.Time
+	lastSeen map[CardKey]time.Time
+}
+
+// CounterOption tunes NewCounter.
+type CounterOption func(*Counter)
+
+// WithLastInStock makes the Counter remember, for each card, the last instant it held a copy: the
+// instant its last copy was bought or vanished, read from now, see LastInStock. now is the clock
+// of the caller, as the domain never reads the time itself.
+func WithLastInStock(now func() time.Time) CounterOption {
+	return func(c *Counter) {
+		c.now = now
+		c.lastSeen = make(map[CardKey]time.Time)
+	}
 }
 
 // shelfBatch is the copies of a card sold to the Counter at the same tick. A card is on the shelf
@@ -107,7 +126,7 @@ type shelfBatch struct {
 //   - FallbackPrice must be >= 0
 //   - every value in InitialStock must be >= 0
 //   - a limited ShelfLife must have Days >= 0
-func NewCounter(cats []SetCatalogue, prices PriceSnapshot, journal *Journal, params CounterParams) (*Counter, error) {
+func NewCounter(cats []SetCatalogue, prices PriceSnapshot, journal *Journal, params CounterParams, opts ...CounterOption) (*Counter, error) {
 	if journal == nil {
 		return nil, fmt.Errorf("counter: journal must not be nil")
 	}
@@ -144,30 +163,39 @@ func NewCounter(cats []SetCatalogue, prices PriceSnapshot, journal *Journal, par
 		}
 	}
 
-	stock := make(map[CardKey]int)
-	for _, cat := range cats {
-		for id, card := range cat.Cards {
-			if card.IsBasicLand {
-				continue
-			}
-			if !hasFinish(card.Finishes, FinishNonFoil) {
-				continue
-			}
-			qty := params.InitialStock[card.Rarity]
-			if qty > 0 {
-				stock[CardKey{ID: id, Finish: FinishNonFoil}] = qty
-			}
-		}
-	}
-
-	return &Counter{
+	c := &Counter{
 		params:    params,
 		valuer:    NewValuer(prices, params.FallbackPrice),
 		journal:   journal,
-		stock:     stock,
 		resold:    make(map[CardKey][]shelfBatch),
 		cardIndex: cardIndex,
-	}, nil
+	}
+	c.stock = c.initialStock()
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c, nil
+}
+
+// initialStock is the stock the Counter starts with: InitialStock copies of every non-foil,
+// non-basic-land card, by rarity.
+func (c *Counter) initialStock() map[CardKey]int {
+	stock := make(map[CardKey]int)
+	for id := range c.cardIndex {
+		if qty := c.initialQuantity(CardKey{ID: id, Finish: FinishNonFoil}); qty > 0 {
+			stock[CardKey{ID: id, Finish: FinishNonFoil}] = qty
+		}
+	}
+	return stock
+}
+
+// initialQuantity is the copies of key the Counter starts with.
+func (c *Counter) initialQuantity(key CardKey) int {
+	card, ok := c.cardIndex[key.ID]
+	if !ok || card.IsBasicLand || key.Finish != FinishNonFoil || !hasFinish(card.Finishes, FinishNonFoil) {
+		return 0
+	}
+	return c.params.InitialStock[card.Rarity]
 }
 
 // BuyFromPlayer processes the player selling one card to the Counter.
@@ -185,30 +213,77 @@ func NewCounter(cats []SetCatalogue, prices PriceSnapshot, journal *Journal, par
 // snapshot price of 0). A positive price that converts to under one coin pays one coin, see
 // ADR-0044.
 func (c *Counter) BuyFromPlayer(key CardKey) error {
-	if _, err := c.lookupCard(key); err != nil {
-		return err
+	_, err := c.BuyLotFromPlayer([]TradeLine{{Key: key, Qty: 1}})
+	return err
+}
+
+// BuyLotFromPlayer processes the player selling the copies of lines to the Counter at once, as
+// BuyFromPlayer does for each copy, and returns the coins paid: one payment for the whole lot. A
+// lot goes through whole or not at all: on any error nothing is paid and nothing is shelved.
+//
+// Returns InvalidQuantityError for a line of no copy or an empty lot, and the errors of
+// BuyFromPlayer for any line.
+func (c *Counter) BuyLotFromPlayer(lines []TradeLine) (Coins, error) {
+	if len(lines) == 0 {
+		return 0, &InvalidQuantityError{N: 0}
 	}
-	coins, err := c.payoutCoins(c.referencePrice(key))
-	if err != nil {
-		return err
+	var total Coins
+	for _, l := range lines {
+		if l.Qty <= 0 {
+			return 0, &InvalidQuantityError{N: l.Qty}
+		}
+		if _, err := c.lookupCard(l.Key); err != nil {
+			return 0, err
+		}
+		coins, err := c.payoutCoins(c.referencePrice(l.Key))
+		if err != nil {
+			return 0, err
+		}
+		total += coins * Coins(l.Qty)
 	}
 	from := AccountCounterSale
 	if c.params.Treasury {
 		from = AccountCounterTreasury
 	}
-	if err := c.journal.Post(Entry{
-		From:   from,
-		To:     AccountPlayer,
-		Amount: coins,
-		Memo:   fmt.Sprintf("buy from player: card %s finish %s", key.ID, key.Finish),
-	}); err != nil {
-		if c.params.Treasury && errors.Is(err, ErrInsufficientBalance) {
-			return fmt.Errorf("counter: card %q finish %q: %w", key.ID, key.Finish, ErrCounterBroke)
-		}
-		return fmt.Errorf("counter: post payment for card %q finish %q: %w", key.ID, key.Finish, err)
+	memo := fmt.Sprintf("buy from player: %d lines", len(lines))
+	if len(lines) == 1 && lines[0].Qty == 1 {
+		memo = fmt.Sprintf("buy from player: card %s finish %s", lines[0].Key.ID, lines[0].Key.Finish)
 	}
-	c.shelve(key, 1)
-	return nil
+	if err := c.journal.Post(Entry{From: from, To: AccountPlayer, Amount: total, Memo: memo}); err != nil {
+		if c.params.Treasury && errors.Is(err, ErrInsufficientBalance) {
+			return 0, fmt.Errorf("counter: %s: %w", memo, ErrCounterBroke)
+		}
+		return 0, fmt.Errorf("counter: post payment, %s: %w", memo, err)
+	}
+	for _, l := range lines {
+		c.shelve(l.Key, l.Qty)
+	}
+	return total, nil
+}
+
+// Quote is what the Counter pays for one copy of a card and what it asks for one. A side worth
+// less than one coin, which only a card priced at zero gives at the default rates, is zero: the
+// Counter refuses that trade.
+type Quote struct {
+	Pays Coins
+	Asks Coins
+}
+
+// Quote returns the prices of key at the Counter, whether it holds a copy or not. It returns
+// ErrUnknownCard, wrapped, for a card or a finish the Counter does not know.
+func (c *Counter) Quote(key CardKey) (Quote, error) {
+	if _, err := c.lookupCard(key); err != nil {
+		return Quote{}, err
+	}
+	price := c.referencePrice(key)
+	var q Quote
+	if coins, err := c.payoutCoins(price); err == nil {
+		q.Pays = coins
+	}
+	if coins, err := c.tradeCoins(price, c.params.BuyPct); err == nil {
+		q.Asks = coins
+	}
+	return q, nil
 }
 
 // SellToPlayer processes the player buying one card from the Counter.
@@ -284,9 +359,17 @@ func (c *Counter) Tick() {
 		switch {
 		case expired == len(batches):
 			delete(c.resold, key)
+			c.rememberIfGone(key)
 		case expired > 0:
 			c.resold[key] = batches[expired:]
 		}
+	}
+}
+
+// rememberIfGone notes the instant when key has no copy left, for a Counter that remembers.
+func (c *Counter) rememberIfGone(key CardKey) {
+	if c.lastSeen != nil && c.Stock(key) == 0 {
+		c.lastSeen[key] = c.now()
 	}
 }
 
@@ -298,11 +381,15 @@ func (c *Counter) Stock(key CardKey) int {
 // shelve puts n sold copies of key on the shelf for the ShelfLife of the Counter.
 func (c *Counter) shelve(key CardKey, n int) {
 	life := c.params.ShelfLife
+	if life.Limited && life.Days == 0 {
+		// A sink: the copies are gone before they reach the shelf.
+		return
+	}
+	// The card is in stock, so it is on the shelf now, see LastInStock.
+	delete(c.lastSeen, key)
 	switch {
 	case !life.Limited:
 		c.stock[key] += n
-	case life.Days == 0:
-		// A sink: the copies are gone.
 	default:
 		batches := c.resold[key]
 		if last := len(batches) - 1; last >= 0 && batches[last].tick == c.tick {
@@ -317,6 +404,7 @@ func (c *Counter) shelve(key CardKey, n int) {
 // so the copies about to vanish are not wasted. Initial stock goes last. The caller has checked
 // that the Counter holds a copy.
 func (c *Counter) unshelve(key CardKey) {
+	defer c.rememberIfGone(key)
 	batches := c.resold[key]
 	if len(batches) == 0 {
 		c.stock[key]--

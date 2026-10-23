@@ -29,6 +29,9 @@ type Saves struct {
 // does not fit this game, is an error and the game is left as NewGame made it, and nothing is
 // written over the save.
 //
+// A game loaded from a save catches its Counter up on the days gone by, see OpenCounter. An error
+// there is a catalogue that does not hold a card its boosters draw.
+//
 // A save that fails later does not stop the game: SaveError reports it and Failed is told.
 // saves.Stream must be the source that the game's opener draws from. Persist is called once, before
 // the game is used.
@@ -48,6 +51,13 @@ func (g *Game) Persist(saves Saves) error {
 	g.saves = saves
 	if !found {
 		g.save()
+		return nil
+	}
+	// The days the game was closed are caught up now rather than at the first page.
+	if g.economy != nil {
+		if err := g.economy.catchUp(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -103,6 +113,9 @@ func (g *Game) snapshot() (Snapshot, error) {
 		snap.LastOpening = snapshotOpening(*g.last)
 	}
 	if snap.Unlocks, err = g.snapshotUnlocks(); err != nil {
+		return Snapshot{}, err
+	}
+	if snap.Counter, err = g.snapshotCounter(); err != nil {
 		return Snapshot{}, err
 	}
 	return snap, nil
@@ -181,6 +194,13 @@ func (g *Game) restore(snap Snapshot, stream *Stream) error {
 			return err
 		}
 	}
+	commitCounter := func() {}
+	if snap.Counter != nil {
+		var err error
+		if commitCounter, err = g.restoreCounter(*snap.Counter); err != nil {
+			return err
+		}
+	}
 	if snap.Opener != nil {
 		if err := stream.Restore(snap.Opener.Seed, snap.Opener.State); err != nil {
 			return err
@@ -188,6 +208,7 @@ func (g *Game) restore(snap Snapshot, stream *Stream) error {
 	}
 	g.collection, g.packs, g.energy, g.lastTick = collection, packs, energy, lastTick
 	commitUnlocks()
+	commitCounter()
 	if snap.LastOpening != nil {
 		g.last = g.restoreOpening(*snap.LastOpening)
 	}

@@ -62,7 +62,9 @@ type Game struct {
 	pools []domain.SetCatalogue
 	// binders are the catalogues the binders count, by set code: the set's cards and the cards of
 	// the pools its boosters draw.
-	binders    map[string]domain.SetCatalogue
+	binders map[string]domain.SetCatalogue
+	// binderSets are the codes of the sets whose binder holds each card.
+	binderSets map[domain.CardID][]string
 	cards      map[domain.CardID]domain.Card
 	opener     *domain.Opener
 	collection *domain.Collection
@@ -72,6 +74,11 @@ type Game struct {
 	// kept as they were for a staged game on the same save.
 	staging *staging
 	carried *UnlocksSnapshot
+
+	// economy is the coins and the Counter, nil in a game without them, see OpenCounter.
+	// carriedCounter is then the Counter of the save, kept as it was.
+	economy        *economy
+	carriedCounter *CounterSnapshot
 
 	// saves is where the game is kept between runs, see Persist, and saveErr why the latest save failed.
 	saves   Saves
@@ -116,15 +123,20 @@ func NewGame(sets, pools []domain.SetCatalogue, opener *domain.Opener, rules Rul
 		}
 	}
 	binders := make(map[string]domain.SetCatalogue, len(sets))
+	binderSets := make(map[domain.CardID][]string)
 	codes := make([]string, len(sets))
 	for i, cat := range sets {
 		binders[cat.Code] = domain.WithPools(cat, pools)
+		for id := range binders[cat.Code].Cards {
+			binderSets[id] = append(binderSets[id], cat.Code)
+		}
 		codes[i] = cat.Code
 	}
 	return &Game{
 		sets:       sets,
 		pools:      pools,
 		binders:    binders,
+		binderSets: binderSets,
 		cards:      cards,
 		opener:     opener,
 		collection: domain.NewCollection(),

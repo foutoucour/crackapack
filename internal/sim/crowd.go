@@ -24,25 +24,7 @@ func newCrowd(cfg config.Config, openable []domain.SetCatalogue, counter *domain
 	if cfg.NPCs.Population == 0 {
 		return nil, nil
 	}
-	archetypes := make(map[string]domain.ArchetypeSpec, len(cfg.NPCs.Archetypes))
-	for name, a := range cfg.NPCs.Archetypes {
-		spec := domain.ArchetypeSpec{
-			Share:             a.Share,
-			MinBoostersPerDay: a.MinBoostersPerDay,
-			MaxBoostersPerDay: a.MaxBoostersPerDay,
-			KeepCopies:        a.KeepCopies,
-			FocusSet:          domain.FocusSetMode(a.FocusSet),
-		}
-		if cfg.Trades.Enabled {
-			spec.Behaviour = a.Behaviour
-			spec.WishSize = a.WishSize
-			spec.MarginPct = a.MarginPct
-			spec.OfferChancePct = a.OfferChancePct
-			spec.Colors = a.Colors
-			spec.Traits = traitSpecs(a)
-		}
-		archetypes[name] = spec
-	}
+	archetypes := cfg.NPCs.ArchetypeSpecs(cfg.Trades.Enabled)
 
 	rng := rand.New(rand.NewPCG(cfg.Seed, cfg.Seed^npcStreamSalt))
 	npcs, err := domain.GeneratePopulation(domain.PopulationParams{
@@ -65,14 +47,4 @@ func newCrowd(cfg config.Config, openable []domain.SetCatalogue, counter *domain
 		return nil, fmt.Errorf("sim: npcs: %w", err)
 	}
 	return crowd, nil
-}
-
-// traitSpecs turns the trait names of an archetype, with their numbers, into the specs the domain
-// builds its behaviour from.
-func traitSpecs(a config.ArchetypeConfig) []domain.TraitSpec {
-	specs := make([]domain.TraitSpec, 0, len(a.Traits))
-	for _, name := range a.Traits {
-		specs = append(specs, domain.TraitSpec{Name: name, Params: a.TraitParams[name]})
-	}
-	return specs
 }

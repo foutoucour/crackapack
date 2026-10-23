@@ -582,6 +582,10 @@ does not change what the player or the NPCs draw, so two runs that differ only b
 comparable. `compare` refuses a run that opens boosters against one that does not, because their
 columns differ.
 
+The game plays the same supply, on the days it catches up, see
+[ADR-0055](adr/0055-the-game-catches-the-counter-up-on-whole-days-at-most-thirty.md). It does not
+play the coin fee of `counter_supply.coins_per_energy` yet, and refuses a config that sets it.
+
 ## NPC crowd
 
 `npcs.population` sets the number of NPCs. It defaults to 0, and a run without NPCs is the same as
@@ -678,8 +682,9 @@ go run ./cmd/crackapack simulate \
 
 `compare` refuses a run with a crowd against a run without one, because their columns differ.
 
-The archetype values in the embedded files are starting guesses. Offline catch-up and persistence are not
-built, see [Specs review](specs-review.md#v1-scope-and-build-order).
+The archetype values in the embedded files are starting guesses. The game builds the same crowd when
+its config has one, without trades, saves what each NPC holds, and catches it up on the days it was
+closed, see [ADR-0055](adr/0055-the-game-catches-the-counter-up-on-whole-days-at-most-thirty.md).
 
 ## Trades
 

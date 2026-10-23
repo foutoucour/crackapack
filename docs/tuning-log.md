@@ -18,6 +18,25 @@ goal band changes. Newest first. Each entry says:
 - how the goals read before and after, on the same scenarios, so the entries compare;
 - what the run does not tell.
 
+## 2026-10-23 – Catch-up cap added for the game's Counter, no search run
+
+**Trigger:** the game catches up the Counter's supply and NPCs on the days it was closed, see
+[ADR-0055](adr/0055-the-game-catches-the-counter-up-on-whole-days-at-most-thirty.md). One key is new in
+`config.defaults()`. It does not change a simulation.
+
+| Key | Default |
+|-----|--------:|
+| `catch_up_days` | 30 |
+
+The value is the maintainers' choice: a month away still shows, and on the 107 sets the 30 days take
+5 ms with the supply of `tune/base.yaml`, and 34 ms with 9 NPCs as well.
+
+The demo of `play` sets its own Counter: a fixed supply of 5 boosters a day, 3 NPCs, and no mythic in
+the initial stock, so that a new demo has a card the Counter never had.
+
+**What it does not show:** how the stock a player meets after a long absence compares with one who
+plays every day. No simulation plays absences.
+
 ## 2026-10-23 – Unlock keys added for the stages of the game, no search run
 
 **Trigger:** the game opens its sets in stages, see [Stages](core-features.md#stages). Four keys are

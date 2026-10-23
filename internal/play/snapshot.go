@@ -28,6 +28,8 @@ type Snapshot struct {
 	LastOpening *OpeningSnapshot `json:"last_opening"`
 	// Unlocks is how far the player is through the stages, see [Game.Stage].
 	Unlocks *UnlocksSnapshot `json:"unlocks"`
+	// Counter is the coins and the Counter, see [Game.OpenCounter].
+	Counter *CounterSnapshot `json:"counter"`
 }
 
 // OpenerSnapshot is a seed and the opaque state of the [Stream] it started.
@@ -75,4 +77,64 @@ type UnlocksSnapshot struct {
 	Unlocked  []string        `json:"unlocked"`
 	Triggered []string        `json:"triggered"`
 	Rand      *OpenerSnapshot `json:"rand"`
+}
+
+// CounterSnapshot is the balances of the ledger, what the Counter holds and remembers, and the
+// supply and the crowd that stock it, caught up to SyncedAt. The entries of the ledger are not
+// kept: the balances are what the game reads.
+type CounterSnapshot struct {
+	// SyncedAt is the start of the first day of the supply and the crowd not caught up yet.
+	SyncedAt time.Time                       `json:"synced_at"`
+	Balances map[domain.Account]domain.Coins `json:"balances"`
+	// Tick is the ticks the Counter has lived, which the shelf is stamped with.
+	Tick int `json:"tick"`
+	// Stock is the copies the Counter holds of the cards whose count differs from its initial
+	// stock, which the catalogues and the rules give, so that a save stays small.
+	Stock []CardCount `json:"stock"`
+	// Shelf is the copies on a limited shelf, see domain.ShelfLife.
+	Shelf []ShelfCount `json:"shelf,omitempty"`
+	// LastInStock is, for the cards out of stock that the Counter had, when the last copy left.
+	LastInStock []LastInStock   `json:"last_in_stock,omitempty"`
+	Supply      *SupplySnapshot `json:"supply,omitempty"`
+	Crowd       *CrowdSnapshot  `json:"crowd,omitempty"`
+}
+
+// ShelfCount is the copies of a card that arrived on the Counter's limited shelf at one tick.
+type ShelfCount struct {
+	ID       domain.CardID `json:"id"`
+	Finish   domain.Finish `json:"finish"`
+	Tick     int           `json:"tick"`
+	Quantity int           `json:"quantity"`
+}
+
+// LastInStock is the instant the Counter's last copy of a card left.
+type LastInStock struct {
+	ID     domain.CardID `json:"id"`
+	Finish domain.Finish `json:"finish"`
+	At     time.Time     `json:"at"`
+}
+
+// SupplySnapshot is where the Counter's supply stands: its stream, the credit of a fixed supply,
+// and the energy and the set picked of an energy supply.
+type SupplySnapshot struct {
+	Rand        OpenerSnapshot `json:"rand"`
+	Credit      int            `json:"credit,omitempty"`
+	Reserve     int            `json:"reserve,omitempty"`
+	Savings     int            `json:"savings,omitempty"`
+	SavingsTick int            `json:"savings_tick,omitempty"`
+	Next        string         `json:"next,omitempty"`
+}
+
+// CrowdSnapshot is the NPCs' stream and what each NPC holds. Who the NPCs are is drawn again from
+// the seed of Rand when the game loads.
+type CrowdSnapshot struct {
+	Rand OpenerSnapshot `json:"rand"`
+	Tick int            `json:"tick"`
+	NPCs []NPCSnapshot  `json:"npcs"`
+}
+
+// NPCSnapshot is what one NPC holds, in the order of the NPCs.
+type NPCSnapshot struct {
+	Credit int         `json:"credit"`
+	Cards  []CardCount `json:"cards"`
 }

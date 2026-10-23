@@ -113,6 +113,8 @@ many parameters at once for a config that meets the goals.
   binder was 330,000 to 1 million coins in the runs. Sinks were deferred until trades or cosmetics
   exist. Choose them, see [Economy: risks and fixes](specs-review.md#economy-risks-and-fixes). The
   leading candidate is the coin top-up in the item below.
+  - [x] The game's Counter, the first sink a player meets: a purchase costs 120% and a sale back pays
+    60%, see [The Counter](core-features.md#the-counter). The daily reward is not in the game yet.
   - [x] Foils as a sink: `counter_foil_pct` and the `master-collector` policy, see
     [ADR-0027](adr/0027-a-foil-is-a-percentage-of-its-cards-price.md). At 300 the idle pile after 90
     days fell from 260,000-300,000 to 24,000-55,000 coins on two seeds, and to under 3,000 at 500 on five seeds.
@@ -166,6 +168,9 @@ many parameters at once for a config that meets the goals.
     test pins that; a broke Counter is now offered each card once per session, not each copy.
   - [x] An ADR for vanishing sales, see
     [ADR-0018](adr/0018-cards-sold-to-the-counter-can-vanish.md).
+  - [x] The game plays the supply and the crowd on the days it catches up, see
+    [ADR-0055](adr/0055-the-game-catches-the-counter-up-on-whole-days-at-most-thirty.md). Left: the
+    Counter's coin fee in the game, which it refuses for now.
 
 ### Calibration and decisions
 
@@ -329,7 +334,10 @@ These need the SQLite store, which does not exist yet.
 - [ ] NPC generation on first launch, with the seed stored.
 - [ ] NPC collections stored as quantities, with an index on (printing, NPC), see
   [Technical](specs-review.md#technical).
-- [ ] Offline catch-up: replay the ticks missed, capped at 48 hours, in batches with grouped writes.
+- [ ] Offline catch-up in batches with grouped writes. The game replays the missed days in memory, up
+  to `catch_up_days`, and saves the crowd in its one JSON file, see
+  [ADR-0055](adr/0055-the-game-catches-the-counter-up-on-whole-days-at-most-thirty.md). That file
+  reaches 4.8 MB after 30 days with 9 NPCs on the 107 sets, and every save rewrites it.
 - [ ] NPC names and avatars. The simulation has no use for them.
 
 ### After V1
@@ -380,7 +388,13 @@ The stack is server-rendered `html/template`, see
   collection. Left: a `--config` for `play`, so the `unlock` keys can change without the code; and
   the cards a set's boosters draw from another openable set, such as Kaladesh's in Aether Revolt,
   which open but do not count in its binder.
-- [ ] The Counter, trades with NPCs, quests and the profile.
+- [x] Coins and the Counter in `play.Game`, with no page yet: the welcome bonus, selling any copy or
+  everything above a playset of a binder, buying a card in stock, quotes that never show the stock
+  and tell when a card was last in stock, and a stock that the supply and the NPCs refill on the days
+  caught up, saved with the game, see [The Counter](core-features.md#the-counter). Left: the pages
+  and the coins in the header (next), the daily reward, the coin top-up and the coin fee above the
+  energy cap, and a `--config` for `play`.
+- [ ] The Counter's pages, trades with NPCs, quests and the profile.
 - [x] Card pictures, downloaded from Scryfall on demand and cached, see
   [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md). The demo draws its own.
   Left: a cache that can be refreshed, and the two faces of a double-faced card.

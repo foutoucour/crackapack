@@ -23,7 +23,8 @@ type Dataset struct {
 	ConfigYAML string
 
 	// PlayConfigYAML is the configuration of crackapack play --demo: stages small enough that a
-	// player unlocks the second set in a few boosters.
+	// player unlocks the second set in a few boosters, and a Counter that stocks itself, with its
+	// mythics out of stock at the start.
 	PlayConfigYAML string
 
 	// SetCodes lists the openable set codes in the demo (DEM, DSP). DEX is in the directory but is

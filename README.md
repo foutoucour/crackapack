@@ -12,8 +12,9 @@ Pre-alpha. The simulation MVP exists, with NPCs that open boosters and supply th
 first UI lets you open the ten welcome boosters, then more for energy that recharges by itself, and
 browse your collection, one binder per set, with the progress overall, by rarity and by colour. It
 plays every set in scope, unlocked in stages as your binders fill. The game is saved after every
-opening, so a restart picks it up where it was. The following are not built yet: the Counter and
-trades in the UI, coins in the game, and catalogue sync.
+opening, so a restart picks it up where it was. The game has coins and a Counter that stocks itself
+each day, also while the game is closed, but no page to trade at it yet. The following are not built
+yet: the Counter and trades in the UI, and catalogue sync.
 
 ## Open your first boosters
 

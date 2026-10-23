@@ -24,6 +24,7 @@ import (
 	"github.com/foutoucour/crackapack/internal/images"
 	"github.com/foutoucour/crackapack/internal/play"
 	"github.com/foutoucour/crackapack/internal/web"
+	producttune "github.com/foutoucour/crackapack/tune"
 )
 
 const (
@@ -51,9 +52,12 @@ const (
 	// playing it never touches a real game.
 	saveFile     = "save.json"
 	demoSaveFile = "save-demo.json"
-	// unlockSeedSalt sets the seed of the unlocks apart from the seed of the boosters, so that the
-	// two do not draw the same numbers.
+	// unlockSeedSalt, supplySeedSalt and crowdSeedSalt set the seeds of the unlocks, of the
+	// Counter's boosters and of the NPCs apart from the seed of the player's boosters, so that no two
+	// draw the same numbers.
 	unlockSeedSalt = 0x9e3779b97f4a7c15
+	supplySeedSalt = 0xbf58476d1ce4e5b9
+	crowdSeedSalt  = 0x94d049bb133111eb
 )
 
 // playArgs holds all dependencies for runPlay, decoupled from the OS so that tests can serve on a
@@ -132,6 +136,10 @@ Opening a booster costs energy, once the ten welcome boosters, which are free, a
 booster costs follows its value against the median of the catalogue, so pass --prices, the price
 snapshot of fetchdata, to tell the sets apart; without it every booster costs the same.
 
+You start with 200 coins. The Counter buys any card at 60% of its price and sells at 120%, and it
+stocks itself each day, also while the game is closed, up to the last 30 days. The prices come from
+--prices too: without it every card is worth the fallback price of one cent.
+
 Card pictures are downloaded from Scryfall the first time a card shows, one at a time, and kept
 in the user cache directory. A card whose picture cannot be downloaded shows as text. The back of
 the cards is downloaded once too, also with --demo, and an in-house drawing stands in for it
@@ -141,12 +149,15 @@ while it is missing.`,
   crackapack play --catalogue-dir ./catalogues --sets RAV,TSP --supplementary TSB
   crackapack play --demo --save ./my-save.json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// The game plays the product's base config, the world its goals are judged in. The demo's
+			// configuration cuts its few sets into stages small enough to unlock one soon.
 			var ds demo.Dataset
+			cfgYAML := producttune.BaseYAML
 			if demoData {
 				ds = demo.Build()
+				cfgYAML = ds.PlayConfigYAML
 			}
-			// The demo's configuration cuts its few sets into stages small enough to unlock one soon.
-			cfg, err := config.Load(strings.NewReader(ds.PlayConfigYAML))
+			cfg, err := config.Load(strings.NewReader(cfgYAML))
 			if err != nil {
 				return fmt.Errorf("crackapack play: configuration: %w", err)
 			}
@@ -228,48 +239,10 @@ while it is missing.`,
 // runPlay is the testable core of the play subcommand. It loads the sets, starts a game and serves
 // the web client on a.listener until ctx is cancelled.
 func runPlay(ctx context.Context, a playArgs) error {
-	if a.store == nil {
-		return errors.New("no store to save the game in")
-	}
-	prices := domain.PriceSnapshot{}
-	if a.pricesName != "" {
-		var err error
-		if prices, err = domain.LoadPriceSnapshot(a.pricesFS, a.pricesName); err != nil {
-			return fmt.Errorf("prices %q: %w", a.pricesName, err)
-		}
-	}
-	sets, pools, reference, err := loadPlaySets(a, prices)
-	if err != nil {
-		return err
-	}
-	stream := play.NewStream(a.seed)
-	opener := domain.NewOpener(
-		map[domain.BoosterLayout]domain.BoosterGenerator{
-			domain.BoosterLayoutClassic: domain.NewClassicGenerator(),
-		},
-		rand.New(stream),
-	)
-	costs, err := domain.BoosterEnergyCosts(sets, reference, prices, a.cfg.FallbackPrice, a.cfg.Energy.CostTiers())
-	if err != nil {
-		return err
-	}
-	game, err := play.NewGame(sets, pools, opener, play.Rules{Energy: a.cfg.Energy.Params(), Costs: costs}, a.now)
-	if err != nil {
-		return err
-	}
-	if a.scope {
-		u := a.cfg.Unlock
-		stages := play.StageRules{Threshold: u.BinderThreshold, SetsPerUnlock: u.SetsPerUnlock, Stages: u.Stages, StartSets: u.StartSets}
-		if err := game.Stage(stages, play.NewStream(a.seed^unlockSeedSalt)); err != nil {
-			return err
-		}
-	}
 	log := slog.New(slog.NewTextHandler(a.stderr, nil))
-	// Said first, so that an error about the save has said which file it is.
-	fmt.Fprintf(a.stdout, "crackapack: save file %s\n", a.savePath)
-	saves := play.Saves{Store: a.store, Stream: stream, Failed: func(err error) { log.Error("save game", "path", a.savePath, "error", err) }}
-	if err := game.Persist(saves); err != nil {
-		return fmt.Errorf("save file %q: %w", a.savePath, err)
+	game, stream, err := startGame(a, log)
+	if err != nil {
+		return err
 	}
 
 	srv := &http.Server{
@@ -295,6 +268,96 @@ func runPlay(ctx context.Context, a playArgs) error {
 		return err
 	}
 	return nil
+}
+
+// startGame loads the sets and starts the game of a: its stages, its Counter, and what its save
+// holds. It returns the stream of the player's boosters, whose seed a loaded game takes from the
+// save.
+func startGame(a playArgs, log *slog.Logger) (*play.Game, *play.Stream, error) {
+	if a.store == nil {
+		return nil, nil, errors.New("no store to save the game in")
+	}
+	prices := domain.PriceSnapshot{}
+	if a.pricesName != "" {
+		var err error
+		if prices, err = domain.LoadPriceSnapshot(a.pricesFS, a.pricesName); err != nil {
+			return nil, nil, fmt.Errorf("prices %q: %w", a.pricesName, err)
+		}
+	}
+	sets, pools, reference, err := loadPlaySets(a, prices)
+	if err != nil {
+		return nil, nil, err
+	}
+	stream := play.NewStream(a.seed)
+	opener := domain.NewOpener(
+		map[domain.BoosterLayout]domain.BoosterGenerator{
+			domain.BoosterLayoutClassic: domain.NewClassicGenerator(),
+		},
+		rand.New(stream),
+	)
+	costs, err := domain.BoosterEnergyCosts(sets, reference, prices, a.cfg.FallbackPrice, a.cfg.Energy.CostTiers())
+	if err != nil {
+		return nil, nil, err
+	}
+	game, err := play.NewGame(sets, pools, opener, play.Rules{Energy: a.cfg.Energy.Params(), Costs: costs}, a.now)
+	if err != nil {
+		return nil, nil, err
+	}
+	if a.scope {
+		u := a.cfg.Unlock
+		stages := play.StageRules{Threshold: u.BinderThreshold, SetsPerUnlock: u.SetsPerUnlock, Stages: u.Stages, StartSets: u.StartSets}
+		if err := game.Stage(stages, play.NewStream(a.seed^unlockSeedSalt)); err != nil {
+			return nil, nil, err
+		}
+	}
+	rules, err := counterRules(a.cfg, prices)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := game.OpenCounter(rules, play.NewStream(a.seed^supplySeedSalt), play.NewStream(a.seed^crowdSeedSalt)); err != nil {
+		return nil, nil, err
+	}
+	// Said first, so that an error about the save has said which file it is.
+	fmt.Fprintf(a.stdout, "crackapack: save file %s\n", a.savePath)
+	saves := play.Saves{Store: a.store, Stream: stream, Failed: func(err error) { log.Error("save game", "path", a.savePath, "error", err) }}
+	if err := game.Persist(saves); err != nil {
+		return nil, nil, fmt.Errorf("save file %q: %w", a.savePath, err)
+	}
+	return game, stream, nil
+}
+
+// counterRules is the Counter of cfg, valuing the cards by prices, as the simulation builds it: the
+// rates, the stock and the shelf, the treasury, the supply and the NPCs. The NPCs do not trade, and
+// the Counter's coin fee on dear boosters is not played: both wait for the market.
+func counterRules(cfg config.Config, prices domain.PriceSnapshot) (play.CounterRules, error) {
+	if cfg.CounterSupply.CoinsPerEnergy > 0 {
+		return play.CounterRules{}, errors.New("counter_supply.coins_per_energy: the Counter's coin fee on dear boosters is not played yet")
+	}
+	rules := play.CounterRules{
+		Params:       cfg.CounterParams(),
+		Prices:       prices,
+		WelcomeBonus: cfg.WelcomeBonus,
+		CatchUpDays:  cfg.CatchUpDays,
+	}
+	if cfg.CounterBudget.Enabled {
+		rules.Treasury, rules.DailyFloat = cfg.CounterBudget.Initial, cfg.CounterBudget.DailyFloat
+	}
+	switch cfg.CounterSupply.Mode {
+	case config.CounterSupplyFixed:
+		rules.Supply.BoostersPerDay = cfg.CounterSupply.BoostersPerDay
+	case config.CounterSupplyEnergy:
+		energy := cfg.CounterSupply.Energy.Params()
+		rules.Supply.Energy = &energy
+	}
+	if cfg.NPCs.Population > 0 {
+		rules.Crowd = domain.PopulationParams{
+			Size:         cfg.NPCs.Population,
+			Archetypes:   cfg.NPCs.ArchetypeSpecs(false),
+			Valuer:       domain.NewValuer(prices, cfg.FallbackPrice),
+			MaxMarginPct: cfg.NPCs.MaxMarginPct,
+		}
+	}
+	return rules, nil
 }
 
 // defaultSavePath is where the save of a game goes under configDir, the OS user config directory.

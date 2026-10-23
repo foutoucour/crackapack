@@ -202,6 +202,16 @@ type CounterEnergyConfig struct {
 	SavingsCap int `yaml:"savings_cap"`
 }
 
+// Params returns the Counter's energy in the form the domain's Energy takes.
+func (e CounterEnergyConfig) Params() domain.EnergyParams {
+	return domain.EnergyParams{
+		RechargePerTick:      e.RechargePerTick,
+		ReserveCap:           e.ReserveCap,
+		SavingsIntervalTicks: e.SavingsIntervalTicks,
+		SavingsCap:           e.SavingsCap,
+	}
+}
+
 // CounterSupplyConfig is how the Counter stocks itself by opening boosters, as a special player.
 type CounterSupplyConfig struct {
 	// Mode is CounterSupplyNone (the default), CounterSupplyFixed or CounterSupplyEnergy.
@@ -302,6 +312,36 @@ type NPCConfig struct {
 	// from embedded YAML files by [Load]; see [LoadArchetypes]. The simulation config may override
 	// an archetype by name, replacing the embedded entry as a whole.
 	Archetypes map[string]ArchetypeConfig `yaml:"archetypes"`
+}
+
+// ArchetypeSpecs returns the archetypes in the form the domain generates a population from. The
+// trade settings, the behaviour, the wishes, the margin, the offer chance, the colours and the
+// traits, are left out unless trades is true, so that a crowd that does not trade behaves as it
+// did before trades existed.
+func (n NPCConfig) ArchetypeSpecs(trades bool) map[string]domain.ArchetypeSpec {
+	specs := make(map[string]domain.ArchetypeSpec, len(n.Archetypes))
+	for name, a := range n.Archetypes {
+		spec := domain.ArchetypeSpec{
+			Share:             a.Share,
+			MinBoostersPerDay: a.MinBoostersPerDay,
+			MaxBoostersPerDay: a.MaxBoostersPerDay,
+			KeepCopies:        a.KeepCopies,
+			FocusSet:          domain.FocusSetMode(a.FocusSet),
+		}
+		if trades {
+			spec.Behaviour = a.Behaviour
+			spec.WishSize = a.WishSize
+			spec.MarginPct = a.MarginPct
+			spec.OfferChancePct = a.OfferChancePct
+			spec.Colors = a.Colors
+			spec.Traits = make([]domain.TraitSpec, 0, len(a.Traits))
+			for _, trait := range a.Traits {
+				spec.Traits = append(spec.Traits, domain.TraitSpec{Name: trait, Params: a.TraitParams[trait]})
+			}
+		}
+		specs[name] = spec
+	}
+	return specs
 }
 
 // TradesConfig holds the parameters of the trades between the player and the NPCs, see
@@ -415,6 +455,30 @@ type Config struct {
 
 	// Unlock is how the sets of the game open up in stages, see docs/core-features.md#stages.
 	Unlock UnlockConfig `yaml:"unlock"`
+
+	// CatchUpDays is the most days of the Counter's supply and of the NPCs that a game catches up
+	// on when it is played again, the most recent ones (default 30). The days before them are
+	// skipped, so that a long time away does not hold up the start, see play.Game.
+	CatchUpDays int `yaml:"catch_up_days"`
+}
+
+// CounterParams returns the parameters of the Counter that the config describes, for the
+// simulation and the game alike.
+func (c Config) CounterParams() domain.CounterParams {
+	shelf := domain.VanishAfterDays(c.CounterShelfDays)
+	if c.CounterShelfDays < 0 {
+		shelf = domain.ForeverOnShelf()
+	}
+	return domain.CounterParams{
+		SellPct:       c.CounterSellPct,
+		BuyPct:        c.CounterBuyPct,
+		FoilPct:       c.CounterFoilPct,
+		CoinRate:      c.CoinRate,
+		FallbackPrice: c.FallbackPrice,
+		InitialStock:  c.InitialStock,
+		ShelfLife:     shelf,
+		Treasury:      c.CounterBudget.Enabled,
+	}
 }
 
 // UnlockConfig is how the sets of the game open up: the sets rank from the quickest binder to the
@@ -498,6 +562,7 @@ func defaults() Config {
 		RunDays:        90,
 		SweepRates:     []domain.CoinRate{10, 25, 50, 100, 250, 500},
 		Unlock:         UnlockConfig{BinderThreshold: 0.9, SetsPerUnlock: 3, Stages: 4, StartSets: 5},
+		CatchUpDays:    30,
 	}
 }
 
@@ -512,6 +577,9 @@ func validate(cfg Config) error {
 	}
 	if cfg.CounterSellPct <= 0 {
 		return fmt.Errorf("config: counter_sell_pct must be > 0, got %d", cfg.CounterSellPct)
+	}
+	if cfg.CatchUpDays < 1 {
+		return fmt.Errorf("config: catch_up_days must be >= 1, got %d", cfg.CatchUpDays)
 	}
 	if cfg.CounterShelfDays < -1 {
 		return fmt.Errorf("config: counter_shelf_days must be >= -1 (-1 keeps cards forever), got %d", cfg.CounterShelfDays)

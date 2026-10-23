@@ -62,7 +62,10 @@ cache, see [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md).
 
 `internal/play` is the player's interactive session: the boosters the player holds, the energy that
 opening them costs, which recharges from an injected clock, the collection they fill, and the stages
-that unlock the sets, see [Stages](core-features.md#stages). It also
+that unlock the sets, see [Stages](core-features.md#stages). It holds the coins and the Counter too,
+and catches up the Counter's supply and NPCs on the days gone by, with the domain objects the
+simulation uses, see [The Counter](core-features.md#the-counter). `internal/config` maps the config to
+those objects' parameters for both. It also
 defines the save of that state: a `Snapshot` and a `Store` interface, with a JSON file
 implementation, see [ADR-0052](adr/0052-the-game-is-saved-in-one-versioned-json-file.md). It sits
 beside `internal/sim`, which runs batch policies, and holds the rules a client must not hold. `internal/web` renders it as server-rendered pages embedded in the

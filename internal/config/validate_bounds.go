@@ -33,6 +33,8 @@ const (
 	maxTraitParam = 10_000
 	// maxUnlockSets bounds the unlock keys that count sets or stages: ten times the sets there are.
 	maxUnlockSets = 1_000
+	// maxCatchUpDays bounds the days a game catches up on: a year of them still starts in seconds.
+	maxCatchUpDays = 365
 )
 
 // validateBounds checks every key that has an upper bound and returns an error naming the first one
@@ -65,6 +67,7 @@ func validateBounds(cfg Config) error {
 		{"unlock.sets_per_unlock", int64(cfg.Unlock.SetsPerUnlock), maxUnlockSets},
 		{"unlock.stages", int64(cfg.Unlock.Stages), maxUnlockSets},
 		{"unlock.start_sets", int64(cfg.Unlock.StartSets), maxUnlockSets},
+		{"catch_up_days", int64(cfg.CatchUpDays), maxCatchUpDays},
 	}
 	for i, entry := range cfg.Energy.CostTable {
 		checks = append(checks, struct {

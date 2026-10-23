@@ -237,6 +237,25 @@ coins into cards without an NPC.
   startup.
 - **Bulk sale:** "sell everything above the playset" in one click.
 
+In the game, the Counter's rules live in `play.Game`, with no page of their own yet:
+- **Coins:** a new game starts with the welcome bonus. A save from before coins existed gets it too.
+- **Selling:** any copy, the only one included, or every copy above a playset of the cards of a set's
+  binder, foils kept longest. A sale never locks a set again, see
+  [ADR-0054](adr/0054-a-binder-past-the-threshold-unlocks-random-sets-of-the-next-stage-once.md).
+- **Buying:** one copy of a card in stock, missing or not, if a set that is unlocked holds it in its
+  binder. A purchase that fills a binder past the threshold unlocks sets, as an opening does.
+- **What the player sees:** the two prices and whether the Counter has a copy, never how many. A
+  card out of stock tells when the Counter last had it, or that it never did, see
+  [ADR-0056](adr/0056-the-counter-remembers-when-it-last-had-a-card.md).
+- **Stock:** the initial stock, then what the player sells and what the Counter's supply and the NPCs
+  bring each day, also while the game is closed, see
+  [ADR-0055](adr/0055-the-game-catches-the-counter-up-on-whole-days-at-most-thirty.md). The game plays
+  the product's base config, see [ADR-0057](adr/0057-the-game-plays-the-products-base-config.md).
+- **Prices:** from `--prices`. Without a snapshot every card is worth the fallback price, one cent, as
+  a card the snapshot lacks is in the simulation, so every card costs one coin and pays one.
+- **Refusals** change nothing: not enough coins, out of stock, nothing to sell, a locked set, an
+  unknown card, or a treasury that cannot pay.
+
 Both prices derive from one reference, so buying a card and selling it back loses half of its
 value at the default rates, and never gains at any rate the configuration accepts. The 60% and 120%
 rates are starting values to calibrate.
@@ -302,8 +321,10 @@ An archetype tied to Magic colours wishes only for cards in those colours.
   It never pays or receives coins. The simulation runs supply and trades, see
   [NPC crowd](simulation.md#npc-crowd) and [Trades](simulation.md#trades).
 - **Time step:** one tick every 10 minutes of game time.
-- **Offline catch-up:** at launch, the elapsed time is simulated at once, capped at 48 h, in batches
-  with grouped writes. While the app is open, the simulation runs on its tick in the same process.
+- **Offline catch-up:** the whole days gone by are simulated when the game loads or the Counter is
+  used, capped at `catch_up_days`, see
+  [ADR-0055](adr/0055-the-game-catches-the-counter-up-on-whole-days-at-most-thirty.md). The game's
+  NPCs do not trade yet.
 - **Coin ledger:** double-entry, covers the player and the Counter. NPCs have no account.
 - **Volume:** 500 NPCs × 10 boosters a day ≈ 75,000 cards drawn a day, stored in SQLite.
 
