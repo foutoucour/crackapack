@@ -363,7 +363,10 @@ The stack is server-rendered `html/template`, see
 - [x] The collection: one binder per set at `/collection`, every card but the basic lands in
   collector number order with the empty slots greyed, progress overall and by rarity, complete
   playsets, the copies held by finish, a filter on rarity, a click to see a card big, and the
-  timeshifted cards in Time Spiral's binder, counted in its progress. Left: the collection's value, the card page, filters, selling the
+  timeshifted cards in Time Spiral's binder, counted in its progress. Stats: an overview at the top
+  (cards held, binders complete, sets unlocked), the progress of each binder by colour, and a mark on
+  a binder past the unlock threshold, see [Collection and binders](core-features.md#collection-and-binders).
+  Left: the collection's value, the card page, filters (colour among them), selling the
   duplicates, and the master set (foil as slots of their own).
 - [x] Saves: the collection, the welcome boosters left, the energy and the booster stream are saved
   to one JSON file after every opening and loaded on start, and the energy recharges for the time the

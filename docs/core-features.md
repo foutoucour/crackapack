@@ -154,6 +154,15 @@ printing: the same card in two sets counts as two cards.
   binder with it.
 - **Progress shown:** cards owned / total, by rarity and for the whole set, plus complete playsets
   (4 copies of a card, the reference unit in Magic).
+- **Progress by colour:** the same count in eight groups, white, blue, black, red, green, gold (two
+  colours or more), colourless and land. A card is in one group only, and a land is a land whatever
+  its colour. A group the set has no card in is left out, as a rarity is. The count is of the cards
+  the boosters can draw, as for the binder.
+- **Overview:** at the top of the collection page, the cards held out of the cards of the unlocked
+  sets, the binders complete (every card held) and the sets unlocked out of all of them. Locked sets
+  do not count in the cards, since they cannot be played yet.
+- **Unlock mark:** a binder that has reached the [unlock threshold](#stages) says so. The mark stays
+  when cards are sold, as the unlocks do. The page shows stats only: it gives no reward.
 - **Basic lands** are excluded from totals, progress and milestones. The Ravnica and Time Spiral
   basics only come as foils, so counting them would make a complete binder nearly impossible.
 - **Master set:** every card in normal and foil, plus the variants present in the booster. The exact

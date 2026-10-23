@@ -645,6 +645,28 @@ func TestLoadCardPool_acceptsMythicRarity(t *testing.T) {
 	}
 }
 
+func TestLoadCardPool_readsWhichCardsAreLands(t *testing.T) {
+	t.Parallel()
+
+	fsys := fstest.MapFS{"pool.json": &fstest.MapFile{Data: []byte(
+		`{"data":{"code":"MRD","name":"Mirrodin","cards":[` +
+			`{"uuid":"spell","name":"Spell","number":"1","rarity":"common","finishes":["nonfoil"],"types":["Instant"],"supertypes":[],"identifiers":{}},` +
+			`{"uuid":"land","name":"Cloudpost","number":"2","rarity":"common","finishes":["nonfoil"],"types":["Land"],"supertypes":[],"identifiers":{}},` +
+			`{"uuid":"arbor","name":"Dryad Arbor","number":"3","rarity":"common","finishes":["nonfoil"],"types":["Land","Creature"],"supertypes":[],"colors":["G"],"identifiers":{}}` +
+			`]}}`,
+	)}}
+
+	cat, err := domain.LoadCardPool(fsys, "pool.json")
+	if err != nil {
+		t.Fatalf("LoadCardPool: %v", err)
+	}
+	for id, want := range map[domain.CardID]bool{"spell": false, "land": true, "arbor": true} {
+		if got := cat.Cards[id].IsLand; got != want {
+			t.Errorf("card %q: IsLand = %v, want %v", id, got, want)
+		}
+	}
+}
+
 // TestLoad_etchedFinishIsRemappedToFoil verifies that cards with finish "etched" (introduced in
 // 2021 sets like NEO, SNC, VOW) load successfully from both LoadSetCatalogue and LoadCardPool.
 // The loader remaps "etched" to FinishFoil so that collection counting and pricing work without

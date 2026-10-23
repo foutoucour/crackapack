@@ -161,3 +161,26 @@ func TestBuild_colouredCrowdWishesOnlyForInScopeCards(t *testing.T) {
 		}
 	}
 }
+
+// TestBuild_demoBindersHaveEveryColourGroupSoTheCollectionStatsShowThemAll checks that a demo
+// binder counts a card in each of the eight colour groups the collection page lists, as `play
+// --demo` is where a player sees them.
+func TestBuild_demoBindersHaveEveryColourGroupSoTheCollectionStatsShowThemAll(t *testing.T) {
+	t.Parallel()
+	ds := demo.Build()
+
+	for _, file := range []string{"DEM.json", "DSP.json"} {
+		cat, err := domain.LoadSetCatalogue(ds.Files, file)
+		if err != nil {
+			t.Fatalf("LoadSetCatalogue %s: %v", file, err)
+		}
+
+		got := domain.NewCollection().BinderProgress(cat).ByColour
+
+		for _, group := range domain.ColourGroups() {
+			if got[group].Total == 0 {
+				t.Errorf("%s has no card in the %q colour group: %+v", file, group, got)
+			}
+		}
+	}
+}

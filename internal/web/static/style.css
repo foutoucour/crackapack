@@ -181,6 +181,12 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .site-nav a { color: var(--text-muted); text-decoration: none; margin-right: var(--gap); }
 .site-nav a:hover { color: var(--text); }
 
+/* The overview is one line of figures above the switcher, so that the long list of binders stays below. */
+.overview dl { display: flex; flex-wrap: wrap; gap: 0.25rem var(--gap); margin: 0; color: var(--text-muted); }
+.overview dl div { display: flex; gap: 0.4rem; }
+.overview dt, .overview dd { margin: 0; }
+.overview dd { color: var(--text); font-weight: 700; }
+
 .binders ul { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; margin: var(--gap) 0; padding: 0; }
 .binders a { display: inline-block; padding: 0.4rem 0.9rem; border: 1px solid var(--text-muted); border-radius: 999px; color: var(--text); text-decoration: none; }
 .binders a[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
@@ -196,6 +202,9 @@ progress { width: min(100%, 24rem); height: 1rem; accent-color: var(--accent); }
 .rarities a[aria-current="true"] { background: var(--text); border-color: var(--text); color: var(--bg); }
 .rarities .playsets { margin-left: 0.75rem; }
 .rarities strong { font-weight: 700; }
+.colours ul { list-style: none; display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin: 0.5rem 0 0; padding: 0; color: var(--text-muted); }
+.colours strong { color: var(--text); font-weight: 700; }
+.unlock-mark { margin: 0; padding: 0.15rem 0.6rem; border: 1px solid var(--accent); border-radius: 999px; color: var(--accent); font-size: 0.9rem; }
 h2 { margin: 1.5rem 0 0; }
 
 /* The binder is a grid of cards at the proportions of a card: owned ones show up, the others are

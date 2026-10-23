@@ -10,8 +10,8 @@ solo, local game. It is a personal project, published for anyone who wants to ru
 
 Pre-alpha. The simulation MVP exists, with NPCs that open boosters and supply the Counter. The
 first UI lets you open the ten welcome boosters, then more for energy that recharges by itself, and
-browse your collection, one binder per set. It plays every set in scope, unlocked in stages as your
-binders fill. The game is saved after every opening, so a restart picks it up where it was. The
+browse your collection, one binder per set, with the progress overall, by rarity and by colour. It
+plays every set in scope, unlocked in stages as your binders fill. The game is saved after every opening, so a restart picks it up where it was. The
 following are not built yet: the Counter and trades in the UI, coins in the game, and catalogue sync.
 
 ## Open your first boosters

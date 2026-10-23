@@ -2,6 +2,7 @@ package play_test
 
 import (
 	"errors"
+	"slices"
 	"sort"
 	"strconv"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/foutoucour/crackapack/internal/domain"
 	"github.com/foutoucour/crackapack/internal/domain/domaintest"
 	"github.com/foutoucour/crackapack/internal/play"
+	"github.com/foutoucour/crackapack/internal/play/playtest"
 )
 
 func nonBasicCount(cat domain.SetCatalogue) int {
@@ -321,5 +323,90 @@ func TestBinder_refusesAnUnknownSet(t *testing.T) {
 
 	if _, err := g.Binder("NOPE"); !errors.Is(err, play.ErrUnknownSet) {
 		t.Fatalf("Binder(NOPE) error = %v, want ErrUnknownSet", err)
+	}
+}
+
+func TestOverviewOf_countsTheUnlockedSetsAndTheBindersThatAreComplete(t *testing.T) {
+	t.Parallel()
+	summary := func(owned, total int, locked bool) play.BinderSummary {
+		return play.BinderSummary{Progress: domain.Progress{Owned: owned, Total: total}, Locked: locked}
+	}
+	tests := []struct {
+		name    string
+		binders []play.BinderSummary
+		want    play.Overview
+	}{
+		{name: "no binders", want: play.Overview{}},
+		{
+			name:    "cards of the unlocked sets only, and the sets unlocked out of all",
+			binders: []play.BinderSummary{summary(3, 10, false), summary(10, 10, false), summary(7, 20, true)},
+			want:    play.Overview{Owned: 13, Total: 20, BindersComplete: 1, SetsUnlocked: 2, SetsTotal: 3},
+		},
+		{
+			name:    "a binder one card short is not complete",
+			binders: []play.BinderSummary{summary(9, 10, false)},
+			want:    play.Overview{Owned: 9, Total: 10, SetsUnlocked: 1, SetsTotal: 1},
+		},
+		{
+			name:    "a binder with nothing to collect is not complete",
+			binders: []play.BinderSummary{summary(0, 0, false)},
+			want:    play.Overview{SetsUnlocked: 1, SetsTotal: 1},
+		},
+		{
+			name:    "a locked binder is not counted complete",
+			binders: []play.BinderSummary{summary(5, 5, true)},
+			want:    play.Overview{SetsTotal: 1},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := play.OverviewOf(tc.binders); got != tc.want {
+				t.Errorf("OverviewOf = %+v, want %+v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestBinders_markTheBindersThatPassedTheUnlockThresholdAndAReloadKeepsTheMark(t *testing.T) {
+	t.Parallel()
+	// A gives its whole binder in one booster, F does not.
+	rules := play.StageRules{Threshold: 1, SetsPerUnlock: 1, Stages: 1, StartSets: 2}
+	store := newFileStore(t)
+	g := stagedSaved(t, store, rules, 3, oneShot()...)
+	passed := func(g *play.Game) []string {
+		var out []string
+		for _, b := range g.Binders() {
+			if b.PastThreshold {
+				out = append(out, b.SetCode)
+			}
+		}
+		return out
+	}
+	if got := passed(g); len(got) != 0 {
+		t.Fatalf("binders marked before any booster = %v, want none", got)
+	}
+
+	mustOpen(t, g, "A")
+
+	if got := passed(g); !slices.Equal(got, []string{"A"}) {
+		t.Errorf("binders marked after A's booster = %v, want [A]", got)
+	}
+	binder, err := g.Binder("A")
+	if err != nil || !binder.PastThreshold {
+		t.Errorf("Binder(A).PastThreshold = %v (err %v), want true", binder.PastThreshold, err)
+	}
+	if got := passed(stagedSaved(t, store, rules, 3, oneShot()...)); !slices.Equal(got, []string{"A"}) {
+		t.Errorf("binders marked after a reload = %v, want [A]", got)
+	}
+}
+
+func TestBinders_aGameWithoutStagesHasNoUnlockThresholdToPass(t *testing.T) {
+	t.Parallel()
+	g := newGame(t, playtest.TinySet("A", 1, 1))
+	mustOpen(t, g, "A")
+
+	if b := g.Binders()[0]; b.Progress.Owned != 1 || b.PastThreshold {
+		t.Errorf("binder = %+v, want it complete and not marked: there is no threshold", b)
 	}
 }

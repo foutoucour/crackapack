@@ -110,10 +110,10 @@ func TestLoadScope_aDirectoryWithNoSetInScopeIsAnError(t *testing.T) {
 	}
 }
 
-// The demo plays every set in scope in stages small enough that a few boosters unlock the next one.
-func TestRunPlay_theDemoUnlocksTheNextSetInAFewBoosters(t *testing.T) {
-	t.Parallel()
-	base := servePlay(t, demoPlayArgs(t))
+// openUntilUnlock opens boosters of the demo's open set until one unlocks the other, and returns
+// the code of the set it opened. The demo's stages are small enough that a few boosters do it.
+func openUntilUnlock(t *testing.T, base string) string {
+	t.Helper()
 	client := &http.Client{}
 
 	resp, err := client.Get(base + "/")
@@ -137,10 +137,37 @@ func TestRunPlay_theDemoUnlocksTheNextSetInAFewBoosters(t *testing.T) {
 		}
 		if pack := readAll(t, resp); strings.Contains(pack, "Unlocked") {
 			t.Logf("unlocked after %d boosters", i+1)
-			return
+			return first
 		}
 	}
-	t.Errorf("%d boosters of %s did not unlock %s", fewBoosters, first, lockedSet)
+	t.Fatalf("%d boosters of %s did not unlock %s", fewBoosters, first, lockedSet)
+	return ""
+}
+
+// The demo plays every set in scope in stages small enough that a few boosters unlock the next one.
+func TestRunPlay_theDemoUnlocksTheNextSetInAFewBoosters(t *testing.T) {
+	t.Parallel()
+	openUntilUnlock(t, servePlay(t, demoPlayArgs(t)))
+}
+
+// The collection page of the demo shows the overview, the progress by colour and the mark of the
+// binder that unlocked a set, so a player sees every part of the stats.
+func TestRunPlay_theDemoCollectionShowsTheStats(t *testing.T) {
+	t.Parallel()
+	base := servePlay(t, demoPlayArgs(t))
+	first := openUntilUnlock(t, base)
+
+	page := getBody(t, base+"/collection?set="+first)
+
+	for _, want := range []string{
+		"Cards held", "Binders complete", "<dt>Sets unlocked</dt><dd>2 / 2</dd>", "Unlock threshold reached", `aria-label="Progress by colour"`,
+		"<li>White ", "<li>Blue ", "<li>Black ", "<li>Red ", "<li>Green ", "<li>Gold ", "<li>Colourless ", "<li>Land ",
+		`aria-label="Filter by rarity"`, "Mythic ",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the demo collection page lacks %q:\n%s", want, page)
+		}
+	}
 }
 
 // TestCmdPlay_aCatalogueDirectoryAlonePlaysEverySetInStages runs the command as the player does:

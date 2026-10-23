@@ -135,6 +135,12 @@ func (g *Game) locked(code string) bool {
 	return g.staging != nil && !g.staging.unlocked[code]
 }
 
+// pastThreshold reports whether the binder of code has reached the unlock threshold. It is the
+// binder that unlocked sets, not what it holds now: an unlock is permanent. g.mu must be held.
+func (g *Game) pastThreshold(code string) bool {
+	return g.staging != nil && g.staging.triggered[code]
+}
+
 // stage is the 1-based stage of code, and 0 in a game without stages. g.mu must be held.
 func (g *Game) stage(code string) int {
 	if g.staging == nil {

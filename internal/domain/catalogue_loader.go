@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"slices"
 	"sort"
 	"time"
 )
@@ -38,6 +39,7 @@ type mtgCard struct {
 	Number     string   `json:"number"`
 	Rarity     string   `json:"rarity"`
 	Finishes   []string `json:"finishes"`
+	Types      []string `json:"types"`
 	Supertypes []string `json:"supertypes"`
 	Colors     []string `json:"colors"`
 	// Identifiers is an inline struct matching the MTGJSON identifiers object.
@@ -202,6 +204,7 @@ func parseSetCards(d mtgSetData, name string) (map[CardID]Card, error) {
 		}
 
 		cards[id] = Card{
+			IsLand:      slices.Contains(mc.Types, "Land"),
 			ID:          id,
 			Name:        mc.Name,
 			Number:      mc.Number,

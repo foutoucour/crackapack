@@ -157,3 +157,83 @@ func TestCollection_filteringOnCommonHidesTheTimeshiftedSection(t *testing.T) {
 		t.Errorf("a section with no slot left is still shown:\n%s", body)
 	}
 }
+
+// coloursSet is six commons, one a gold card, one colourless, one a land and two white.
+func coloursSet() domain.SetCatalogue {
+	cat := playtest.TinySet("M", 6, 6)
+	for id, colours := range map[domain.CardID][]string{"M-00": {"W"}, "M-01": {"U", "B"}, "M-04": {"W"}, "M-05": {"G"}} {
+		card := cat.Cards[id]
+		card.Colors = colours
+		cat.Cards[id] = card
+	}
+	land := cat.Cards["M-03"]
+	land.IsLand = true
+	cat.Cards["M-03"] = land
+	return cat
+}
+
+func TestCollection_showsTheProgressByColourWithTextLabelsAndLeavesOutTheEmptyGroups(t *testing.T) {
+	t.Parallel()
+	srv, c := newServer(t, coloursSet())
+
+	_, empty := get(t, c, srv.URL+"/collection")
+	openPack(t, c, srv.URL, "M")
+	_, full := get(t, c, srv.URL+"/collection")
+
+	for _, want := range []string{
+		`aria-label="Progress by colour"`,
+		`<li>White <strong>0 / 2</strong></li>`, `<li>Green <strong>0 / 1</strong></li>`, `<li>Gold <strong>0 / 1</strong></li>`,
+		`<li>Colourless <strong>0 / 1</strong></li>`, `<li>Land <strong>0 / 1</strong></li>`,
+	} {
+		if !strings.Contains(empty, want) {
+			t.Errorf("the binder lacks %q:\n%s", want, empty)
+		}
+	}
+	for _, absent := range []string{"Blue", "Black", "Red"} {
+		if strings.Contains(empty, "<li>"+absent+" ") {
+			t.Errorf("the binder lists %s, which no card of the set is", absent)
+		}
+	}
+	if !strings.Contains(full, `<li>White <strong>2 / 2</strong></li>`) {
+		t.Errorf("after a booster of the whole binder White is not 2 / 2:\n%s", full)
+	}
+}
+
+func TestCollection_showsTheOverviewAtTheTopOfThePage(t *testing.T) {
+	t.Parallel()
+	srv, c := stagedServer(t)
+
+	_, before := get(t, c, srv.URL+"/collection")
+	openPack(t, c, srv.URL, "A")
+	_, after := get(t, c, srv.URL+"/collection")
+
+	for body, want := range map[string][]string{
+		before: {`<dt>Cards held</dt><dd>0 / 1</dd>`, `<dt>Binders complete</dt><dd>0</dd>`, `<dt>Sets unlocked</dt><dd>1 / 3</dd>`},
+		after:  {`<dt>Cards held</dt><dd>1 / 3</dd>`, `<dt>Binders complete</dt><dd>1</dd>`, `<dt>Sets unlocked</dt><dd>2 / 3</dd>`},
+	} {
+		for _, w := range want {
+			if !strings.Contains(body, w) {
+				t.Errorf("the overview lacks %q:\n%s", w, body)
+			}
+		}
+		if overview, nav := strings.Index(body, `aria-label="Collection overview"`), strings.Index(body, `<nav class="binders"`); overview < 0 || overview > nav {
+			t.Errorf("the overview is not above the binders:\n%s", body)
+		}
+	}
+}
+
+func TestCollection_marksOnlyTheBinderThatPassedTheUnlockThreshold(t *testing.T) {
+	t.Parallel()
+	srv, c := stagedServer(t)
+	openPack(t, c, srv.URL, "A")
+
+	_, passed := get(t, c, srv.URL+"/collection?set=A")
+	_, other := get(t, c, srv.URL+"/collection?set=B")
+
+	if !strings.Contains(passed, "Unlock threshold reached") {
+		t.Errorf("the binder of A, which unlocked B, is not marked:\n%s", passed)
+	}
+	if strings.Contains(other, "Unlock threshold reached") {
+		t.Errorf("the binder of B is marked, and it has not reached the threshold:\n%s", other)
+	}
+}

@@ -8,14 +8,18 @@ import (
 )
 
 type collectionView struct {
+	Overview play.Overview
 	Tabs     []tabView
 	SetName  string
 	Owned    int
 	Total    int
 	Playsets int
-	Filters  []filterView
-	Slots    []slotView
-	Pools    []poolView
+	// PastThreshold marks a binder that has reached the unlock threshold.
+	PastThreshold bool
+	Filters       []filterView
+	Colours       []groupView
+	Slots         []slotView
+	Pools         []poolView
 }
 
 // tabView is one entry of the switcher between binders.
@@ -38,6 +42,13 @@ type filterView struct {
 	Total   int
 	Counted bool
 	Current bool
+}
+
+// groupView is what the player holds of one colour group of the binder.
+type groupView struct {
+	Label string
+	Owned int
+	Total int
 }
 
 // poolView is a section of the binder that comes from another catalogue, such as the timeshifted
@@ -71,11 +82,13 @@ func binderRarities() []domain.Rarity {
 // rarity, while the progress stays the whole binder's.
 func newCollectionView(binder play.Binder, binders []play.BinderSummary, rarity string) collectionView {
 	view := collectionView{
-		SetName:  binder.SetName,
-		Owned:    binder.Progress.Owned,
-		Total:    binder.Progress.Total,
-		Playsets: binder.Progress.Playsets,
-		Slots:    newSlotViews(binder.Slots, rarity),
+		Overview:      play.OverviewOf(binders),
+		SetName:       binder.SetName,
+		Owned:         binder.Progress.Owned,
+		Total:         binder.Progress.Total,
+		Playsets:      binder.Progress.Playsets,
+		PastThreshold: binder.PastThreshold,
+		Slots:         newSlotViews(binder.Slots, rarity),
 	}
 	for _, pool := range binder.Pools {
 		if slots := newSlotViews(pool.Slots, rarity); len(slots) > 0 {
@@ -97,6 +110,11 @@ func newCollectionView(binder play.Binder, binders []play.BinderSummary, rarity 
 				Label: rarityLabel(r), Href: collectionHref(binder.SetCode, string(r)),
 				Owned: p.Owned, Total: p.Total, Counted: true, Current: string(r) == rarity,
 			})
+		}
+	}
+	for _, g := range domain.ColourGroups() {
+		if p, ok := binder.Progress.ByColour[g]; ok {
+			view.Colours = append(view.Colours, groupView{Label: colourGroupLabel(g), Owned: p.Owned, Total: p.Total})
 		}
 	}
 	return view
@@ -128,6 +146,29 @@ func newSlotViews(cards []play.BinderCard, rarity string) []slotView {
 		})
 	}
 	return out
+}
+
+func colourGroupLabel(g domain.ColourGroup) string {
+	switch g {
+	case domain.ColourWhite:
+		return "White"
+	case domain.ColourBlue:
+		return "Blue"
+	case domain.ColourBlack:
+		return "Black"
+	case domain.ColourRed:
+		return "Red"
+	case domain.ColourGreen:
+		return "Green"
+	case domain.ColourGold:
+		return "Gold"
+	case domain.ColourColourless:
+		return "Colourless"
+	case domain.ColourLand:
+		return "Land"
+	default:
+		return string(g)
+	}
 }
 
 func rarityLabel(r domain.Rarity) string {

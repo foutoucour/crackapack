@@ -29,6 +29,7 @@ type exportCard struct {
 	Number      string            `json:"number"`
 	Rarity      string            `json:"rarity"`
 	Finishes    []string          `json:"finishes"`
+	Types       []string          `json:"types,omitempty"`
 	Supertypes  []string          `json:"supertypes"`
 	Colors      []string          `json:"colors,omitempty"`
 	Identifiers exportIdentifiers `json:"identifiers"`
@@ -193,6 +194,11 @@ func buildExportCards(cat domain.SetCatalogue) []exportCard {
 			supertypes = []string{"Basic"}
 		}
 
+		var types []string
+		if c.IsLand {
+			types = []string{"Land"}
+		}
+
 		finishes := make([]string, len(c.Finishes))
 		for i, f := range c.Finishes {
 			finishes[i] = string(f)
@@ -204,6 +210,7 @@ func buildExportCards(cat domain.SetCatalogue) []exportCard {
 			Number:     c.Number,
 			Rarity:     string(c.Rarity),
 			Finishes:   finishes,
+			Types:      types,
 			Supertypes: supertypes,
 			Colors:     c.Colors, // omitempty handles nil/empty
 			Identifiers: exportIdentifiers{

@@ -1,5 +1,13 @@
 {{define "title"}}Your collection{{end}}
 {{define "content"}}
+<section class="overview" aria-label="Collection overview">
+  <dl>
+    <div><dt>Cards held</dt><dd>{{.Overview.Owned}} / {{.Overview.Total}}</dd></div>
+    <div><dt>Binders complete</dt><dd>{{.Overview.BindersComplete}}</dd></div>
+    <div><dt>Sets unlocked</dt><dd>{{.Overview.SetsUnlocked}} / {{.Overview.SetsTotal}}</dd></div>
+  </dl>
+</section>
+
 <nav class="binders" aria-label="Binders">
   <ul>
     {{range .Tabs}}
@@ -12,6 +20,7 @@
 <div class="progress-line">
   <progress value="{{.Owned}}" max="{{.Total}}" aria-label="Cards collected">{{.Owned}} / {{.Total}}</progress>
   <p class="lead">{{.Owned}} / {{.Total}} cards</p>
+  {{if .PastThreshold}}<p class="unlock-mark">Unlock threshold reached</p>{{end}}
 </div>
 <nav class="rarities" aria-label="Filter by rarity">
   <ul>
@@ -21,6 +30,16 @@
     <li class="playsets">Complete playsets <strong>{{.Playsets}}</strong></li>
   </ul>
 </nav>
+
+{{if .Colours}}
+<section class="colours" aria-label="Progress by colour">
+  <ul>
+    {{range .Colours}}
+    <li>{{.Label}} <strong>{{.Owned}} / {{.Total}}</strong></li>
+    {{end}}
+  </ul>
+</section>
+{{end}}
 
 {{if .Slots}}{{template "slots" .Slots}}{{end}}
 
