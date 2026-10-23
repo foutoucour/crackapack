@@ -9,16 +9,25 @@ solo, local game. It is a personal project, published for anyone who wants to ru
 ## Status
 
 Pre-alpha. The simulation MVP exists, with NPCs that open boosters and supply the Counter. The
-first UI lets you open the ten welcome boosters, then more for energy that recharges by itself, and
-browse your collection, one binder per set, with the progress overall, by rarity and by colour. It
-plays every set in scope, unlocked in stages as your binders fill. The game is saved after every
-opening, so a restart picks it up where it was. The game has coins and a Counter that stocks itself
-each day, also while the game is closed. You trade at it from the binders: the coins show in the
-header, a held card sells for its price, a missing one is bought when the Counter has a copy, and the
-duplicates above a playset sell in one click. The game's NPCs trade with you on a market: ask around
-for a card and they answer with their prices, list a card and they make offers, each at the pace of
-its personality, some at once and some the next day. The market has no page yet. The following are
-not built yet: the market's pages, and catalogue sync.
+game is playable over several days in the browser, with `crackapack play`:
+
+- You open the ten welcome boosters, then more for energy that recharges by itself, also while the
+  game is closed. The game is saved after every action, so a restart picks it up where it was.
+- It plays every set in scope, unlocked in stages as your binders fill.
+- You browse your collection, one binder per set, with the progress overall, by rarity and by
+  colour, and the collection stats on top.
+- The game has coins and a Counter that stocks itself each day. You trade at it from the binders: a
+  held card sells for its price, a missing one is bought when the Counter has a copy, and the
+  duplicates above a playset sell in one click.
+- The game's NPCs trade with you on a market. From an empty slot you ask around, and the NPCs that
+  have the card answer with their prices; from a held card you list it, and the NPCs that want it make
+  offers. You accept, counter once or decline, on the binder or on the Market page, and the header
+  counts the answers waiting. Each NPC answers at the pace of its personality, some at once and some
+  the next day.
+
+Not built yet: quests, rewards and milestones, with milestones as named groups of cards such as the
+Urzatron, the coin top-up for energy, catalogue sync, packaging, and a simulation of the market's
+effect on the economy. See the [TODO](docs/todo.md).
 
 ## Open your first boosters
 
@@ -29,7 +38,9 @@ files or network required. The demo cards are drawn as placeholders:
 go run ./cmd/crackapack play --demo
 ```
 
-Then open the address it prints. With real catalogues from `fetchdata`, pass
+Then open the address it prints. The demo lets you try the market in a minute: on an empty slot of the
+binder press Ask around, one NPC answers at once and others later, and after opening a booster you can
+list its rare from the binder and get an offer at once. With real catalogues from `fetchdata`, pass
 `--catalogue-dir ./catalogues --prices ./prices.json` instead of `--demo`. That plays every set of
 the directory in scope, from Mirage on, in [stages](docs/core-features.md#stages): a few sets are
 open at the start, and a binder filled to 90% unlocks three more. Add

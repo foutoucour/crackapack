@@ -63,6 +63,8 @@
 </section>
 {{end}}
 
+{{if .Market}}<p id="price-hint" class="counter-note">A listing's asking price starts at what the Counter sells the card for. Change it as you like.</p>{{end}}
+
 {{if .Slots}}{{template "slots" .Slots}}{{end}}
 
 {{range .Pools}}
@@ -116,6 +118,32 @@
       {{if .Price}}<p class="shelf-price">{{coins .Price}}</p>{{end}}
       <p class="shelf-note">{{.Note}}</p>
       {{end}}
+      {{end}}
+      {{end}}
+    </div>
+    {{end}}
+    {{if or .Hunt .Lists}}
+    <div class="market">
+      {{with .Hunt}}
+      {{if .Request}}
+      {{template "request" .Request}}
+      {{else}}
+      <form method="post" action="/ask-around">
+        {{template "cardFields" .}}
+        <button type="submit">Ask around<span class="sr-only"> for {{$slot.Name}}</span></button>
+      </form>
+      {{end}}
+      {{end}}
+      {{range .Lists}}
+      {{if .Listing}}
+      {{template "listing" .Listing}}
+      {{else}}
+      {{if .Held}}<p class="shelf-note">{{.Held}} held for a counter{{if .Foil}} (foil){{end}}</p>{{end}}
+      <form method="post" action="/list" class="list">
+        {{template "cardFields" .}}
+        <label>Asking price<span class="sr-only"> for {{$slot.Name}}{{if .Foil}} (foil){{end}}</span> <input type="number" name="price" value="{{if .Price}}{{.Price}}{{end}}" min="1" inputmode="numeric" aria-describedby="price-hint"></label>
+        <button type="submit">List<span class="sr-only"> {{$slot.Name}}</span> on the market</button>
+      </form>
       {{end}}
       {{end}}
     </div>

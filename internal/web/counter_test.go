@@ -68,6 +68,12 @@ func newCounterShop(t *testing.T) counterShop {
 // newShop serves a game with a Counter on sets, cut into stages by stage unless it is nil.
 func newShop(t *testing.T, stage *play.StageRules, sets ...domain.SetCatalogue) counterShop {
 	t.Helper()
+	return newShopWith(t, stage, counterRules(), sets...)
+}
+
+// newShopWith is newShop under rules.
+func newShopWith(t *testing.T, stage *play.StageRules, rules play.CounterRules, sets ...domain.SetCatalogue) counterShop {
+	t.Helper()
 	clock := playtest.NewClock()
 	game, err := play.NewGame(sets, nil, newOpener(), playtest.Rules(sets...), clock.Now)
 	if err != nil {
@@ -78,7 +84,7 @@ func newShop(t *testing.T, stage *play.StageRules, sets ...domain.SetCatalogue) 
 			t.Fatalf("Stage: %v", err)
 		}
 	}
-	if err := game.OpenCounter(counterRules(), play.NewStream(7), play.NewStream(8)); err != nil {
+	if err := game.OpenCounter(rules, play.NewStream(7), play.NewStream(8)); err != nil {
 		t.Fatalf("OpenCounter: %v", err)
 	}
 	srv, c, _ := serve(t, game, fakeImages{})
@@ -124,10 +130,11 @@ func sellForm(card string, qty string) url.Values {
 	return f
 }
 
-// slot is the part of body about the card id: its entry of the binder.
+// slot is the part of body about the card id: its entry of the binder, which ends where the next
+// entry or the binder does, since the market lists the answers inside it.
 func slot(t *testing.T, body, id string) string {
 	t.Helper()
-	m := regexp.MustCompile(`(?s)<li class="entry" id="c-` + id + `">.*?</li>`).FindString(body)
+	m := regexp.MustCompile(`(?s)<li class="entry" id="c-` + id + `">.*?</li>\s*(?:<li class="entry"|</ol>)`).FindString(body)
 	if m == "" {
 		t.Fatalf("the page has no entry for %s:\n%s", id, body)
 	}

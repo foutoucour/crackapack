@@ -329,9 +329,11 @@ run today. The other two wait for features that are not built. The
 
 ### NPC state in the real app
 
-These need the SQLite store, which does not exist yet.
+The game keeps its NPCs in its JSON file for now. These need the SQLite store, which does not exist
+yet.
 
-- [ ] NPC generation on first launch, with the seed stored.
+- [x] NPC generation on first launch, with the seed stored: the game draws its NPCs from the saved
+  seed and config, see [ADR-0061](adr/0061-the-npcs-are-saved-in-the-games-file-in-a-compact-form.md).
 - [ ] NPC collections stored as quantities, with an index on (printing, NPC), see
   [Technical](specs-review.md#technical).
 - [ ] Offline catch-up in batches with grouped writes. The game replays the missed days in memory, up
@@ -383,8 +385,9 @@ The stack is server-rendered `html/template`, see
   to one JSON file after every opening and loaded on start, and the energy recharges for the time the
   game was closed, see
   [ADR-0052](adr/0052-the-game-is-saved-in-one-versioned-json-file.md). A save that fails is shown
-  on every page and logged. Left: export and import from the app, and the state of the steps to
-  come, each added as a field of `play.Snapshot`.
+  on every page and logged. The Counter and the market are saved in it too. Left: export and import
+  from the app, and the state of what comes next (quests, rewards), each added as a field of
+  `play.Snapshot`.
 - [x] Stages: every set in scope with `--sets all`, the default, ranked from the quickest binder to
   the slowest and cut into stages that a binder at 90% unlocks, see
   [Stages](core-features.md#stages). Locked sets are greyed on the home page and marked in the
@@ -405,13 +408,22 @@ The stack is server-rendered `html/template`, see
   screenshot of headless Chrome, with no browser test. Left: buying more copies of a held card (a
   Buy button shows on empty slots only), and a way to see the Counter's prices without opening a
   binder.
-- [x] The market in `play.Game`, with no page yet: ask around for a card and get the NPCs' asking
-  prices, list a card and get their offers in coins or cards, accept, decline or counter once, with
-  answers after each archetype's delay, saved with the game, see
-  [The market](core-features.md#the-market). The real game has a crowd that trades. Left: the pages
-  (the next step), the NPCs' names, an unlock message for a trade that completes a binder while the
-  player is away, offers on a listing from NPCs who come to want the card after it was listed, and
-  a simulation of what the market does to the coins and the Counter's stock.
+- [x] The market in `play.Game`: ask around for a card and get the NPCs' asking prices, list a
+  card and get their offers in coins or cards, accept, decline or counter once, with answers after
+  each archetype's delay, saved with the game, see [The market](core-features.md#the-market). The
+  real game has a crowd that trades.
+- [x] The market in the binders and on `/market`: Ask around on an empty slot with the pending state
+  and the answers as they arrive, List on the market on a held card with its offers and Unlist, a
+  counter page that takes coins and spare cards, a Market page with every request, listing, answer
+  and the latest results, and a badge in the header with the answers waiting. No script is needed.
+  The pages are checked by their HTML in tests, through the demo's handlers with a moved clock, and
+  by a screenshot of headless Chrome. Left: the NPCs' names (an answer shows "NPC 4 (whale)"), a
+  message for a deal that completes a binder while the player is away (the game unlocks the sets
+  but does not tell them), counters that add cards other than the duplicates, a counter on an offer
+  with cards (ADR-0058 asks for coins), offers on a listing from NPCs who come to want the card
+  after it was listed, a lighter binder page (the controls add about 400 bytes a slot, so the
+  largest binders weigh 280 to 330 KB: one form shared by a binder's buttons would cut it), and a
+  simulation of what the market does to the coins and the Counter's stock.
 - [ ] Quests and the profile.
 - [x] Card pictures, downloaded from Scryfall on demand and cached, see
   [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md). The demo draws its own.

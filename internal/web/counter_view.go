@@ -48,6 +48,8 @@ type shelf struct {
 	quotes      counterQuoter
 	// locked is true for the binder of a set that cannot be opened yet: nothing in it can be bought.
 	locked bool
+	// market is the market, which adds its side to the slots. It is nil in a game without one.
+	market *marketIndex
 }
 
 // apply fills the Counter's side of slot, from the card c it shows.
@@ -71,6 +73,9 @@ func (sh shelf) apply(slot *slotView, c play.BinderCard) error {
 			cardRef: sh.ref(c.Card.ID, f.finish),
 			Foil:    f.finish == domain.FinishFoil, Copies: f.held, Price: q.SellPrice, Traded: q.SellPrice > 0,
 		})
+		if sh.market != nil {
+			slot.Lists = append(slot.Lists, sh.market.sale(sh.ref(c.Card.ID, f.finish), f.finish == domain.FinishFoil, q.BuyPrice))
+		}
 	}
 	if slot.Held() || sh.locked {
 		return nil
@@ -84,6 +89,9 @@ func (sh shelf) apply(slot *slotView, c play.BinderCard) error {
 		return fmt.Errorf("price %q: %w", c.Card.ID, err)
 	}
 	slot.Buy = buyView{cardRef: sh.ref(c.Card.ID, finish), Price: q.BuyPrice, Buyable: q.InStock && q.BuyPrice > 0, Note: buyNote(q)}
+	if sh.market != nil {
+		slot.Hunt = sh.market.hunt(sh.ref(c.Card.ID, finish))
+	}
 	return nil
 }
 

@@ -143,7 +143,8 @@ stocks itself each day, also while the game is closed, up to the last 30 days. T
 The game's NPCs open the sets you can open and trade with you on the market: ask around for a card and
 the NPCs that have it ask a price, or list a card and the NPCs that want it make offers in coins or
 cards. Each answers at the pace of its personality, some at once and some the next day, also while
-the game is closed. The market has no page yet.
+the game is closed. Ask around from an empty slot of a binder, list a card from a held one, and
+answer on the Market page, which the header links to with the answers waiting.
 
 Card pictures are downloaded from Scryfall the first time a card shows, one at a time, and kept
 in the user cache directory. A card whose picture cannot be downloaded shows as text. The back of

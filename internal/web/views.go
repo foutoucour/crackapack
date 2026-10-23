@@ -47,6 +47,9 @@ type errorView struct {
 	// BackHref and BackLabel are the way out of the page, the home page when they are empty.
 	BackHref  string
 	BackLabel string
+	// AltHref and AltLabel are a second way out, such as the market page, empty when there is none.
+	AltHref  string
+	AltLabel string
 }
 
 type packView struct {

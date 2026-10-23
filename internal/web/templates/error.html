@@ -2,5 +2,5 @@
 {{define "content"}}
 <h1>Oops</h1>
 <p class="lead" role="alert">{{.Message}}</p>
-<p><a class="button" href="{{or .BackHref "/"}}">{{or .BackLabel "Back to your boosters"}}</a></p>
+<p class="actions"><a class="button" href="{{or .BackHref "/"}}">{{or .BackLabel "Back to your boosters"}}</a>{{with .AltHref}} <a class="button" href="{{.}}">{{$.AltLabel}}</a>{{end}}</p>
 {{end}}

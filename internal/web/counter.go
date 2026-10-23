@@ -185,6 +185,8 @@ func (h *handler) counterFailed(w http.ResponseWriter, err error, ref cardRef) {
 		h.refuse(w, http.StatusConflict, "The Counter does not trade this card.", back)
 	case errors.Is(err, play.ErrNothingToSell):
 		h.refuse(w, http.StatusConflict, "You do not hold that many copies of this card.", back)
+	case errors.Is(err, play.ErrReserved):
+		h.refuseReserved(w, back)
 	case errors.Is(err, play.ErrCounterBroke):
 		h.refuse(w, http.StatusConflict, "The Counter cannot pay for these cards right now.", back)
 	default:
@@ -203,5 +205,5 @@ func (h *handler) shortOfCoins(ref cardRef) string {
 
 // refuse shows message with status, and a link back to the binder at href.
 func (h *handler) refuse(w http.ResponseWriter, status int, message, href string) {
-	h.render(w, status, "error", errorView{Message: message, BackHref: href, BackLabel: backLabel})
+	h.render(w, status, "error", errorView{Message: message, BackHref: href, BackLabel: backLabelOf(href)})
 }

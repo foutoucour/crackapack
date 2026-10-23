@@ -238,6 +238,29 @@ h2 { margin: 1.5rem 0 0; }
 .sale-notice { margin: 0; padding: 0.75rem var(--gap); background: var(--accent); color: var(--accent-text); font-weight: 600; }
 .results .unlock { margin: 0; border-radius: 0; border-top: 1px solid var(--accent-text); }
 
+/* The market: the requests, listings and answers sit under the slot they concern, in the same quiet
+   text as the Counter, and on a page of their own. The badge counts in text, not in colour alone. */
+.market { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; color: var(--text-muted); }
+.market form { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: 0; }
+.market label { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.market input[type="number"] { width: 4.5rem; padding: 0.25rem; font: inherit; }
+.market button, .market .button { padding: 0.3rem 0.6rem; font-size: 0.85rem; }
+.market p { margin: 0; }
+.market .answers, .market-list, .results-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.market .answers strong { color: var(--text); }
+.answer-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.25rem 0 0; }
+.answer-actions form { margin: 0; }
+.market-section { margin: var(--gap) 0; }
+.market-section h3 { margin: 0 0 0.25rem; }
+.market-list > li, .results-list > li { padding: 0.75rem var(--gap); border: 1px solid var(--surface); border-radius: var(--radius); }
+.market-list .answers, .market-list p { color: var(--text); }
+.market-list .shelf-note, .results-list .shelf-note { color: var(--text-muted); }
+.counter-form fieldset { margin: var(--gap) 0; border: 1px solid var(--surface); border-radius: var(--radius); }
+.counter-form label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.counter-form input[type="number"] { width: 6rem; padding: 0.3rem; font: inherit; }
+.lead a { color: var(--accent); }
+.badge { display: inline-block; min-width: 1.4rem; padding: 0 0.4rem; border-radius: 999px; background: var(--accent); color: var(--accent-text); font-size: 0.8rem; font-weight: 700; text-align: center; }
+
 .viewer { border: 0; padding: 0; background: transparent; max-width: none; max-height: none; overflow: visible; }
 .viewer::backdrop { background: rgb(8 9 14 / 85%); }
 .viewer .close { display: block; margin: var(--gap) auto 0; }

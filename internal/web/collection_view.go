@@ -26,6 +26,8 @@ type collectionView struct {
 	Locked     bool
 	Duplicates duplicatesView
 	Notice     noticeView
+	// Market is true in a game with a market, whose controls the slots show.
+	Market bool
 }
 
 // tabView is one entry of the switcher between binders.
@@ -79,6 +81,10 @@ type slotView struct {
 	// for an empty slot. Both are empty in a game without a Counter.
 	Sales []saleView
 	Buy   buyView
+	// Hunt is the market's side of an empty slot, and Lists that of each finish held. Both are
+	// empty in a game without a market, and Hunt in a locked binder.
+	Hunt  *huntView
+	Lists []marketSaleView
 }
 
 // Held reports whether the player holds a copy of the card, in either finish.
@@ -91,10 +97,11 @@ func binderRarities() []domain.Rarity {
 
 // newCollectionView builds the page of binder. rarity, when not empty, keeps only the slots of that
 // rarity, while the progress stays the whole binder's. The slots show the prices of quotes, which
-// is nil in a game without a Counter.
-func newCollectionView(binder play.Binder, binders []play.BinderSummary, rarity string, quotes counterQuoter) (collectionView, error) {
+// is nil in a game without a Counter, and the controls of market, nil in a game without one.
+func newCollectionView(binder play.Binder, binders []play.BinderSummary, rarity string, quotes counterQuoter, market *marketIndex) (collectionView, error) {
 	view := collectionView{
 		Counter:       quotes != nil,
+		Market:        market != nil,
 		Overview:      play.OverviewOf(binders),
 		SetName:       binder.SetName,
 		Owned:         binder.Progress.Owned,
@@ -113,7 +120,7 @@ func newCollectionView(binder play.Binder, binders []play.BinderSummary, rarity 
 		}
 	}
 
-	shelf := shelf{set: binder.SetCode, filter: rarity, quotes: quotes, locked: view.Locked}
+	shelf := shelf{set: binder.SetCode, filter: rarity, quotes: quotes, locked: view.Locked, market: market}
 	var err error
 	if view.Slots, err = newSlotViews(binder.Slots, rarity, shelf); err != nil {
 		return collectionView{}, err

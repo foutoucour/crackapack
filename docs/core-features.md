@@ -307,7 +307,8 @@ The rules above are those of the simulation's Exchange. The game trades on a mar
 In the game the player starts trades, as on Reverb or eBay, see
 [ADR-0058](adr/0058-the-player-trades-on-a-market-of-requests-and-listings.md). The rules live in
 `domain.Market`, and `play.Game` exposes them: `AskAround`, `Withdraw`, `List`, `Unlist`,
-`AcceptAnswer`, `DeclineAnswer`, `CounterAnswer` and `Market`, the view. The pages come next.
+`AcceptAnswer`, `DeclineAnswer`, `CounterAnswer` and `Market`, the view. The pages are in
+`internal/web` and hold no rule: they show what the view returns and call these methods.
 
 - **Hunt:** the player asks around for a card. Every NPC that has it on its shelf answers with its
   asking price, the card's reference value plus its margin, in coins. Asking around for a card of a
@@ -329,6 +330,24 @@ In the game the player starts trades, as on Reverb or eBay, see
 - **What the player sees:** the requests, the listings, the answers with who made them and their
   terms, how many NPCs asked have still to answer a request but not who, and the latest answers that
   ended: accepted, refused, lapsed, or failed because the NPC no longer had its card.
+- **In the binders:** on an empty slot of an open set, next to the Counter's price, an Ask around
+  button. Once asked, the slot says how far the NPCs have answered ("3 NPCs asked, no answer yet",
+  "3 NPCs asked, 1 still to answer"), then shows each answer with who made it, its personality and its
+  asking price, and Accept, Counter and Decline buttons, with Stop asking. On a held card, per
+  finish, a List on the market form with the asking price, which starts at what the Counter sells the
+  card for since the game exposes no other reference. A listed card shows "Listed at 100 coins", its
+  offers with the same three buttons, and Unlist; a card held for a counter says so.
+- **Counter:** a page of its own, `/counter-offer`, reached from an answer. On an asking price it
+  takes coins and, from the spare cards, the copies above a playset that the market does not already
+  hold, the cards to add; on an offer it takes coins only. A counter waiting for its reply shows on
+  the slot and the market page with the time to the reply.
+- **The Market page:** `/market` lists every request, listing and answer, newest first, with the same
+  buttons, and the latest results: bought, sold, refused, lapsed or failed, with how long ago. The
+  header links to it from every page in a game with a market, with the number of answers waiting.
+  After an accept the page it returns to says what was bought or sold, and the sets it unlocked.
+  Refusals keep the player where they were with a message: nobody has the card, already asking, on
+  the market already, not enough coins, held for the market, and the others of
+  [the market's errors](#the-market).
 - **The NPCs:** the game's crowd, its size and how long it keeps its surplus are in the
   [tuning log](tuning-log.md). Its NPCs always trade, whatever `trades.enabled`, the simulation's
   switch, says. They open the sets the player can open,
