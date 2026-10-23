@@ -188,3 +188,55 @@ targets:
     comparison: at_most
     max: 0.0
 `
+
+// TuneConfigYAML is the base config of the demo search: a small crowd, the Counter opening
+// boosters from a treasury, and no coin top-up. The search varies it, see TuneSpaceYAML.
+const TuneConfigYAML = `
+run_days: 30
+seed: 42
+npcs:
+  population: 20
+  surplus_hold_days: 2
+energy:
+  coins_per_energy: 300
+counter_supply:
+  mode: fixed
+  boosters_per_day: 40
+counter_budget:
+  enabled: true
+  initial: 5000000
+  daily_float: 20000
+`
+
+// TuneSpaceYAML is the demo search space: the Counter's supply and stock, its prices and the
+// energy that sets the pace.
+const TuneSpaceYAML = `
+params:
+  - {path: counter_supply.boosters_per_day, type: int, min: 1, max: 40, scale: log}
+  - {path: counter_shelf_days, type: int, min: 0, max: 30}
+  - {path: npcs.population, type: int, min: 0, max: 30}
+  - {path: initial_stock.rare, type: int, min: 0, max: 6}
+  - {path: initial_stock.mythic, type: int, min: 0, max: 6}
+  - {path: daily_reward, type: int, min: 5, max: 200, scale: log}
+  - {path: counter_buy_pct, type: int, min: 100, max: 200}
+  - {path: counter_sell_pct, type: int, min: 40, max: 120}
+  - {path: energy.recharge_per_tick, type: int, min: 1, max: 3}
+  - {path: energy.reserve_cap, type: int, min: 4, max: 20}
+  - {path: "energy.cost_table[1].cost", type: int, min: 3, max: 12}
+`
+
+// TuneGoalsYAML is the demo goals: the pace of each set played alone, at three and at six visits a
+// day, and a Counter whose rares are scarce but not gone. The bands are the product's, see
+// ADR-0040 and ADR-0042.
+const TuneGoalsYAML = `
+scenarios:
+  - {name: pace-3-visits, player: collector, sessions_per_day: 3, sets: [DEM, DSP], supplementary: [DST], per_set: true}
+  - {name: pace-6-visits, player: collector, sessions_per_day: 6, sets: [DEM, DSP], supplementary: [DST], per_set: true}
+goals:
+  - {scenario: pace-3-visits, metric: "days_to_100pct.{set}", comparison: between, min: 10, max: 18}
+  - {scenario: pace-6-visits, metric: "days_to_100pct.{set}", comparison: between, min: 5, max: 9}
+  - {scenario: pace-3-visits, metric: rare_out_of_stock_pct, comparison: between, min: 10, max: 50}
+  - {scenario: pace-3-visits, metric: rare_stock_per_printing, comparison: between, min: 0.5, max: 3}
+  - {scenario: pace-3-visits, metric: sub_coin_cards, comparison: at_most, max: 0}
+  - {scenario: pace-3-visits, metric: daily_reward_commons, comparison: between, min: 3, max: 15}
+`

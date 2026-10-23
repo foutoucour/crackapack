@@ -32,6 +32,11 @@ type Dataset struct {
 	// Images draws a picture for each demo card, by its Scryfall ID, so the demo shows card
 	// pictures without the network.
 	Images images.Source
+	// TuneConfigYAML, TuneSpaceYAML and TuneGoalsYAML are the base config, the search space and
+	// the goals of the demo search.
+	TuneConfigYAML string
+	TuneSpaceYAML  string
+	TuneGoalsYAML  string
 }
 
 // Build constructs the demo dataset from a fixed seed. The result is
@@ -71,5 +76,8 @@ func Build() Dataset {
 		SetCodes:           []string{"DEM", "DSP"},
 		SupplementaryCodes: []string{"DST"},
 		Images:             newCardArt(dem, dsp, dst),
+		TuneConfigYAML:     TuneConfigYAML,
+		TuneSpaceYAML:      TuneSpaceYAML,
+		TuneGoalsYAML:      TuneGoalsYAML,
 	}
 }

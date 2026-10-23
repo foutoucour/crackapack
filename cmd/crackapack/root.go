@@ -29,6 +29,7 @@ func newRootCmd(stdout, stderr io.Writer) *cobra.Command {
 		newSimulateCmd(stdout, stderr),
 		newSweepCmd(stdout, stderr),
 		newCompareCmd(stdout, stderr),
+		newTuneCmd(stdout, stderr),
 		newDemoCmd(stdout, stderr),
 		newPlayCmd(stdout, stderr),
 	)

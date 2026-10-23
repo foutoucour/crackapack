@@ -75,3 +75,21 @@ func TestCmdDemo_invalidRates(t *testing.T) {
 		t.Errorf("error prefix missing; got: %v", err)
 	}
 }
+
+// TestCmdDemo_tuneFlag verifies that --tune runs the demo search and writes its outputs.
+func TestCmdDemo_tuneFlag(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"demo", "--tune", "--out", dir}, &stdout, &stderr); err != nil {
+		t.Fatalf("unexpected error: %v\nstderr: %s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "Best candidates") {
+		t.Errorf("report not found in stdout; got:\n%s", stdout.String())
+	}
+	for _, name := range []string{"candidates.json", "best.yaml", "report.txt"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("%s not written: %v", name, err)
+		}
+	}
+}
