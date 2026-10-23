@@ -60,6 +60,10 @@ type Game struct {
 	packs      map[string]int
 	last       *Opening
 
+	// saves is where the game is kept between runs, see Persist, and saveErr why the latest save failed.
+	saves   Saves
+	saveErr error
+
 	rules  Rules
 	energy *domain.Energy
 	now    Clock
@@ -175,6 +179,7 @@ func (g *Game) Open(setCode string) (Opening, error) {
 	}
 	g.collection.AddBooster(booster)
 	g.last = &opening
+	g.save()
 	return opening, nil
 }
 

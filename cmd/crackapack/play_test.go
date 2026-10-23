@@ -7,13 +7,16 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/foutoucour/crackapack/demo"
 	"github.com/foutoucour/crackapack/internal/config"
 	"github.com/foutoucour/crackapack/internal/images"
+	"github.com/foutoucour/crackapack/internal/play"
 	"github.com/foutoucour/crackapack/internal/play/playtest"
 )
 
@@ -23,28 +26,43 @@ const serveTimeout = 5 * time.Second
 // error is checked, when the test ends.
 func servePlay(t *testing.T, a playArgs) string {
 	t.Helper()
+	base, stop := startPlay(t, a)
+	t.Cleanup(stop)
+	return base
+}
+
+// startPlay is servePlay for a test that stops the server itself, to start another on the same
+// save. stop may be called more than once, and nothing is written to a.stdout once it has returned.
+func startPlay(t *testing.T, a playArgs) (base string, stop func()) {
+	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
 	a.listener = ln
-	a.stdout, a.stderr = io.Discard, io.Discard
+	if a.stdout == nil {
+		a.stdout = io.Discard
+	}
+	a.stderr = io.Discard
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- runPlay(ctx, a) }()
-	t.Cleanup(func() {
-		cancel()
-		select {
-		case err := <-done:
-			if err != nil {
-				t.Errorf("runPlay: %v", err)
+	var once sync.Once
+	stop = func() {
+		once.Do(func() {
+			cancel()
+			select {
+			case err := <-done:
+				if err != nil {
+					t.Errorf("runPlay: %v", err)
+				}
+			case <-time.After(serveTimeout):
+				t.Error("runPlay did not stop after its context was cancelled")
 			}
-		case <-time.After(serveTimeout):
-			t.Error("runPlay did not stop after its context was cancelled")
-		}
-	})
-	return "http://" + ln.Addr().String()
+		})
+	}
+	return "http://" + ln.Addr().String(), stop
 }
 
 // fakeBack is the card back source in place of the download: it answers to the back's ID only.
@@ -65,11 +83,13 @@ func demoPlayArgs(t *testing.T) playArgs {
 	if err != nil {
 		t.Fatalf("load the default configuration: %v", err)
 	}
+	savePath := filepath.Join(t.TempDir(), "save.json")
 	return playArgs{
 		catFS: ds.Files, setCodes: ds.SetCodes, suppCodes: ds.SupplementaryCodes,
 		pricesFS: ds.Files, pricesName: "prices.json",
 		cfg: cfg, now: playtest.NewClock().Now,
 		images: ds.Images, cardBack: fakeBack{data: []byte("back-jpeg")}, seed: 42,
+		savePath: savePath, store: play.NewFileStore(savePath),
 	}
 }
 

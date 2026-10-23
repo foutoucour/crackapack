@@ -44,6 +44,8 @@ func NewHandler(game *play.Game, pics images.Source, log *slog.Logger) http.Hand
 	funcs := template.FuncMap{
 		"energy":   func() energyView { return newEnergyView(h.game.Energy()) },
 		"duration": humanDuration,
+		// A save that failed is told on every page until one goes through.
+		"saveFailed": func() bool { return h.game.SaveError() != nil },
 	}
 	// Each page is parsed together with the layout, since pages define the same blocks.
 	for _, name := range []string{"home", "pack", "collection", "error"} {

@@ -235,3 +235,6 @@ h2 { margin: 1.5rem 0 0; }
   .booster.staged .card.last.facedown { animation: none; }
   .booster.staged .card.last.facedown { box-shadow: 0 0 2rem 0.2rem var(--accent); }
 }
+
+/* A notice under the header, for what the player must not miss, such as a save that failed. */
+.notice { margin: 0; padding: 0.75rem var(--gap); background: var(--accent); color: var(--accent-text); font-weight: 600; }

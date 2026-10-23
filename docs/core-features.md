@@ -55,8 +55,11 @@ hurts yourself.
 - **First launch:** downloads the catalogue, then generates the NPC population.
 - **Welcome bonus:** 200 coins and 10 boosters, split evenly across the sets, the first sets taking
   the remainder.
-- **Saves:** copy the SQLite file, or export/import from the app.
-- **Seed:** the random seed is stored, to replay a simulation and debug it.
+- **Saves:** the game is one JSON file, copy it to back it up, see
+  [ADR-0052](adr/0052-the-game-is-saved-in-one-versioned-json-file.md). The NPC population will need a
+  SQLite file of its own. Export/import from the app is not built.
+- **Seed:** the random seed is stored, to replay a simulation and debug it. A loaded game keeps its
+  saved seed.
 - **Prices:** a snapshot that comes with the catalogue. Prices stay fixed until a new snapshot is
   published, see [Specs review](specs-review.md#positioning-and-decisions).
 

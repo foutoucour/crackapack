@@ -54,3 +54,39 @@ func (c *Clock) Advance(d time.Duration) {
 	defer c.mu.Unlock()
 	c.now = c.now.Add(d)
 }
+
+// FlakyStore is a [play.Store] that holds nothing: a game loaded from it is a new one. Its saves go
+// through, and count, until Fail makes them fail. It is safe for concurrent use.
+type FlakyStore struct {
+	mu    sync.Mutex
+	err   error
+	saved int
+}
+
+// Fail makes the next saves return err, and the saves go through again for a nil one.
+func (s *FlakyStore) Fail(err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.err = err
+}
+
+// Saved is the number of saves that went through.
+func (s *FlakyStore) Saved() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.saved
+}
+
+// Load finds no save.
+func (s *FlakyStore) Load() (play.Snapshot, bool, error) { return play.Snapshot{}, false, nil }
+
+// Save counts the save, or returns the error that Fail set.
+func (s *FlakyStore) Save(play.Snapshot) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.err != nil {
+		return s.err
+	}
+	s.saved++
+	return nil
+}

@@ -10,8 +10,9 @@ solo, local game. It is a personal project, published for anyone who wants to ru
 
 Pre-alpha. The simulation MVP exists, with NPCs that open boosters and supply the Counter. The
 first UI lets you open the ten welcome boosters, then more for energy that recharges by itself, and
-browse your collection, one binder per set. The following are not built yet: the Counter and
-trades in the UI, coins in the game, catalogue sync, and data persistence.
+browse your collection, one binder per set. The game is saved after every opening, so a restart
+picks it up where it was. The following are not built yet: the Counter and trades in the UI, coins
+in the game, and catalogue sync.
 
 ## Open your first boosters
 
@@ -28,6 +29,11 @@ Then open the address it prints. With real catalogues from `fetchdata`, pass
 same. The card
 pictures are then downloaded from Scryfall the first time a card shows, and kept in your user cache
 directory, see [ADR-0035](docs/adr/0035-card-pictures-are-served-from-a-local-cache.md).
+
+Your game is saved in a JSON file, which the command prints on startup: `crackapack/save.json` in
+your user config directory, `save-demo.json` for the demo, or the path of `--save`. Delete the file,
+or pass another `--save`, to start a new game. See
+[ADR-0052](docs/adr/0052-the-game-is-saved-in-one-versioned-json-file.md).
 
 ## Try the simulation
 

@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "opener": {
+    "seed": 42,
+    "state": "cGNnOgAAAAAAAAAqAAAAAAAAACo="
+  },
+  "welcome": {
+    "RAV": 7
+  },
+  "collection": [
+    {
+      "id": "rav-c-000",
+      "finish": "nonfoil",
+      "quantity": 2
+    },
+    {
+      "id": "rav-r-000",
+      "finish": "foil",
+      "quantity": 1
+    }
+  ],
+  "energy": {
+    "reserve": 5,
+    "savings": 0,
+    "savings_tick": 1,
+    "synced_at": "2026-10-16T12:00:00Z"
+  },
+  "last_opening": {
+    "set": "RAV",
+    "cards": [
+      {
+        "id": "rav-c-000",
+        "finish": "nonfoil",
+        "new": false
+      },
+      {
+        "id": "rav-r-000",
+        "finish": "foil",
+        "new": true
+      }
+    ]
+  }
+}

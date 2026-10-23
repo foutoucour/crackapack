@@ -61,8 +61,10 @@ per archetype picks wishes, the margin and proposals. `internal/sim` composes th
 cache, see [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md).
 
 `internal/play` is the player's interactive session: the boosters the player holds, the energy that
-opening them costs, which recharges from an injected clock, and the collection they fill. It sits beside `internal/sim`, which runs batch policies, and holds the
-rules a client must not hold. `internal/web` renders it as server-rendered pages embedded in the
+opening them costs, which recharges from an injected clock, and the collection they fill. It also
+defines the save of that state: a `Snapshot` and a `Store` interface, with a JSON file
+implementation, see [ADR-0052](adr/0052-the-game-is-saved-in-one-versioned-json-file.md). It sits
+beside `internal/sim`, which runs batch policies, and holds the rules a client must not hold. `internal/web` renders it as server-rendered pages embedded in the
 binary, see [ADR-0034](adr/0034-the-web-client-is-server-rendered.md). Its handlers call `play` in
 process, so until a JSON API exists they are both the API adapter and the client of the diagram
 above. `cmd/crackapack play` wires them.
@@ -79,7 +81,8 @@ that both implementations must pass.
 
 The binary is separate from the player's data.
 
-- The database lives under the OS user config directory.
+- The game's save, a JSON file, lives under the OS user config directory, and so will the database
+  of the NPC population.
 - The image cache lives under the OS user cache directory.
 
 Replacing or upgrading the binary never touches either.

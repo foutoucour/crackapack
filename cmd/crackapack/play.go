@@ -45,6 +45,12 @@ const (
 	imageFetchTimeout = 30 * time.Second
 	// imageCacheSubdir is where the pictures live under the OS user cache directory.
 	imageCacheSubdir = "crackapack/images"
+	// saveSubdir is where the save lives under the OS user config directory.
+	saveSubdir = "crackapack"
+	// saveFile and demoSaveFile are the names of the save. The demo has one of its own, so that
+	// playing it never touches a real game.
+	saveFile     = "save.json"
+	demoSaveFile = "save-demo.json"
 )
 
 // playArgs holds all dependencies for runPlay, decoupled from the OS so that tests can serve on a
@@ -55,8 +61,12 @@ type playArgs struct {
 	setCodes  []string // openable set codes (must have a booster section)
 	suppCodes []string // card pools the boosters draw from, such as TSB for TSP
 
-	// seed seeds the boosters, so a run is reproducible from it.
+	// seed seeds the boosters of a new game, so that it is reproducible from it. A game loaded from
+	// a save keeps the seed it was saved with.
 	seed uint64
+	// store keeps the game between runs, and savePath is where, for the line that tells the player.
+	store    play.Store
+	savePath string
 
 	// pricesFS and pricesName locate the price snapshot that sets what a booster costs in energy:
 	// a booster worth more than the median of the catalogue costs more. Without a name, no set is
@@ -89,6 +99,7 @@ func newPlayCmd(stdout, stderr io.Writer) *cobra.Command {
 		pricesPath string
 		addr       string
 		seed       uint64
+		savePath   string
 	)
 
 	cmd := &cobra.Command{
@@ -100,6 +111,11 @@ Pass --demo to play on the built-in synthetic sets, with a fixed seed, so no fil
 needed. Otherwise pass --catalogue-dir and --sets, like simulate; --seed 0 picks a random seed and
 prints it.
 
+The game is saved after every opening and picked up where it was when you start again, so the
+energy keeps recharging while it is closed. The save is a JSON file in the user config directory,
+or at --save; the demo has a save of its own. A game that is loaded keeps the seed it was saved
+with, and --seed only seeds a new one.
+
 Opening a booster costs energy, once the ten welcome boosters, which are free, are gone. What a
 booster costs follows its value against the median of the catalogue, so pass --prices, the price
 snapshot of fetchdata, to tell the sets apart; without it every booster costs the same.
@@ -109,7 +125,8 @@ in the user cache directory. A card whose picture cannot be downloaded shows as 
 the cards is downloaded once too, also with --demo, and an in-house drawing stands in for it
 while it is missing.`,
 		Example: `  crackapack play --demo
-  crackapack play --catalogue-dir ./catalogues --sets RAV,TSP --supplementary TSB`,
+  crackapack play --catalogue-dir ./catalogues --sets RAV,TSP --supplementary TSB
+  crackapack play --demo --save ./my-save.json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load(strings.NewReader(""))
 			if err != nil {
@@ -180,7 +197,8 @@ while it is missing.`,
 	f.StringVar(&suppRaw, "supplementary", "", "comma-separated card-pool-only codes, e.g. TSB (optional)")
 	f.StringVar(&pricesPath, "prices", "", "JSON price snapshot file; sets what a booster costs in energy (optional, ignored with --demo)")
 	f.StringVar(&addr, "addr", defaultPlayAddr, "address to listen on; keep it on localhost")
-	f.Uint64Var(&seed, "seed", 0, "seed of the boosters; 0 is the demo seed with --demo and a random one otherwise")
+	f.Uint64Var(&seed, "seed", 0, "seed of the boosters of a new game; 0 is the demo seed with --demo and a random one otherwise")
+	f.StringVar(&savePath, "save", "", "file the game is saved in (default: crackapack/save.json in the user config directory, save-demo.json with --demo)")
 
 	return cmd
 }
@@ -192,11 +210,12 @@ func runPlay(ctx context.Context, a playArgs) error {
 	if err != nil {
 		return err
 	}
+	stream := play.NewStream(a.seed)
 	opener := domain.NewOpener(
 		map[domain.BoosterLayout]domain.BoosterGenerator{
 			domain.BoosterLayoutClassic: domain.NewClassicGenerator(),
 		},
-		rand.New(rand.NewPCG(a.seed, a.seed)),
+		rand.New(stream),
 	)
 	rules, err := playRules(a, sets)
 	if err != nil {
@@ -206,14 +225,21 @@ func runPlay(ctx context.Context, a playArgs) error {
 	if err != nil {
 		return err
 	}
+	log := slog.New(slog.NewTextHandler(a.stderr, nil))
+	// Said first, so that an error about the save has said which file it is.
+	fmt.Fprintf(a.stdout, "crackapack: save file %s\n", a.savePath)
+	saves := play.Saves{Store: a.store, Stream: stream, Failed: func(err error) { log.Error("save game", "path", a.savePath, "error", err) }}
+	if err := game.Persist(saves); err != nil {
+		return err
+	}
 
 	srv := &http.Server{
-		Handler:           web.NewHandler(game, images.Chain(a.cardBack, a.images), slog.New(slog.NewTextHandler(a.stderr, nil))),
+		Handler:           web.NewHandler(game, images.Chain(a.cardBack, a.images), log),
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 	served := make(chan error, 1)
 	go func() { served <- srv.Serve(a.listener) }()
-	fmt.Fprintf(a.stdout, "crackapack: open http://%s in your browser (seed %d), Ctrl-C to stop\n", a.listener.Addr(), a.seed)
+	fmt.Fprintf(a.stdout, "crackapack: open http://%s in your browser (seed %d), Ctrl-C to stop\n", a.listener.Addr(), stream.Seed())
 
 	select {
 	case err := <-served:
@@ -230,6 +256,15 @@ func runPlay(ctx context.Context, a playArgs) error {
 		return err
 	}
 	return nil
+}
+
+// defaultSavePath is where the save of a game goes under configDir, the OS user config directory.
+func defaultSavePath(configDir string, demo bool) string {
+	name := saveFile
+	if demo {
+		name = demoSaveFile
+	}
+	return filepath.Join(configDir, saveSubdir, name)
 }
 
 // playRules builds the rules of the session: the recharge of the energy, and what a booster of each

@@ -349,8 +349,7 @@ The stack is server-rendered `html/template`, see
 
 - [x] Open the ten welcome boosters and reveal the cards one big card at a time, with the rare held
   back for the end, and the new cards flagged. A card already seen opens big again from its
-  miniature on the shelf. The session is in memory: it starts over when the
-  server restarts. The card back is the Magic back, downloaded once and cached, with an in-house
+  miniature on the shelf. The card back is the Magic back, downloaded once and cached, with an in-house
   drawing (`card-back.svg`) as the fallback, see
   [ADR-0036](adr/0036-the-card-back-is-downloaded-with-an-in-house-fallback.md). The reveal script
   has no automated test, since CI has no browser: it was checked
@@ -359,13 +358,19 @@ The stack is server-rendered `html/template`, see
   by the clock, the free welcome boosters spent first, and a refusal that says how long to wait,
   see [ADR-0038](adr/0038-the-games-energy-recharges-by-the-clock.md). Costs need `--prices`, or
   every booster costs the middle tier. Left: coins, so the coin fee above the cap and the coin
-  top-up, the energy saved with the session, a gauge that updates without a reload, and the
+  top-up, a gauge that updates without a reload, and the
   bonuses that add to the savings, such as the chest and the milestones.
 - [x] The collection: one binder per set at `/collection`, every card but the basic lands in
   collector number order with the empty slots greyed, progress overall and by rarity, complete
   playsets, the copies held by finish, a filter on rarity, a click to see a card big, and the
   timeshifted cards in Time Spiral's binder, counted in its progress. Left: the collection's value, the card page, filters, selling the
   duplicates, and the master set (foil as slots of their own).
+- [x] Saves: the collection, the welcome boosters left, the energy and the booster stream are saved
+  to one JSON file after every opening and loaded on start, and the energy recharges for the time the
+  game was closed, see
+  [ADR-0052](adr/0052-the-game-is-saved-in-one-versioned-json-file.md). A save that fails is shown
+  on every page and logged. Left: export and import from the app, and the state of the steps to
+  come, each added as a field of `play.Snapshot`.
 - [ ] The Counter, trades with NPCs, quests and the profile.
 - [x] Card pictures, downloaded from Scryfall on demand and cached, see
   [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md). The demo draws its own.
