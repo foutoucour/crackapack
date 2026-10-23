@@ -130,6 +130,9 @@ func (m *Market) checkAnswer(a MarketAnswer) error {
 		return fmt.Errorf("answer %d: %w", a.ID, err)
 	}
 	if a.Counter != nil {
+		if a.Kind == AnswerOffer && len(a.Counter.Cards) > 0 {
+			return fmt.Errorf("answer %d: %w", a.ID, ErrCoinsOnly)
+		}
 		if err := errors.Join(checkLines(a.Counter.Cards), nonNegative(int(a.Counter.Coins), "counter coins")); err != nil {
 			return fmt.Errorf("answer %d: %w", a.ID, err)
 		}

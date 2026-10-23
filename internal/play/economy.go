@@ -70,6 +70,8 @@ type economy struct {
 	crowdStream  *Stream
 	// market is nil in a game without one.
 	market *domain.Market
+	// cold is true while the NPCs of a market are as generated, and are to be warmed up, see warmUp.
+	cold bool
 	// syncedAt is the start of the first day not caught up yet.
 	syncedAt time.Time
 	// at is the instant of the tick a catch-up is replaying, which the Counter remembers a card
@@ -92,9 +94,6 @@ func (g *Game) OpenCounter(rules CounterRules, supply, crowd *Stream) error {
 		return err
 	}
 	g.openCrowdSets(e)
-	if err := e.warmUp(); err != nil {
-		return err
-	}
 	if rules.WelcomeBonus > 0 {
 		if err := e.journal.Post(domain.Entry{From: domain.AccountWelcomeBonus, To: domain.AccountPlayer, Amount: rules.WelcomeBonus, Memo: "welcome bonus"}); err != nil {
 			return fmt.Errorf("play: welcome bonus: %w", err)
@@ -144,12 +143,22 @@ func (g *Game) newEconomy(rules CounterRules, supplyStream, crowdStream *Stream,
 		if e.crowd == nil {
 			return nil, errors.New("play: a market needs NPCs to trade with")
 		}
-		valuer := domain.NewValuer(rules.Prices, rules.Params.FallbackPrice)
-		if e.market, err = domain.NewMarket(rules.Market.Params, e.crowd, collection, journal, valuer); err != nil {
-			return nil, fmt.Errorf("play: %w", err)
+		if e.market, err = e.newMarket(collection); err != nil {
+			return nil, err
 		}
+		e.cold = true
 	}
 	return e, nil
+}
+
+// newMarket is an empty market of e's NPCs that trades with collection.
+func (e *economy) newMarket(collection *domain.Collection) (*domain.Market, error) {
+	valuer := domain.NewValuer(e.rules.Prices, e.rules.Params.FallbackPrice)
+	m, err := domain.NewMarket(e.rules.Market.Params, e.crowd, collection, e.journal, valuer)
+	if err != nil {
+		return nil, fmt.Errorf("play: %w", err)
+	}
+	return m, nil
 }
 
 // newSupply builds the supply rules describe, or nil when the Counter opens no booster. The energy
@@ -192,14 +201,16 @@ func (g *Game) openCrowdSets(e *economy) {
 	}
 }
 
-// warmUp plays the crowd of a new game with a market for the days of its hold but one, a day at
-// least, so that the NPCs' shelves hold cards to trade from the first minute. A copy leaves a shelf
-// once it has waited the whole hold, so the Counter gets none of their surplus before the game
-// starts.
+// warmUp plays the NPCs of a market that are as generated, a new game's or those that replace a
+// save's, for the days of their hold but one, a day at least, so that their shelves hold cards to
+// trade from the first minute. A copy leaves a shelf once it has waited the whole hold, so the
+// Counter gets none of their surplus before the game starts. It does nothing to NPCs that a save
+// gave, so a game that loads one does not warm up NPCs it then throws away.
 func (e *economy) warmUp() error {
-	if e.market == nil {
+	if !e.cold {
 		return nil
 	}
+	e.cold = false
 	days := max(1, e.rules.Market.SurplusHoldDays-1)
 	for range days * domain.TicksPerDay {
 		if _, err := e.crowd.Tick(); err != nil {
@@ -226,6 +237,9 @@ func (e *economy) instant() time.Time {
 // NPCs as the day found them, as they would have live, and those due since the last whole day at
 // the end.
 func (e *economy) catchUp() error {
+	if err := e.warmUp(); err != nil {
+		return err
+	}
 	days := int(e.now().Sub(e.syncedAt) / gameDay)
 	if days <= 0 {
 		return e.advanceMarket(e.now())

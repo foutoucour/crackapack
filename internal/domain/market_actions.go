@@ -12,8 +12,9 @@ import (
 // plus its margin, in coins. A request whose answers have all ended is replaced.
 //
 // It returns ErrAlreadyAsked while the player is still asking around for the card, and
-// ErrNoHolder when no NPC that trades holds it.
+// ErrNoHolder when no NPC that trades holds it, and then changes nothing.
 func (m *Market) AskAround(card CardKey, now time.Time) (MarketID, error) {
+	over := MarketID(0)
 	for _, r := range m.requests {
 		if r.Card != card {
 			continue
@@ -21,7 +22,7 @@ func (m *Market) AskAround(card CardKey, now time.Time) (MarketID, error) {
 		if m.Pending(r.ID) > 0 || slices.ContainsFunc(m.answers, func(a MarketAnswer) bool { return a.To == r.ID }) {
 			return 0, fmt.Errorf("%w: %s", ErrAlreadyAsked, card.ID)
 		}
-		m.end(r.ID)
+		over = r.ID
 		break
 	}
 	var holders []*NPC
@@ -32,6 +33,9 @@ func (m *Market) AskAround(card CardKey, now time.Time) (MarketID, error) {
 	}
 	if len(holders) == 0 {
 		return 0, fmt.Errorf("%w: %s", ErrNoHolder, card.ID)
+	}
+	if over != 0 {
+		m.end(over)
 	}
 	id := m.newID()
 	m.requests = append(m.requests, MarketRequest{ID: id, Card: card, At: now, Asked: len(holders)})

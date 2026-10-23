@@ -50,6 +50,11 @@ func (g *Game) Persist(saves Saves) error {
 	}
 	g.saves = saves
 	if !found {
+		if g.economy != nil {
+			if err := g.economy.warmUp(); err != nil {
+				return err
+			}
+		}
 		g.save()
 		return nil
 	}
@@ -200,6 +205,14 @@ func (g *Game) restore(snap Snapshot, stream *Stream) error {
 		if commitCounter, err = g.restoreCounter(*snap.Counter, collection); err != nil {
 			return err
 		}
+	} else if e := g.economy; e != nil && e.market != nil {
+		// A save from before the Counter keeps the economy of the new game, whose market must
+		// trade with the collection of the save.
+		m, err := e.newMarket(collection)
+		if err != nil {
+			return err
+		}
+		commitCounter = func() { e.market = m }
 	}
 	if snap.Opener != nil {
 		if err := stream.Restore(snap.Opener.Seed, snap.Opener.State); err != nil {

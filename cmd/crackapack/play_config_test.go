@@ -73,3 +73,27 @@ func TestPlayConfig_theRealGameHasAScarceCounter(t *testing.T) {
 		t.Errorf("no rare of the %d is in stock after three days of the Counter's boosters", len(rares))
 	}
 }
+
+// The real game's NPCs trade on a market, as many as the play overlay sets, holding their surplus.
+func TestPlayConfig_theRealGameHasAMarket(t *testing.T) {
+	t.Parallel()
+	cfg, err := playConfig(false, demo.Dataset{})
+	if err != nil {
+		t.Fatalf("playConfig: %v", err)
+	}
+	rules, err := counterRules(cfg, domain.PriceSnapshot{})
+	if err != nil {
+		t.Fatalf("counterRules: %v", err)
+	}
+	if rules.Market == nil || rules.Market.SurplusHoldDays < 1 {
+		t.Fatalf("market = %+v, want one whose NPCs hold their surplus", rules.Market)
+	}
+	if rules.Crowd.Size != cfg.NPCs.Population || rules.Crowd.Size == 0 {
+		t.Errorf("crowd of %d, want the %d NPCs of the config, more than none", rules.Crowd.Size, cfg.NPCs.Population)
+	}
+	for name, spec := range rules.Crowd.Archetypes {
+		if spec.Share > 0 && spec.Behaviour == "" {
+			t.Errorf("archetype %s does not trade", name)
+		}
+	}
+}

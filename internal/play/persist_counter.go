@@ -104,11 +104,8 @@ func (g *Game) restoreCounter(snap CounterSnapshot, collection *domain.Collectio
 	if err != nil {
 		return nil, err
 	}
-	if reset {
-		if err := e.warmUp(); err != nil {
-			return nil, err
-		}
-	}
+	// A crowd the save gave is warm; one that replaces the save's stays cold until the catch-up.
+	e.cold = reset && e.market != nil
 	if err := restoreMarket(e, snap.Market, reset); err != nil {
 		return nil, err
 	}

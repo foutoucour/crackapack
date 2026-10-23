@@ -443,3 +443,36 @@ func TestPersist_aSaveWithoutNPCsGetsACrowdReadyToTrade(t *testing.T) {
 		t.Errorf("AskAround after loading a save without NPCs: %v", err)
 	}
 }
+
+// A save from before the game had coins, with cards in it, loads into a game with a market that
+// trades those cards, and what the market moves is saved.
+func TestPersist_aSaveFromBeforeCoinsTradesItsCardsOnTheMarket(t *testing.T) {
+	t.Parallel()
+	clock := playtest.NewClock()
+	store := &memStore{}
+	plain, stream, err := newSeededGame(clock, counterSet())
+	if err != nil {
+		t.Fatalf("NewGame: %v", err)
+	}
+	if err := plain.Persist(play.Saves{Store: store, Stream: stream}); err != nil {
+		t.Fatalf("Persist: %v", err)
+	}
+	mustOpen(t, plain, "S")
+
+	g := counterGame(t, store, clock, marketRules(), counterSet())
+	if _, err := g.List(dear().ID, dear().Finish, 300); err != nil {
+		t.Fatalf("List of a card of the save: %v", err)
+	}
+	mustAsk(t, g, cheap())
+	if _, err := g.AcceptAnswer(answerOf(t, mustMarket(t, g), fastNPC).ID); err != nil {
+		t.Fatalf("AcceptAnswer: %v", err)
+	}
+	if held(g, "S", cheap()) != 2 || g.Balance() != 100 {
+		t.Fatalf("copies %d, balance %d, want 2 and 100", held(g, "S", cheap()), g.Balance())
+	}
+	loaded := counterGame(t, store.copied(), clock, marketRules(), counterSet())
+	if held(loaded, "S", cheap()) != 2 || loaded.Balance() != 100 || loaded.Reserved(dear().ID, dear().Finish) != 1 {
+		t.Errorf("after a reload: copies %d, balance %d, reserved %d, want 2, 100 and 1",
+			held(loaded, "S", cheap()), loaded.Balance(), loaded.Reserved(dear().ID, dear().Finish))
+	}
+}

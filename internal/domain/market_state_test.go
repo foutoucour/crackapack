@@ -104,6 +104,16 @@ func TestMarketRestore_refusesAStateThatCannotBe(t *testing.T) {
 		{name: "an ID not below the next one", state: func(fx *marketFixture) domain.MarketState {
 			return domain.MarketState{NextID: 1, Listings: []domain.MarketListing{{ID: 1, Card: card(fx), Price: 5, At: at}}}
 		}},
+		{name: "a counter with cards on an offer", state: func(fx *marketFixture) domain.MarketState {
+			return domain.MarketState{
+				NextID:   3,
+				Listings: []domain.MarketListing{{ID: 1, Card: card(fx), Price: 5, At: at}},
+				Answers: []domain.MarketAnswer{{
+					ID: 2, To: 1, Kind: domain.AnswerOffer, Card: card(fx), Coins: 5, At: at, Expires: at,
+					Counter: &domain.MarketCounter{Coins: 5, Cards: []domain.TradeLine{{Key: fx.keys[3], Qty: 1}}, ReplyAt: at},
+				}},
+			}
+		}},
 		{name: "a pending answer from an NPC the crowd lacks", state: func(fx *marketFixture) domain.MarketState {
 			return domain.MarketState{
 				NextID:   2,

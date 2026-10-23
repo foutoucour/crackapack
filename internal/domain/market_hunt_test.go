@@ -102,6 +102,27 @@ func TestMarketAskAround_againOnceTheAnswersLapsed(t *testing.T) {
 	}
 }
 
+// A refusal changes nothing: asking again for a card whose request is over, when nobody has it any
+// more, keeps the old request.
+func TestMarketAskAround_aRefusalKeepsTheRequestThatIsOver(t *testing.T) {
+	t.Parallel()
+	fx := newMarketFixture(t)
+	card := fx.keys[0]
+	fx.crowd.ShelveForTest(fastNPC, card, 1)
+	first := fx.ask(t, card, marketStart())
+	later := marketStart().Add(marketExpiry)
+	fx.advance(t, later)
+	if err := fx.crowd.UnshelveForTest(fastNPC, card, 1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.market.AskAround(card, later); !errors.Is(err, domain.ErrNoHolder) {
+		t.Fatalf("error = %v, want ErrNoHolder", err)
+	}
+	if got := fx.market.Requests(); len(got) != 1 || got[0].ID != first {
+		t.Errorf("requests = %+v, want the old request %d kept", got, first)
+	}
+}
+
 // Accepting an asking price pays it and moves the card at once, and ends the request.
 func TestMarketAccept_anAskingPrice(t *testing.T) {
 	t.Parallel()
