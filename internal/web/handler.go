@@ -31,6 +31,8 @@ type handler struct {
 	images images.Source
 	log    *slog.Logger
 	pages  map[string]*template.Template
+	// notices tells the result of a purchase or a sale on the page it redirects to.
+	notices noticeBox
 }
 
 // NewHandler returns the web client of game. Card pictures come from pics, and are served from
@@ -44,10 +46,18 @@ func NewHandler(game *play.Game, pics images.Source, log *slog.Logger) http.Hand
 	funcs := template.FuncMap{
 		"energy":   func() energyView { return newEnergyView(h.game.Energy()) },
 		"duration": humanDuration,
+		// The coins show in the header of a game that has a Counter.
+		"hasCounter": h.game.HasCounter,
+		"balance":    h.game.Balance,
+		"coins":      coinsText,
+		// A save that failed is told on every page until one goes through.
+		"saveFailed": func() bool { return h.game.SaveError() != nil },
+		// The header links to the market in a game that has one, with the answers waiting.
+		"marketNav": h.marketNav,
 	}
 	// Each page is parsed together with the layout, since pages define the same blocks.
-	for _, name := range []string{"home", "pack", "collection", "error"} {
-		h.pages[name] = template.Must(template.New(name).Funcs(funcs).ParseFS(assets, "templates/layout.html", "templates/"+name+".html"))
+	for _, name := range []string{"home", "pack", "collection", "confirm", "error", "market", "market_counter"} {
+		h.pages[name] = template.Must(template.New(name).Funcs(funcs).ParseFS(assets, "templates/layout.html", "templates/market_parts.html", "templates/"+name+".html"))
 	}
 
 	static, err := fs.Sub(assets, "static")
@@ -60,6 +70,18 @@ func NewHandler(game *play.Game, pics images.Source, log *slog.Logger) http.Hand
 	mux.HandleFunc("POST /open", h.open)
 	mux.HandleFunc("GET /pack", h.pack)
 	mux.HandleFunc("GET /collection", h.collection)
+	mux.HandleFunc("POST /buy", h.buy)
+	mux.HandleFunc("POST /sell", h.sell)
+	mux.HandleFunc("POST /sell-duplicates", h.sellDuplicates)
+	mux.HandleFunc("GET /market", h.market)
+	mux.HandleFunc("POST /ask-around", h.askAround)
+	mux.HandleFunc("POST /withdraw", h.withdraw)
+	mux.HandleFunc("POST /list", h.list)
+	mux.HandleFunc("POST /unlist", h.unlist)
+	mux.HandleFunc("POST /accept", h.accept)
+	mux.HandleFunc("POST /decline", h.decline)
+	mux.HandleFunc("GET /counter-offer", h.counterForm)
+	mux.HandleFunc("POST /counter-offer", h.counterAnswer)
 	mux.HandleFunc("GET /card-image/{id}", h.cardImage)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
@@ -80,7 +102,7 @@ func securityHeaders(next http.Handler) http.Handler {
 }
 
 func (h *handler) home(w http.ResponseWriter, _ *http.Request) {
-	h.render(w, http.StatusOK, "home", homeView{Packs: h.game.Packs()})
+	h.render(w, http.StatusOK, "home", newHomeView(h.game.Packs()))
 }
 
 func (h *handler) open(w http.ResponseWriter, r *http.Request) {
@@ -105,6 +127,12 @@ func (h *handler) pack(w http.ResponseWriter, r *http.Request) {
 // collection shows one set's binder, the first set's unless ?set= names another, and only the cards
 // of one rarity when ?rarity= names one that the binder has.
 func (h *handler) collection(w http.ResponseWriter, r *http.Request) {
+	// The market first: it catches the game up, and what it delivers changes the binders.
+	market, err := h.marketIndex()
+	if err != nil {
+		h.playFailed(w, err)
+		return
+	}
 	binders := h.game.Binders()
 	code := r.URL.Query().Get("set")
 	if code == "" {
@@ -120,7 +148,23 @@ func (h *handler) collection(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, http.StatusBadRequest, "Unknown rarity: pick one of the filters above the binder.")
 		return
 	}
-	h.render(w, http.StatusOK, "collection", newCollectionView(binder, binders, rarity))
+	var quotes counterQuoter
+	if h.game.HasCounter() {
+		quotes = h.game
+	}
+	view, err := newCollectionView(binder, binders, rarity, quotes, market)
+	if err != nil {
+		h.playFailed(w, err)
+		return
+	}
+	if quotes != nil {
+		if view.Duplicates, err = h.duplicatesOf(binder.SetCode, rarity); err != nil {
+			h.playFailed(w, err)
+			return
+		}
+	}
+	view.Notice = h.notices.take()
+	h.render(w, http.StatusOK, "collection", view)
 }
 
 func (h *handler) cardImage(w http.ResponseWriter, r *http.Request) {
@@ -148,6 +192,8 @@ func (h *handler) playFailed(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, play.ErrUnknownSet):
 		h.fail(w, http.StatusBadRequest, "Unknown set: pick one of the sets on the home page.")
+	case errors.Is(err, play.ErrLocked):
+		h.fail(w, http.StatusConflict, "This set is locked: fill a binder of an open set to unlock more.")
 	case errors.Is(err, play.ErrNotEnoughEnergy):
 		var short *play.NotEnoughEnergyError
 		if errors.As(err, &short) {

@@ -121,3 +121,20 @@ func TestConfig_marshalsToWhatLoadAccepts(t *testing.T) {
 		t.Errorf("reloaded scalars differ: %+v", reloaded)
 	}
 }
+
+func TestLoadOverrides(t *testing.T) {
+	t.Parallel()
+	got, err := config.LoadOverrides(strings.NewReader("- {path: counter_shelf_days, value: 28}\n- {path: initial_stock.rare, value: 0}\n"))
+	if err != nil {
+		t.Fatalf("LoadOverrides: %v", err)
+	}
+	want := []config.Override{{Path: "counter_shelf_days", Value: 28}, {Path: "initial_stock.rare", Value: 0}}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Errorf("LoadOverrides = %+v, want %+v", got, want)
+	}
+	for _, bad := range []string{"- {path: x, value: 1, extra: 2}", "path: x"} {
+		if _, err := config.LoadOverrides(strings.NewReader(bad)); err == nil {
+			t.Errorf("LoadOverrides(%q) went through", bad)
+		}
+	}
+}

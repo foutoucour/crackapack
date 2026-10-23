@@ -582,6 +582,10 @@ does not change what the player or the NPCs draw, so two runs that differ only b
 comparable. `compare` refuses a run that opens boosters against one that does not, because their
 columns differ.
 
+The game plays the same supply, on the days it catches up, see
+[ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md). It does not
+play the coin fee of `counter_supply.coins_per_energy` yet, and refuses a config that sets it.
+
 ## NPC crowd
 
 `npcs.population` sets the number of NPCs. It defaults to 0, and a run without NPCs is the same as
@@ -617,8 +621,16 @@ lowers `margin_pct`, and a cap of 0 leaves traits no room. A config that lists a
 rejected, with the known names in the error. Colours and traits take effect only when trades are
 enabled, like the other trade keys.
 
+An archetype sets `response_delay_hours`, how long its NPCs take to answer the player on the game's
+market: an asking price, an offer on a listing, a reply to a counter. It is a whole number from 0,
+which answers at once, to 48, and a missing key is 0, see
+[ADR-0059](adr/0059-an-npc-answers-on-the-market-after-the-delay-of-its-archetype.md) and
+[The market](core-features.md#the-market). The simulation does not read it. The delay of each
+shipped archetype is in the [tuning log](tuning-log.md).
+
 Each NPC counts the declines it has had in a row: the player declines one of its offers or
-counter-offers, or counters one and is refused on terms. An accepted trade resets the count, and an
+counter-offers, or counters one and is refused on terms. On the game's market, declining an answer
+or having a counter refused on terms counts the same way. An accepted trade resets the count, and an
 expired offer leaves it alone. Traits that react to declines read it, see
 [ADR-0024](adr/0024-a-decline-is-told-to-the-npcs-traits-and-counted.md).
 
@@ -678,8 +690,10 @@ go run ./cmd/crackapack simulate \
 
 `compare` refuses a run with a crowd against a run without one, because their columns differ.
 
-The archetype values in the embedded files are starting guesses. Offline catch-up and persistence are not
-built, see [Specs review](specs-review.md#v1-scope-and-build-order).
+The archetype values in the embedded files are starting guesses. The game builds the same crowd when
+its config has one, saves what each NPC holds and remembers, and catches it up on the days it was
+closed, see [ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md). Its
+NPCs always trade, on the game's market, see [The market](core-features.md#the-market).
 
 ## Trades
 

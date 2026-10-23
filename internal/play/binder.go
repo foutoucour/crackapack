@@ -12,6 +12,38 @@ type BinderSummary struct {
 	SetCode  string
 	SetName  string
 	Progress domain.Progress
+	// Locked is true while the set cannot be opened, see [Pack].
+	Locked bool
+	// PastThreshold is true once the binder has reached the unlock threshold, see [StageRules]. It
+	// stays true when cards leave the binder, as an unlock is permanent.
+	PastThreshold bool
+}
+
+// Overview is the whole collection at a glance: the cards held and the binders complete count the
+// sets that are unlocked, since only those can be played.
+type Overview struct {
+	// Owned and Total count the cards the boosters of the unlocked sets can draw, see [Binder].
+	Owned, Total    int
+	BindersComplete int
+	SetsUnlocked    int
+	SetsTotal       int
+}
+
+// OverviewOf sums up binders, as Binders lists them.
+func OverviewOf(binders []BinderSummary) Overview {
+	o := Overview{SetsTotal: len(binders)}
+	for _, b := range binders {
+		if b.Locked {
+			continue
+		}
+		o.SetsUnlocked++
+		o.Owned += b.Progress.Owned
+		o.Total += b.Progress.Total
+		if b.Progress.Total > 0 && b.Progress.Owned == b.Progress.Total {
+			o.BindersComplete++
+		}
+	}
+	return o
 }
 
 // BinderCard is a card of a binder and how many copies of it the player holds, by finish. A card
@@ -43,15 +75,17 @@ type Binder struct {
 	Slots []BinderCard
 	// Pools are the sections of the binder that come from another catalogue.
 	Pools []BinderPool
+	// PastThreshold is true once the binder has reached the unlock threshold, see [BinderSummary].
+	PastThreshold bool
 }
 
-// Binders lists the progress of every set's binder, in the order the sets were given to NewGame.
+// Binders lists the progress of every set's binder, in the order of Packs.
 func (g *Game) Binders() []BinderSummary {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	out := make([]BinderSummary, len(g.sets))
 	for i, cat := range g.sets {
-		out[i] = BinderSummary{SetCode: cat.Code, SetName: cat.Name, Progress: g.collection.BinderProgress(domain.WithPools(cat, g.pools))}
+		out[i] = BinderSummary{SetCode: cat.Code, SetName: cat.Name, Progress: g.collection.BinderProgress(g.binders[cat.Code]), Locked: g.locked(cat.Code), PastThreshold: g.pastThreshold(cat.Code)}
 	}
 	return out
 }
@@ -66,9 +100,10 @@ func (g *Game) Binder(setCode string) (Binder, error) {
 		return Binder{}, fmt.Errorf("binder %q: %w", setCode, ErrUnknownSet)
 	}
 	binder := Binder{
-		SetCode:  cat.Code,
-		SetName:  cat.Name,
-		Progress: g.collection.BinderProgress(domain.WithPools(cat, g.pools)),
+		SetCode:       cat.Code,
+		SetName:       cat.Name,
+		Progress:      g.collection.BinderProgress(g.binders[cat.Code]),
+		PastThreshold: g.pastThreshold(cat.Code),
 	}
 
 	for _, card := range cat.Cards {

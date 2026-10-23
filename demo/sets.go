@@ -102,7 +102,7 @@ func newDEMCatalogue() domain.SetCatalogue {
 	uncommonSheet := make([]domain.SheetCard, 0, demUncommonCount)
 	for i := range demUncommonCount {
 		id := domain.CardID(fmt.Sprintf("dem-u-%03d", i))
-		cards[id] = domain.Card{
+		card := domain.Card{
 			ID:       id,
 			Name:     fmt.Sprintf("Demo Uncommon %d", i),
 			Number:   fmt.Sprintf("%d", demCommonCount+demBasicCount+i+1),
@@ -110,6 +110,10 @@ func newDEMCatalogue() domain.SetCatalogue {
 			Finishes: []domain.Finish{domain.FinishNonFoil, domain.FinishFoil},
 			Colors:   demoColours(i),
 		}
+		if i == demUncommonCount-1 {
+			card = demoLand(card)
+		}
+		cards[id] = card
 		uncommonSheet = append(uncommonSheet, domain.SheetCard{ID: id, Weight: 10})
 		foilSheet = append(foilSheet, domain.SheetCard{ID: id, Weight: 75})
 	}
@@ -242,7 +246,7 @@ func newDSPCatalogues() (dsp, dst domain.SetCatalogue) {
 	uncommonSheet := make([]domain.SheetCard, 0, dspUncommonCount)
 	for i := range dspUncommonCount {
 		id := domain.CardID(fmt.Sprintf("dsp-u-%03d", i))
-		dspCards[id] = domain.Card{
+		card := domain.Card{
 			ID:       id,
 			Name:     fmt.Sprintf("Demo Spiral Uncommon %d", i),
 			Number:   fmt.Sprintf("%d", dspCommonCount+dspBasicCount+i+1),
@@ -250,6 +254,10 @@ func newDSPCatalogues() (dsp, dst domain.SetCatalogue) {
 			Finishes: []domain.Finish{domain.FinishNonFoil, domain.FinishFoil},
 			Colors:   demoColours(i),
 		}
+		if i == dspUncommonCount-1 {
+			card = demoLand(card)
+		}
+		dspCards[id] = card
 		uncommonSheet = append(uncommonSheet, domain.SheetCard{ID: id, Weight: 10})
 		foilSheet = append(foilSheet, domain.SheetCard{ID: id, Weight: 15})
 	}
@@ -384,6 +392,14 @@ func demoColours(i int) []string {
 		nil,        // 10 – colourless
 	}
 	return table[i%len(table)]
+}
+
+// demoLand makes card a land. A land has no colour, so a binder counts it with the lands, which
+// gives the collection page its eighth colour group.
+func demoLand(card domain.Card) domain.Card {
+	card.IsLand = true
+	card.Colors = nil
+	return card
 }
 
 // sumWeights returns the total weight of a SheetCard slice.

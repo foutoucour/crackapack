@@ -12,6 +12,7 @@ behaviour: casual
 wish_size: 5
 margin_pct: 0
 offer_chance_pct: 6
+response_delay_hours: 1
 colors: [R]
 traits: [gambler]
 trait_params:

@@ -170,16 +170,7 @@ func NewEngine(
 	allCats = append(allCats, catalogues...)
 	allCats = append(allCats, supplementary...)
 
-	counter, err := domain.NewCounter(allCats, prices, journal, domain.CounterParams{
-		SellPct:       cfg.CounterSellPct,
-		BuyPct:        cfg.CounterBuyPct,
-		FoilPct:       cfg.CounterFoilPct,
-		CoinRate:      cfg.CoinRate,
-		FallbackPrice: cfg.FallbackPrice,
-		InitialStock:  cfg.InitialStock,
-		ShelfLife:     shelfLife(cfg.CounterShelfDays),
-		Treasury:      cfg.CounterBudget.Enabled,
-	})
+	counter, err := domain.NewCounter(allCats, prices, journal, cfg.CounterParams())
 	if err != nil {
 		return nil, fmt.Errorf("sim: counter: %w", err)
 	}
@@ -430,22 +421,10 @@ func (e *Engine) Run() (Result, error) {
 // fundTreasury moves coins from the Counter's float into its treasury. It does nothing for a
 // non-positive amount, which is also what a run without a budget has.
 func fundTreasury(journal *domain.Journal, amount domain.Coins, memo string) error {
-	if amount <= 0 {
-		return nil
-	}
-	if err := journal.Post(domain.Entry{From: domain.AccountCounterFloat, To: domain.AccountCounterTreasury, Amount: amount, Memo: memo}); err != nil {
-		return fmt.Errorf("sim: fund the Counter's treasury (%s): %w", memo, err)
+	if err := domain.FundTreasury(journal, amount, memo); err != nil {
+		return fmt.Errorf("sim: %w", err)
 	}
 	return nil
-}
-
-// shelfLife maps the counter_shelf_days setting to the Counter's ShelfLife: a negative value keeps
-// cards forever.
-func shelfLife(days int) domain.ShelfLife {
-	if days < 0 {
-		return domain.ForeverOnShelf()
-	}
-	return domain.VanishAfterDays(days)
 }
 
 // tickCrowd advances the NPC crowd by one tick and books what it did into the day counters.

@@ -11,12 +11,165 @@ this rule, such as ADR-0041 and ADR-0043, still carry the numbers they were acce
 How the search works is in [The tuning system](simulation.md#the-tuning-system). The goals are the bands
 of ADR-0051, ADR-0041, ADR-0049 and ADR-0043, and the search files are in [`tune/`](../tune).
 
+**A change to `initial_stock` reaches existing saves.** The game saves the Counter's stock as its
+difference from the configured initial stock, see
+[ADR-0052](adr/0052-the-game-is-saved-in-one-versioned-json-file.md). Raising or lowering an initial
+stock moves the Counter of every save already written by the same amount.
+
 **Add an entry** whenever a default of the config changes, a search runs on the product's files, or a
 goal band changes. Newest first. Each entry says:
 - what triggered it and whether the values were applied to `config.defaults()`;
 - the keys that changed, before and after;
 - how the goals read before and after, on the same scenarios, so the entries compare;
 - what the run does not tell.
+
+## 2026-10-23 – A trading crowd and a market for the game, no search run
+
+**Trigger:** the game gets a market, see
+[ADR-0058](adr/0058-the-player-trades-on-a-market-of-requests-and-listings.md), and the real game had
+no NPCs to trade with. `tune/play.yaml` gives it a crowd, the demo's own config a bigger one, and
+every archetype a response delay. `config.defaults()`, `tune/base.yaml` and the search are unchanged,
+and the simulation does not read the delay.
+
+| Key | Before | `tune/play.yaml` | Demo before | Demo now |
+|-----|-------:|-----------------:|------------:|---------:|
+| `npcs.population` | 0 | 12 | 3 | 12 |
+| `npcs.surplus_hold_days` | 2 | 7 | 2 | 3 |
+
+- **12 NPCs** is the smallest crowd whose archetype shares give a whale: five casuals, two targeted
+  collectors, two playset hunters, a speculator, a whale and an archivist. The whale's many boosters
+  fill the shelves, and the speculator makes an offer on any listed card it lacks.
+- **A hold of a week** keeps a card on an NPC's shelf long enough to be asked for. At 4 days the save is
+  10% smaller and the cards held at the start fall from 120 to 117 of 156.
+- **The demo's 12** give the same mix, so that asking around for a common of DEM gets an answer at
+  once and another later, and a listed rare draws the speculator's offer at once. A test of the `play`
+  command pins it.
+
+| Archetype | `response_delay_hours` | Why |
+|-----------|-----------------------:|-----|
+| `casual` | 0 | The main source of supply, answers at once |
+| `speculator` | 0 | Watches the market and pounces |
+| `fish` | 0 | Passive and friendly, eager to trade |
+| `gambler` | 1 | Impulsive |
+| `playset_hunter` | 4 | Checks its binders in the evening |
+| `targeted_collector` | 8 | Answers once a day, at its own pace |
+| `whale` | 12 | Busy opening boosters |
+| `stingy` | 12 | A miser takes its time |
+| `ego`, `ego_stingy`, `archivist` | 24 | Proud or old-fashioned: the next day |
+| `archivist_ego_stingy` | 36 | Both at once |
+
+**Measured** on the 107 sets of the scope with `prices.json`, seed 42, the clock moved by hand, through
+the game's start-up code. "Held" is how many of 156 cards of the first open set some NPC has on its
+shelf, so that asking around for it gets an answer.
+
+| Days played | Save | Held | Opening a booster and saving |
+|------------:|-----:|-----:|-----------------------------:|
+| 0 | 306 KB | 120 | 13 ms |
+| 3 | 477 KB | 135 | 13 ms |
+| 30 | 1.6 MB | 143 | 24 ms |
+| 90, caught up 30 days at a time | 2.0 MB | 147 | 24 ms |
+
+- The binary starts a new game in 1.80 s, against 1.67 s without NPCs, and loads it in 1.23 s, against
+  1.01 s. Catching up 30 days takes about 0.15 s.
+- At 30 days, 8 NPCs save 1.4 MB and 16 save 2.0 MB.
+- The save is now written without indentation. That changes little: 1,605 KB at 30 days and 1,981 KB
+  at 90, against 1,609 KB and 2,047 KB, since the NPCs' cards and the Counter's shelf were compact
+  strings already.
+- Before the NPCs opened only the sets the player can open, see
+  [ADR-0063](adr/0063-the-npcs-of-the-game-open-the-sets-the-player-can-open.md), the same crowd held 0
+  of the 156 cards on the fourth day and 28 after a month, and its save was 3.0 MB after 30 days, half
+  of it the Counter's shelf in its older form.
+
+**What it does not show:** what the market does to the economy. No simulation runs it. NPCs pay up to
+a card's value less their margin, against the Counter's 60%, and a casual sells at the reference value,
+against the Counter's 120%, so the market is a better source of coins and a cheaper shop than the
+Counter for most cards, see [ADR-0060](adr/0060-an-npc-pays-coins-for-a-card-on-the-market.md). The
+coin goals of ADR-0041 and the stock goals of ADR-0049 were never read with it. Nor how the save grows
+once many sets are unlocked: the NPCs then open more sets, and their collections tend toward every
+printing of those sets.
+
+## 2026-10-23 – The demo's Counter shows an item out of stock, no search run
+
+**Trigger:** the Counter's pages say when a card was last in stock, and the demo had no way to reach
+that state: a card leaves the Counter's stock only when a limited shelf lets it go, and the demo's
+shelf kept cards forever. The demo's own config (`demo/config.go`) changed. `config.defaults()`, the
+search and the game's files did not.
+
+| Key | Demo before | Demo now |
+|-----|------------:|---------:|
+| `counter_shelf_days` | -1 | 1 |
+| `initial_stock.uncommon` | 8 | 0 |
+
+- Sell an uncommon of the demo and the Counter has it for a day, then the slot says when it last had it.
+  The mythics already started out of stock, so they read "never seen".
+- The goals, which the demo does not run, are unaffected. A test of the `play` command sells the
+  uncommons of a booster, moves the clock two days and reads the line.
+
+## 2026-10-23 – A scarce Counter for the game, no search run
+
+**Trigger:** with `tune/base.yaml` alone the game's Counter holds every printing from the first day and
+never loses one, so no rare is ever out of stock. The game now applies `tune/play.yaml` on top of the
+base, see [ADR-0057](adr/0057-the-game-plays-the-products-base-config.md). The search and
+`config.defaults()` are unchanged.
+
+| Key | Default and `tune/base.yaml` | `tune/play.yaml` |
+|-----|-----------------------------:|-----------------:|
+| `counter_shelf_days` | -1 | 28 |
+| `initial_stock.rare` | 2 | 0 |
+| `initial_stock.mythic` | 2 | 0 |
+
+- **The shelf of 28 days** is the value of candidate 17 in the bell-goal entry below. It is long enough
+  that a card the Counter opens stays a while, and short enough that its stock does not grow forever.
+- **No rare or mythic at the start:** they come only from the Counter's 13 boosters a day of
+  `tune/base.yaml` and from the player's sales, so a rare is something to watch for. Commons and
+  uncommons keep their initial stock, and initial stock never vanishes.
+- On the demo sets with this config, no rare is in stock at the start, and some are after three days
+  of the Counter's boosters. That is pinned by a test of the `play` command.
+- On the 107 sets with these values, a new game starts in 1.67 s and a reload in 1.01 s.
+
+**What it does not show:** how scarce the rares are on the 107 sets after weeks of play. With 13
+boosters a day across 107 sets a given set gets about one booster in eight days, so most rares of the
+scope stay out of stock for long. Nor how this Counter reads against the stock goals of
+[ADR-0049](adr/0049-a-rare-is-scarce-at-the-counter-and-still-reachable-by-trade.md): no simulation ran
+with the overlay.
+
+## 2026-10-23 – Catch-up cap added for the game's Counter, no search run
+
+**Trigger:** the game catches up the Counter's supply and NPCs on the days it was closed, see
+[ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md). One key is new in
+`config.defaults()`. It does not change a simulation.
+
+| Key | Default |
+|-----|--------:|
+| `catch_up_days` | 30 |
+
+The value is the maintainers' choice: a month away still shows. On the 107 sets the 30 days take 5 ms
+with the supply of `tune/base.yaml`, 13 boosters a day, and 34 ms with 9 NPCs as well. The game starts
+in about one second either way, most of it loading the catalogues.
+
+The demo of `play` sets its own Counter: a fixed supply of 5 boosters a day, 3 NPCs, and no mythic in
+the initial stock, so that a new demo has a card the Counter never had.
+
+**What it does not show:** how the stock a player meets after a long absence compares with one who
+plays every day. No simulation plays absences.
+
+## 2026-10-23 – Unlock keys added for the stages of the game, no search run
+
+**Trigger:** the game opens its sets in stages, see [Stages](core-features.md#stages). Four keys are
+new in `config.defaults()`, under `unlock`. They do not change a simulation.
+
+| Key | Default |
+|-----|--------:|
+| `unlock.binder_threshold` | 0.9 |
+| `unlock.sets_per_unlock` | 3 |
+| `unlock.stages` | 4 |
+| `unlock.start_sets` | 5 |
+
+The values are the maintainers' choice. On the 107 sets of the scope they make a first stage of 5 sets,
+then four stages of 26, 26, 26 and 24. The demo of `play` has its own: two stages of one set and a
+threshold of 0.25, so the welcome boosters unlock the second set.
+
+**What it does not show:** how long a player takes to unlock a stage. No simulation plays the stages.
 
 ## 2026-10-23 – Bell goal on the 97 sets that can finish, not applied
 

@@ -1,0 +1,58 @@
+{{define "backFields"}}{{if .Market}}<input type="hidden" name="from" value="market">{{else}}<input type="hidden" name="set" value="{{.Set}}"><input type="hidden" name="card" value="{{.Card}}">{{if .Filter}}<input type="hidden" name="rarity" value="{{.Filter}}">{{end}}{{end}}{{end}}
+
+{{define "answers"}}
+{{if .}}
+<ul class="answers">
+  {{range .}}
+  <li>
+    <p><strong>{{.Who}}</strong> {{.Terms}}.{{with .Lapses}} <span class="shelf-note">{{.}}.</span>{{end}}</p>
+    {{if .Countered}}
+    <p>{{.Countered}}</p>
+    {{else}}
+    <div class="answer-actions">
+      <form method="post" action="/accept">
+        <input type="hidden" name="answer" value="{{.AnswerID}}">{{template "backFields" .Back}}
+        <button type="submit">Accept<span class="sr-only"> {{.Who}} for {{.Card}}</span></button>
+      </form>
+      <a class="button" href="{{.CounterHref}}">Counter<span class="sr-only"> {{.Who}} for {{.Card}}</span></a>
+      <form method="post" action="/decline">
+        <input type="hidden" name="answer" value="{{.AnswerID}}">{{template "backFields" .Back}}
+        <button type="submit">Decline<span class="sr-only"> {{.Who}} for {{.Card}}</span></button>
+      </form>
+    </div>
+    {{end}}
+  </li>
+  {{end}}
+</ul>
+{{end}}
+{{end}}
+
+{{define "request"}}
+<div class="request">
+  <p class="request-status">{{.Status}}.</p>
+  {{template "answers" .Answers}}
+  <div class="answer-actions">
+    {{if .Over}}
+    <form method="post" action="/ask-around">
+      {{template "cardFields" .}}{{if .Back.Market}}<input type="hidden" name="from" value="market">{{end}}
+      <button type="submit">Ask around again<span class="sr-only"> for {{.Name}}</span></button>
+    </form>
+    {{end}}
+    <form method="post" action="/withdraw">
+      <input type="hidden" name="request" value="{{.RequestID}}">{{template "backFields" .Back}}
+      <button type="submit">Stop asking<span class="sr-only"> for {{.Name}}</span></button>
+    </form>
+  </div>
+</div>
+{{end}}
+
+{{define "listing"}}
+<div class="listing">
+  <p>Listed at {{coins .Price}}.{{with .Status}} {{.}}{{end}}</p>
+  {{template "answers" .Answers}}
+  <form method="post" action="/unlist">
+    <input type="hidden" name="listing" value="{{.ListingID}}">{{template "backFields" .Back}}
+    <button type="submit">Unlist<span class="sr-only"> {{.Name}}</span></button>
+  </form>
+</div>
+{{end}}

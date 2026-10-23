@@ -3,6 +3,7 @@
 package playtest
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -53,4 +54,56 @@ func (c *Clock) Advance(d time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.now = c.now.Add(d)
+}
+
+// FlakyStore is a [play.Store] that holds nothing: a game loaded from it is a new one. Its saves go
+// through, and count, until Fail makes them fail. It is safe for concurrent use.
+type FlakyStore struct {
+	mu    sync.Mutex
+	err   error
+	saved int
+}
+
+// Fail makes the next saves return err, and the saves go through again for a nil one.
+func (s *FlakyStore) Fail(err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.err = err
+}
+
+// Saved is the number of saves that went through.
+func (s *FlakyStore) Saved() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.saved
+}
+
+// Load finds no save.
+func (s *FlakyStore) Load() (play.Snapshot, bool, error) { return play.Snapshot{}, false, nil }
+
+// Save counts the save, or returns the error that Fail set.
+func (s *FlakyStore) Save(play.Snapshot) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.err != nil {
+		return s.err
+	}
+	s.saved++
+	return nil
+}
+
+// TinySet is a set of n commons whose booster is perBooster of them, drawn without repeats, so a
+// test knows what a booster does to the binder: n of n gives the whole binder, and 1 of 2 half of
+// it. The set's name is "Set " and its code.
+func TinySet(code string, n, perBooster int) domain.SetCatalogue {
+	cat := domain.SetCatalogue{Code: code, Name: "Set " + code, Cards: make(map[domain.CardID]domain.Card, n)}
+	sheet := domain.Sheet{Name: "common", TotalWeight: n}
+	for i := range n {
+		id := domain.CardID(fmt.Sprintf("%s-%02d", code, i))
+		cat.Cards[id] = domain.Card{ID: id, Name: string(id), Number: fmt.Sprint(i + 1), Rarity: domain.RarityCommon, Finishes: []domain.Finish{domain.FinishNonFoil}}
+		sheet.Cards = append(sheet.Cards, domain.SheetCard{ID: id, Weight: 1})
+	}
+	cat.Sheets = map[string]domain.Sheet{"common": sheet}
+	cat.BoosterOptions = []domain.BoosterOption{{Contents: map[string]int{"common": perBooster}, Weight: 1}}
+	return cat
 }

@@ -394,6 +394,97 @@ func TestCollectionBinderProgress(t *testing.T) {
 	}
 }
 
+func TestCollectionBinderProgress_byColour(t *testing.T) {
+	t.Parallel()
+
+	both := []domain.Finish{domain.FinishNonFoil, domain.FinishFoil}
+	card := func(id domain.CardID, colours ...string) domain.Card {
+		c := cardOf(id, domain.RarityCommon, false, both...)
+		c.Colors = colours
+		return c
+	}
+	land := func(id domain.CardID, colours ...string) domain.Card {
+		c := card(id, colours...)
+		c.IsLand = true
+		return c
+	}
+	basic := land("basic")
+	basic.IsBasicLand = true
+
+	cat := catOf(
+		card("white-1", "W"), card("white-2", "W"),
+		card("blue", "U"), card("black", "B"), card("red", "R"), card("green", "G"),
+		card("gold", "W", "U"), card("gold-three", "B", "R", "G"),
+		card("colourless"),
+		land("land"), land("arbor", "G"),
+		basic,
+	)
+	c := domain.NewCollection()
+	for _, held := range []struct {
+		id     domain.CardID
+		finish domain.Finish
+	}{
+		{"white-1", domain.FinishNonFoil}, {"white-2", domain.FinishFoil},
+		{"gold", domain.FinishNonFoil}, {"colourless", domain.FinishNonFoil},
+		{"arbor", domain.FinishNonFoil}, {"basic", domain.FinishNonFoil},
+	} {
+		if err := c.Add(domain.CardKey{ID: held.id, Finish: held.finish}, 1); err != nil {
+			t.Fatalf("Add %s: %v", held.id, err)
+		}
+	}
+
+	got := c.BinderProgress(cat).ByColour
+
+	want := map[domain.ColourGroup]domain.RarityProgress{
+		domain.ColourWhite:      {Owned: 2, Total: 2},
+		domain.ColourBlue:       {Owned: 0, Total: 1},
+		domain.ColourBlack:      {Owned: 0, Total: 1},
+		domain.ColourRed:        {Owned: 0, Total: 1},
+		domain.ColourGreen:      {Owned: 0, Total: 1},
+		domain.ColourGold:       {Owned: 1, Total: 2},
+		domain.ColourColourless: {Owned: 1, Total: 1},
+		domain.ColourLand:       {Owned: 1, Total: 2},
+	}
+	for group, w := range want {
+		if got[group] != w {
+			t.Errorf("ByColour[%s] = %+v, want %+v", group, got[group], w)
+		}
+	}
+	if len(got) != len(want) {
+		t.Errorf("ByColour has %d groups, want %d: %+v", len(got), len(want), got)
+	}
+}
+
+func TestCollectionBinderProgress_byColourSumsToTheBinder(t *testing.T) {
+	t.Parallel()
+
+	cat := domaintest.NewCatalogue(42)
+	p := domain.NewCollection().BinderProgress(cat)
+
+	total := 0
+	for _, g := range p.ByColour {
+		total += g.Total
+	}
+	if total != p.Total {
+		t.Errorf("the colour groups add up to %d cards, the binder has %d: %+v", total, p.Total, p.ByColour)
+	}
+}
+
+func TestColourGroups_listTheGroupsInTheOrderTheyAreShown(t *testing.T) {
+	t.Parallel()
+
+	want := []domain.ColourGroup{"W", "U", "B", "R", "G", "gold", "colourless", "land"}
+	got := domain.ColourGroups()
+	if len(got) != len(want) {
+		t.Fatalf("ColourGroups() = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("ColourGroups() = %v, want %v", got, want)
+		}
+	}
+}
+
 // TestCollectionBinderProgressWithSyntheticCatalogue verifies progress against
 // the domaintest catalogue, which has 10 commons, 4 uncommons, 2 rares and 2 basic lands.
 func TestCollectionBinderProgressWithSyntheticCatalogue(t *testing.T) {

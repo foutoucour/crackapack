@@ -40,20 +40,33 @@ func (e *InvalidKeepError) Error() string {
 	return fmt.Sprintf("collection: keep must be between 1 and %d inclusive, got %d", PlaysetSize, e.Keep)
 }
 
-// RarityProgress holds the owned and total card count for one rarity within a set binder.
+// RarityProgress holds the owned and total card count for one group of a set binder: a rarity or,
+// in [Progress.ByColour], a colour group.
 type RarityProgress struct {
 	Owned int
 	Total int
+}
+
+// counted returns rp with one more card in it, owned or not.
+func (rp RarityProgress) counted(owned bool) RarityProgress {
+	rp.Total++
+	if owned {
+		rp.Owned++
+	}
+	return rp
 }
 
 // Progress is the binder progress for one SetCatalogue.
 // Basic lands are excluded from all counts.
 // A card is counted as owned when any finish holds at least one copy.
 // A playset is complete when the total copies across all finishes is at least 4.
+// ByRarity and ByColour split the same cards in two ways, and have an entry for a group only when
+// the binder has a card in it.
 type Progress struct {
 	Owned    int
 	Total    int
 	ByRarity map[Rarity]RarityProgress
+	ByColour map[ColourGroup]RarityProgress
 	Playsets int
 }
 
@@ -132,8 +145,12 @@ func (c *Collection) Quantity(key CardKey) int {
 //
 // Copies are counted by summing FinishNonFoil and FinishFoil, not card.Finishes,
 // so a copy stored under a finish the catalogue does not list still counts.
+//
+// The rarity and the colour group are keys read from the card and tallied in the one pass, since the
+// game counts every binder at every opening. A named group of cards, such as the Urzatron, will need
+// a tally of its own.
 func (c *Collection) BinderProgress(cat SetCatalogue) Progress {
-	p := Progress{ByRarity: make(map[Rarity]RarityProgress)}
+	p := Progress{ByRarity: make(map[Rarity]RarityProgress), ByColour: make(map[ColourGroup]RarityProgress)}
 	for _, card := range cat.Cards {
 		if card.IsBasicLand {
 			continue
@@ -142,18 +159,17 @@ func (c *Collection) BinderProgress(cat SetCatalogue) Progress {
 		copies := c.qty[CardKey{ID: card.ID, Finish: FinishNonFoil}] +
 			c.qty[CardKey{ID: card.ID, Finish: FinishFoil}]
 
+		owned := copies > 0
 		p.Total++
-		rp := p.ByRarity[card.Rarity]
-		rp.Total++
-
-		if copies > 0 {
+		if owned {
 			p.Owned++
-			rp.Owned++
 		}
 		if copies >= PlaysetSize {
 			p.Playsets++
 		}
-		p.ByRarity[card.Rarity] = rp
+		p.ByRarity[card.Rarity] = p.ByRarity[card.Rarity].counted(owned)
+		group := ColourGroupOf(card)
+		p.ByColour[group] = p.ByColour[group].counted(owned)
 	}
 	return p
 }

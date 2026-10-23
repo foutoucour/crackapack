@@ -183,7 +183,7 @@ func (x *Exchange) Counter(offerID int, playerGives []TradeLine, topUp Coins) (D
 	if err == nil && d.Outcome == OutcomeRefused &&
 		(errors.Is(d.Reason, ErrBelowMargin) || errors.Is(d.Reason, ErrCounterVetoed)) {
 		if npc, ok := x.crowd.byID[o.NPC]; ok {
-			x.declined(npc, o)
+			tellDecline(npc, o)
 		}
 	}
 	return d, err

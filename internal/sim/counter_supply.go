@@ -34,10 +34,7 @@ func newCounterSupply(cfg config.Config, openable []domain.SetCatalogue, counter
 	} else {
 		e := cfg.CounterSupply.Energy
 		var energy *domain.Energy
-		energy, err = domain.NewEnergy(domain.EnergyParams{
-			RechargePerTick: e.RechargePerTick, ReserveCap: e.ReserveCap,
-			SavingsIntervalTicks: e.SavingsIntervalTicks, SavingsCap: e.SavingsCap,
-		})
+		energy, err = domain.NewEnergy(e.Params())
 		if err != nil {
 			return nil, fmt.Errorf("sim: counter supply: energy: %w", err)
 		}

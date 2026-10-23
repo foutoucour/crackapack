@@ -53,10 +53,13 @@ hurts yourself.
 
 - **Installation:** download the binary for your OS and run it. It opens the game in your browser.
 - **First launch:** downloads the catalogue, then generates the NPC population.
-- **Welcome bonus:** 200 coins and 10 boosters, split evenly across the sets, the first sets taking
-  the remainder.
-- **Saves:** copy the SQLite file, or export/import from the app.
-- **Seed:** the random seed is stored, to replay a simulation and debug it.
+- **Welcome bonus:** 200 coins and 10 boosters, split evenly across the sets of the first
+  [stage](#stages), the first sets taking the remainder.
+- **Saves:** the game is one JSON file, copy it to back it up, see
+  [ADR-0052](adr/0052-the-game-is-saved-in-one-versioned-json-file.md). The NPC population will need a
+  SQLite file of its own. Export/import from the app is not built.
+- **Seed:** the random seed is stored, to replay a simulation and debug it. A loaded game keeps its
+  saved seed.
 - **Prices:** a snapshot that comes with the catalogue. Prices stay fixed until a new snapshot is
   published, see [Specs review](specs-review.md#positioning-and-decisions).
 
@@ -151,6 +154,20 @@ printing: the same card in two sets counts as two cards.
   binder with it.
 - **Progress shown:** cards owned / total, by rarity and for the whole set, plus complete playsets
   (4 copies of a card, the reference unit in Magic).
+- **Progress by colour:** the same count in eight groups, white, blue, black, red, green, gold (two
+  colours or more), colourless and land. A card is in one group only. The colour is the MTGJSON
+  `colors` of the one face the binder holds, which is the a side of a split or double-faced card, as
+  the b side is not drawn by a booster and so is not in the binder, see
+  [ADR-0037](adr/0037-a-binder-counts-the-pool-cards-its-boosters-draw.md). A card with two colours
+  or more is gold. A card with no `colors`, devoid and colour-indicator cards included, is
+  colourless. A non-basic land is a land whatever its colours. So a split card counts by its a half
+  only: Fire // Ice is red, not gold. A group the set has no card in is left out, as a rarity is. The
+  count is of the cards the boosters can draw, as for the binder.
+- **Overview:** at the top of the collection page, the cards held out of the cards of the unlocked
+  sets, the binders complete (every card held) and the sets unlocked out of all of them. Locked sets
+  do not count in the cards, since they cannot be played yet.
+- **Unlock mark:** a binder that has reached the [unlock threshold](#stages) says so. The mark stays
+  when cards are sold, as the unlocks do. The page shows stats only: it gives no reward.
 - **Basic lands** are excluded from totals, progress and milestones. The Ravnica and Time Spiral
   basics only come as foils, so counting them would make a complete binder nearly impossible.
 - **Master set:** every card in normal and foil, plus the variants present in the booster. The exact
@@ -164,19 +181,43 @@ printing: the same card in two sets counts as two cards.
 - **Showcase:** a few chosen cards, visible on the profile.
 - **Custom binders:** a free theme (one colour, one artist, one creature type).
 
+## Stages
+
+The sets open up as the player progresses, so a new player starts with a few sets instead of more
+than a hundred.
+
+- **Order:** the sets rank from the quickest binder to fill to the slowest, by the energy a player
+  spends to reach the unlock threshold, see
+  [ADR-0053](adr/0053-the-stages-rank-the-sets-by-the-energy-to-the-unlock-threshold.md).
+- **Stages:** the first `unlock.start_sets` sets of the order are the first stage, open from the
+  start. The rest are cut into `unlock.stages` stages of equal size.
+- **Unlocks:** a binder that reaches `unlock.binder_threshold` of its cards unlocks
+  `unlock.sets_per_unlock` sets of the next stage, drawn at random, once, see
+  [ADR-0054](adr/0054-a-binder-past-the-threshold-unlocks-random-sets-of-the-next-stage-once.md).
+- **Locked sets** show greyed on the home page and cannot be opened. Their binders show in the
+  collection, marked as locked.
+- **Scope:** the stages hold every set of the product's scope, see
+  [ADR-0039](adr/0039-the-product-covers-the-sets-from-mirage-under-60-dollars-a-booster.md). A game on
+  a list of sets has no stage.
+
+The current values of the keys are in the [tuning log](tuning-log.md).
+
 ## Economy: coins, sources and sinks
 
-Coins flow between the player and the Counter. NPCs hold no coins, see
-[Specs review](specs-review.md#positioning-and-decisions). The main settings are the Counter's rates
-and the rewards.
+Coins flow between the player and the Counter, and on the market between the player and the NPCs.
+NPCs hold no coins, see [Specs review](specs-review.md#positioning-and-decisions): the coins an NPC
+pays for a card enter through the market's account, see
+[ADR-0060](adr/0060-an-npc-pays-coins-for-a-card-on-the-market.md). The main settings are the
+Counter's rates and the rewards.
 
 | Flow | Direction for the player | Starting value |
 | --- | --- | --- |
 | Welcome bonus | Source | 200 coins |
 | Daily reward | Source | 100 coins / day |
 | Sales to the Counter | Source | 60% of the reference value |
+| Sales to NPCs on the market | Source | Up to the reference value less the NPC's margin |
 | Quests, milestones, mini-games | Source | See [Retention](retention.md) |
-| Coin top-ups in trades | Sink | Difference in reference value |
+| Coin top-ups in trades, and purchases from NPCs on the market | Sink | Difference in reference value, or the NPC's asking price |
 | Purchases from the Counter | Sink | 120% of the reference value |
 | Foils from the Counter | Sink | `counter_foil_pct` of the card's reference value, then 120% |
 
@@ -198,6 +239,39 @@ coins into cards without an NPC.
 - **Stock:** fed by the sales of the player and of the NPCs. The game provides an initial stock at
   startup.
 - **Bulk sale:** "sell everything above the playset" in one click.
+
+In the game, the Counter's rules live in `play.Game`, and the player trades from the binders, on
+the collection page, with no page of its own:
+- **Coins:** a new game starts with the welcome bonus. A save from before coins existed gets it too.
+- **Selling:** any copy, the only one included, or every copy above a playset of the cards of a set's
+  binder, foils kept longest. A sale never locks a set again, see
+  [ADR-0054](adr/0054-a-binder-past-the-threshold-unlocks-random-sets-of-the-next-stage-once.md).
+- **Buying:** one copy of a card in stock, missing or not, if a set that is unlocked holds it in its
+  binder. A purchase that fills a binder past the threshold unlocks sets, as an opening does.
+- **What the player sees:** the two prices and whether the Counter has a copy, never how many. A
+  card out of stock tells when the Counter last had it, or that it never did, see
+  [ADR-0056](adr/0056-the-counter-remembers-when-it-last-had-a-card.md).
+- **Stock:** the initial stock, then what the player sells and what the Counter's supply and the NPCs
+  bring each day, also while the game is closed, see
+  [ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md). The game plays
+  the product's base config with an overlay that makes the Counter scarce: no rare or mythic at the
+  start, and a shelf that does not keep cards forever, see
+  [ADR-0057](adr/0057-the-game-plays-the-products-base-config.md).
+- **Prices:** from `--prices`. Without a snapshot every card is worth the fallback price, one cent, as
+  a card the snapshot lacks is in the simulation, so every card costs one coin and pays one.
+- **Refusals** change nothing: not enough coins, out of stock, nothing to sell, a locked set, an
+  unknown card, or a treasury that cannot pay. The page says which, with a link back to the slot.
+- **Cards on the market:** the Counter does not buy a copy held for a listing or a counter on the
+  market, see [The market](#the-market). Selling the duplicates keeps those copies.
+- **In the binder:** the coins show in the header next to the energy. A held card has a Sell
+  button with the price of a copy, per finish, and a quantity when more than one copy is held. A sale
+  that empties the slot, with no copy left in either finish, asks first on a page of its own, so
+  that no script is needed. The binder offers Sell duplicates with the copies and the total it
+  pays, and says so when there is nothing above a playset. An empty slot shows the card's name, its
+  price and a Buy button, or why it cannot be bought: the Counter has no copy and when it last had
+  one ("last in stock 5 minutes ago"), it never had one ("never seen at the Counter"), or it does
+  not trade the card. A locked set's binder only sells. The result of a purchase or a sale shows on
+  the binder it returns to, with the sets it unlocked.
 
 Both prices derive from one reference, so buying a card and selling it back loses half of its
 value at the default rates, and never gains at any rate the configuration accepts. The 60% and 120%
@@ -225,6 +299,62 @@ Trades let the player complete a binder by negotiating with NPCs.
 - **History** of trades received, sent and concluded.
 - A trade that removes the last copy of a card can cost a collection milestone, see
   [Retention](retention.md#collection-goals-and-badges).
+
+The rules above are those of the simulation's Exchange. The game trades on a market instead.
+
+### The market
+
+In the game the player starts trades, as on Reverb or eBay, see
+[ADR-0058](adr/0058-the-player-trades-on-a-market-of-requests-and-listings.md). The rules live in
+`domain.Market`, and `play.Game` exposes them: `AskAround`, `Withdraw`, `List`, `Unlist`,
+`AcceptAnswer`, `DeclineAnswer`, `CounterAnswer` and `Market`, the view. The pages are in
+`internal/web` and hold no rule: they show what the view returns and call these methods.
+
+- **Hunt:** the player asks around for a card. Every NPC that has it on its shelf answers with its
+  asking price, the card's reference value plus its margin, in coins. Asking around for a card of a
+  locked set is refused, as buying it is.
+- **Sell:** the player lists one copy of a card at an asking price, and the copy is reserved until it
+  is sold or unlisted. The NPCs that wish for the card, and the speculators that lack it, offer the
+  cards of their shelf the player lacks, worth no more than the card once their margin is paid, or
+  else coins: the card's value less their margin, never above the asking price.
+- **Answers** come after the NPC's response delay, set by its archetype: some at once, some hours or
+  a day later, see [ADR-0059](adr/0059-an-npc-answers-on-the-market-after-the-delay-of-its-archetype.md).
+  The game delivers them when it loads and on every market call, with the instant they fell due, so
+  a player who comes back later finds them waiting.
+- **Accept** trades at once, atomically, and ends the request or the listing with its other answers.
+  **Decline** ends the answer. **Counter** once: on an asking price the player offers coins and cards,
+  which are reserved until the reply; on an offer it asks for coins. The NPC replies once, after its
+  delay, by the acceptance rule and its traits' vetoes. A refused counter ends the answer.
+- **Lapse:** an answer the player leaves alone ends `trades.offer_expiry_days` after it came. A
+  countered answer waits for its reply.
+- **What the player sees:** the requests, the listings, the answers with who made them and their
+  terms, how many NPCs asked have still to answer a request but not who, and the latest answers that
+  ended: accepted, refused, lapsed, or failed because the NPC no longer had its card.
+- **In the binders:** on an empty slot of an open set, next to the Counter's price, an Ask around
+  button. Once asked, the slot says how far the NPCs have answered ("3 NPCs asked, no answer yet",
+  "3 NPCs asked, 1 still to answer"), then shows each answer with who made it, its personality and its
+  asking price, and Accept, Counter and Decline buttons, with Stop asking. On a held card, per
+  finish, a List on the market form with the asking price, which starts at what the Counter sells the
+  card for since the game exposes no other reference. A listed card shows "Listed at 100 coins", its
+  offers with the same three buttons, and Unlist; a card held for a counter says so.
+- **Counter:** a page of its own, `/counter-offer`, reached from an answer. On an asking price it
+  takes coins and, from the spare cards, the copies above a playset that the market does not already
+  hold, the cards to add; on an offer it takes coins only. A counter waiting for its reply shows on
+  the slot and the market page with the time to the reply.
+- **The Market page:** `/market` lists every request, listing and answer, newest first, with the same
+  buttons, and the latest results: bought, sold, refused, lapsed or failed, with how long ago. The
+  header links to it from every page in a game with a market, with the number of answers waiting.
+  After an accept the page it returns to says what was bought or sold, and the sets it unlocked.
+  Refusals keep the player where they were with a message: nobody has the card, already asking, on
+  the market already, not enough coins, held for the market, and the others of
+  [the market's errors](#the-market).
+- **The NPCs:** the game's crowd, its size and how long it keeps its surplus are in the
+  [tuning log](tuning-log.md). Its NPCs always trade, whatever `trades.enabled`, the simulation's
+  switch, says. They open the sets the player can open,
+  see [ADR-0063](adr/0063-the-npcs-of-the-game-open-the-sets-the-player-can-open.md), and a new
+  game's NPCs have played most of a hold already, see
+  [ADR-0064](adr/0064-a-new-games-npcs-have-most-of-a-hold-behind-them.md). They are saved with the
+  game, see [ADR-0061](adr/0061-the-npcs-are-saved-in-the-games-file-in-a-compact-form.md).
 
 ## NPCs and simulation
 
@@ -261,12 +391,15 @@ An archetype tied to Magic colours wishes only for cards in those colours.
 - **Real collections**, stored as quantities (NPC, printing, foil, quantity). NPCs sell surplus
   cards to the Counter, which bounds the database.
 - **What an NPC does in a tick:** opens boosters, sells surplus to the Counter and proposes trades.
-  It never pays or receives coins. The simulation runs supply and trades, see
+  It holds no coins: what it pays a player on the game's market comes from the market's account, see
+  [ADR-0060](adr/0060-an-npc-pays-coins-for-a-card-on-the-market.md). The simulation runs supply and trades, see
   [NPC crowd](simulation.md#npc-crowd) and [Trades](simulation.md#trades).
 - **Time step:** one tick every 10 minutes of game time.
-- **Offline catch-up:** at launch, the elapsed time is simulated at once, capped at 48 h, in batches
-  with grouped writes. While the app is open, the simulation runs on its tick in the same process.
-- **Coin ledger:** double-entry, covers the player and the Counter. NPCs have no account.
+- **Offline catch-up:** the whole days gone by are simulated when the game loads or the Counter is
+  used, capped at `catch_up_days`, see
+  [ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md). The game's
+  NPCs trade on the market, see [The market](#the-market).
+- **Coin ledger:** double-entry, covers the player, the Counter and the market. NPCs have no account.
 - **Volume:** 500 NPCs × 10 boosters a day ≈ 75,000 cards drawn a day, stored in SQLite.
 
 ## Deferred: auction house

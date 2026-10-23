@@ -22,6 +22,11 @@ type Dataset struct {
 	// the default sweep grid and calibration targets.
 	ConfigYAML string
 
+	// PlayConfigYAML is the configuration of crackapack play --demo: stages small enough that a
+	// player unlocks the second set in a few boosters, and a Counter that stocks itself, with its
+	// mythics out of stock at the start.
+	PlayConfigYAML string
+
 	// SetCodes lists the openable set codes in the demo (DEM, DSP). DEX is in the directory but is
 	// an expensive set, so it is not played.
 	SetCodes []string
@@ -73,6 +78,7 @@ func Build() Dataset {
 	return Dataset{
 		Files:              mapFS,
 		ConfigYAML:         demoConfigYAML,
+		PlayConfigYAML:     playConfigYAML,
 		SetCodes:           []string{"DEM", "DSP"},
 		SupplementaryCodes: []string{"DST"},
 		Images:             newCardArt(dem, dsp, dst),

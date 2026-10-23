@@ -1,6 +1,9 @@
 {{define "title"}}{{.SetName}}{{end}}
 {{define "content"}}
 <h1>{{.SetName}}</h1>
+{{if .Unlocked}}
+{{template "unlocked" .Unlocked}}
+{{end}}
 <p id="reveal-status" class="lead" role="status" aria-live="polite">{{len .Cards}} cards, the rare last.</p>
 <ol class="booster" data-booster>
   {{range .Cards}}

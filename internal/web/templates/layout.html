@@ -13,6 +13,7 @@
     <nav class="site-nav" aria-label="Main">
       <a href="/">Boosters</a>
       <a href="/collection">Collection</a>
+      {{with marketNav}}<a href="/market">Market{{if .Waiting}} <span class="badge">{{.Waiting}}<span class="sr-only"> {{.Label}}</span></span>{{end}}</a>{{end}}
     </nav>
     {{with energy}}
     <div class="energy" role="status">
@@ -23,7 +24,17 @@
       {{if .NextIn}}<span class="energy-note">+1 in {{duration .NextIn}}</span>{{end}}
     </div>
     {{end}}
+    {{if hasCounter}}
+    <div class="coins" role="status">
+      <span class="coins-label">Coins</span>
+      <strong>{{balance}}</strong>
+    </div>
+    {{end}}
   </header>
+  {{if saveFailed}}
+  <p class="notice" role="alert">Your progress could not be saved, so closing the game now would lose
+    what you did since the last save. The server log says why.</p>
+  {{end}}
   <main>
     {{template "content" .}}
   </main>
@@ -36,3 +47,9 @@
   </footer>
 </body>
 </html>{{end}}
+
+{{define "unlocked"}}
+<p class="unlock" role="status">Unlocked: {{range $i, $s := .}}{{if $i}}, {{end}}{{$s.Name}}{{end}}. <a href="/">Open them from your boosters</a>.</p>
+{{end}}
+
+{{define "cardFields"}}<input type="hidden" name="set" value="{{.Set}}"><input type="hidden" name="card" value="{{.ID}}"><input type="hidden" name="finish" value="{{.Finish}}">{{if .Filter}}<input type="hidden" name="rarity" value="{{.Filter}}">{{end}}{{end}}

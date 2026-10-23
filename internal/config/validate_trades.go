@@ -48,8 +48,12 @@ func validateTrades(cfg Config) error {
 	return nil
 }
 
+// maxResponseDelayHours bounds how long an NPC takes to answer on the market: two days, so that an
+// answer still comes while the player remembers asking.
+const maxResponseDelayHours = 48
+
 // validateArchetypeTrade checks the trade settings of one archetype: behaviour, wish_size,
-// margin_pct and offer_chance_pct. key is the dotted config path such as
+// margin_pct, offer_chance_pct and response_delay_hours. key is the dotted config path such as
 // "npcs.archetypes.casual" or "archetypes.casual".
 func validateArchetypeTrade(key string, a ArchetypeConfig) error {
 	switch {
@@ -61,6 +65,8 @@ func validateArchetypeTrade(key string, a ArchetypeConfig) error {
 		return fmt.Errorf("config: %s.margin_pct must be >= 0, got %d", key, a.MarginPct)
 	case a.OfferChancePct < 0 || a.OfferChancePct > 100:
 		return fmt.Errorf("config: %s.offer_chance_pct must be in [0, 100], got %d", key, a.OfferChancePct)
+	case a.ResponseDelayHours < 0 || a.ResponseDelayHours > maxResponseDelayHours:
+		return fmt.Errorf("config: %s.response_delay_hours must be in [0, %d], got %d", key, maxResponseDelayHours, a.ResponseDelayHours)
 	}
 	return nil
 }

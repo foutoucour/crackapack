@@ -1,6 +1,9 @@
 package domain
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // Account names a ledger account.
 type Account string
@@ -51,6 +54,13 @@ const (
 	// account, so the coins leave the economy. It is unguarded, and its balance is the total of
 	// top-ups paid.
 	AccountTradeTopUp Account = "trade_topup"
+
+	// AccountMarketSale is the source account for the coins an NPC pays the player for a card on
+	// the market: the payment posts from AccountMarketSale to AccountPlayer. NPCs hold no coins, so
+	// the coins enter the economy here, as the Counter's do through AccountCounterSale, and never
+	// more than the card is worth, see Market. It is unguarded, and its negative balance is the
+	// total NPCs paid.
+	AccountMarketSale Account = "market_sale"
 
 	// AccountCoinTopup is the sink account for the coins the player pays to substitute coins for
 	// missing energy when opening a booster (the optional coin top-up). It posts from
@@ -138,6 +148,18 @@ func (j *Journal) Balance(a Account) Coins {
 	return j.balances[a]
 }
 
+// Balances returns a copy of the balance of every account that has moved coins, the form Restore
+// takes back.
+func (j *Journal) Balances() map[Account]Coins {
+	out := make(map[Account]Coins, len(j.balances))
+	for a, b := range j.balances {
+		if b != 0 {
+			out[a] = b
+		}
+	}
+	return out
+}
+
 // SumAllBalances returns the sum of every account balance. In a correct journal this is
 // always zero: every Post moves the same amount from one account to another.
 func (j *Journal) SumAllBalances() Coins {
@@ -153,4 +175,44 @@ func (j *Journal) Entries() []Entry {
 	out := make([]Entry, len(j.entries))
 	copy(out, j.entries)
 	return out
+}
+
+// Restore sets the balances of an empty journal to balances, which a save took from Balance. The
+// entries that led to them are not kept: a restored journal starts a new history. It returns an
+// error, and changes nothing, when the journal has entries already, when the balances do not sum
+// to zero, which no history of postings could give, or when a guarded account is below zero.
+func (j *Journal) Restore(balances map[Account]Coins) error {
+	if len(j.entries) > 0 {
+		return errors.New("journal: only an empty journal can be restored")
+	}
+	var sum Coins
+	for a, b := range balances {
+		if _, ok := j.guarded[a]; ok && b < 0 {
+			return fmt.Errorf("journal: guarded account %q has a negative balance of %d", a, b)
+		}
+		sum += b
+	}
+	if sum != 0 {
+		return fmt.Errorf("journal: the balances sum to %d, not zero", sum)
+	}
+	restored := make(map[Account]Coins, len(balances))
+	for a, b := range balances {
+		if b != 0 {
+			restored[a] = b
+		}
+	}
+	j.balances = restored
+	return nil
+}
+
+// FundTreasury adds amount coins to the Counter's treasury from AccountCounterFloat, the one
+// faucet of a Counter with a budget. An amount that is not positive posts nothing.
+func FundTreasury(j *Journal, amount Coins, memo string) error {
+	if amount <= 0 {
+		return nil
+	}
+	if err := j.Post(Entry{From: AccountCounterFloat, To: AccountCounterTreasury, Amount: amount, Memo: memo}); err != nil {
+		return fmt.Errorf("fund the Counter's treasury (%s): %w", memo, err)
+	}
+	return nil
 }

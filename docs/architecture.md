@@ -55,14 +55,23 @@ values and records per-day metrics. The domain never imports sim.
 The domain also holds the trades: `Exchange` prices and executes offers between the player and the
 crowd, `Valuer` gives the Counter and the Exchange the same reference value, and a `TradeBehaviour`
 per archetype picks wishes, the margin and proposals. `internal/sim` composes them behind
-`trades.enabled` and exposes them to player policies through `Session`.
+`trades.enabled` and exposes them to player policies through `Session`. `Market` is the game's way to
+trade: requests, listings and answers due at instants the caller gives, on the Exchange's acceptance
+rule and atomic transfer, see [The market](core-features.md#the-market).
 
 `internal/images` fetches card pictures from Scryfall, one at a time, and keeps them in the image
 cache, see [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md).
 
 `internal/play` is the player's interactive session: the boosters the player holds, the energy that
-opening them costs, which recharges from an injected clock, and the collection they fill. It sits beside `internal/sim`, which runs batch policies, and holds the
-rules a client must not hold. `internal/web` renders it as server-rendered pages embedded in the
+opening them costs, which recharges from an injected clock, the collection they fill, and the stages
+that unlock the sets, see [Stages](core-features.md#stages). It holds the coins and the Counter too,
+and catches up the Counter's supply and NPCs on the days gone by, with the domain objects the
+simulation uses, see [The Counter](core-features.md#the-counter), and the market, whose answers it
+delivers in time with those days. `internal/config` maps the config to
+those objects' parameters for both. It also
+defines the save of that state: a `Snapshot` and a `Store` interface, with a JSON file
+implementation, see [ADR-0052](adr/0052-the-game-is-saved-in-one-versioned-json-file.md). It sits
+beside `internal/sim`, which runs batch policies, and holds the rules a client must not hold. `internal/web` renders it as server-rendered pages embedded in the
 binary, see [ADR-0034](adr/0034-the-web-client-is-server-rendered.md). Its handlers call `play` in
 process, so until a JSON API exists they are both the API adapter and the client of the diagram
 above. `cmd/crackapack play` wires them.
@@ -79,7 +88,8 @@ that both implementations must pass.
 
 The binary is separate from the player's data.
 
-- The database lives under the OS user config directory.
+- The game's save, a JSON file, lives under the OS user config directory, and so will the database
+  of the NPC population.
 - The image cache lives under the OS user cache directory.
 
 Replacing or upgrading the binary never touches either.

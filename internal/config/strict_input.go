@@ -7,8 +7,9 @@ import (
 	yaml "go.yaml.in/yaml/v3"
 )
 
-// floatKeys matches the only keys whose value may be a float: the bounds of a calibration target.
-var floatKeys = regexp.MustCompile(`^targets\[\d+\]\.(min|max)$`)
+// floatKeys matches the only keys whose value may be a float: the bounds of a calibration target
+// and the share of a binder that unlocks sets.
+var floatKeys = regexp.MustCompile(`^(targets\[\d+\]\.(min|max)|unlock\.binder_threshold)$`)
 
 // checkStrictInput walks the YAML tree of the raw document and rejects what the decoder would
 // otherwise accept silently, see ADR-0017: a null item in a sequence, which is dropped, and a float

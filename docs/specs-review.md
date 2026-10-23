@@ -17,7 +17,7 @@ GitHub.
 | Language | Everything in English |
 | Name | crackapack |
 | Prices | A price snapshot to start with, not live daily prices. Price changes alter the inputs of a seeded simulation, so a snapshot keeps runs reproducible and the economy tunable |
-| NPC coins | NPCs hold no coins. Without auctions they have nothing to spend on, and budgets would be machinery with no effect. Trades are card swaps, with a coin top-up from the player when needed |
+| NPC coins | NPCs hold no coins. Without auctions they have nothing to spend on, and budgets would be machinery with no effect. Trades are card swaps, with a coin top-up from the player when needed. On the game's market an NPC can pay coins for a card, which come from the market's account, see [ADR-0060](adr/0060-an-npc-pays-coins-for-a-card-on-the-market.md) |
 | NPC trades | An NPC never gives more reference value than it receives. Archetypes differ only in the margin they demand, which is never negative. A negative margin would let the player inflate a collection's value for free, by trading through a chain of NPCs and selling the result to the Counter |
 | Basic lands | Excluded from binder totals, progress and milestones. They still appear in packs as filler. Ravnica and Time Spiral basics only come as foils, so counting them would make a complete binder nearly impossible |
 

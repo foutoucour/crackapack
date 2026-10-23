@@ -54,7 +54,15 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .packs { list-style: none; margin: var(--gap) 0; padding: 0; display: grid; gap: var(--gap); }
 .pack-tile { background: var(--surface); border-radius: var(--radius); padding: var(--gap); }
-.pack-tile h2 { margin: 0 0 0.25rem; font-size: 1.15rem; }
+.pack-tile h2, .pack-tile h3 { margin: 0 0 0.25rem; font-size: 1.15rem; }
+/* A stage lists its locked sets in short, greyed, with nothing to press. */
+.stage-count { color: var(--text-muted); font-size: 0.9rem; font-weight: 400; }
+.locked-sets { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; margin: var(--gap) 0; padding: 0; }
+.locked-sets li { padding: 0.25rem 0.75rem; border: 1px dashed var(--text-muted); border-radius: 999px; color: var(--text-muted); }
+.binders li.locked a { border-style: dashed; color: var(--text-muted); }
+.tab-lock { font-size: 0.85rem; }
+.unlock { padding: 0.75rem var(--gap); border-radius: var(--radius); background: var(--accent); color: var(--accent-text); font-weight: 600; }
+.unlock a { color: inherit; }
 .count { color: var(--text-muted); margin: 0 0 var(--gap); }
 
 .booster { list-style: none; margin: var(--gap) 0; padding: 0; display: grid; gap: 0.75rem; grid-template-columns: repeat(2, 1fr); }
@@ -173,6 +181,12 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .site-nav a { color: var(--text-muted); text-decoration: none; margin-right: var(--gap); }
 .site-nav a:hover { color: var(--text); }
 
+/* The overview is one line of figures above the switcher, so that the long list of binders stays below. */
+.overview dl { display: flex; flex-wrap: wrap; gap: 0.25rem var(--gap); margin: 0; color: var(--text-muted); }
+.overview dl div { display: flex; gap: 0.4rem; }
+.overview dt, .overview dd { margin: 0; }
+.overview dd { color: var(--text); font-weight: 700; }
+
 .binders ul { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; margin: var(--gap) 0; padding: 0; }
 .binders a { display: inline-block; padding: 0.4rem 0.9rem; border: 1px solid var(--text-muted); border-radius: 999px; color: var(--text); text-decoration: none; }
 .binders a[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
@@ -188,6 +202,9 @@ progress { width: min(100%, 24rem); height: 1rem; accent-color: var(--accent); }
 .rarities a[aria-current="true"] { background: var(--text); border-color: var(--text); color: var(--bg); }
 .rarities .playsets { margin-left: 0.75rem; }
 .rarities strong { font-weight: 700; }
+.colours ul { list-style: none; display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin: 0.5rem 0 0; padding: 0; color: var(--text-muted); }
+.colours strong { color: var(--text); font-weight: 700; }
+.unlock-mark { margin: 0; padding: 0.15rem 0.6rem; border: 1px solid var(--accent); border-radius: 999px; color: var(--accent); font-size: 0.9rem; }
 h2 { margin: 1.5rem 0 0; }
 
 /* The binder is a grid of cards at the proportions of a card: owned ones show up, the others are
@@ -197,6 +214,52 @@ h2 { margin: 1.5rem 0 0; }
 .binder .card.has-image .face { gap: 0.25rem; }
 .slot.empty { display: flex; align-items: flex-end; justify-content: center; aspect-ratio: 488 / 680; padding: 0.5rem; border: 2px dashed #3a4052; border-radius: 0.6rem; color: #8a90a0; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* The Counter's side of a binder: the buttons and prices sit under each card, in text that does not
+   rely on colour, so the grid keeps its cards at the proportions of a card. */
+.binder .entry { display: flex; flex-direction: column; gap: 0.4rem; scroll-margin-top: 4rem; }
+.counter { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; color: var(--text-muted); }
+.counter form { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: 0; }
+.counter label { display: flex; align-items: center; gap: 0.35rem; }
+.counter input[type="number"] { width: 3.5rem; padding: 0.25rem; font: inherit; }
+.counter button { padding: 0.3rem 0.6rem; font-size: 0.85rem; }
+.counter p { margin: 0; }
+.shelf-name { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
+.shelf-price { color: var(--text); }
+.coins { display: flex; align-items: center; gap: 0.4rem; color: var(--text-muted); font-size: 0.9rem; }
+.coins strong { color: var(--accent); }
+.duplicates { margin: var(--gap) 0; padding: 0.75rem var(--gap); border: 1px solid var(--surface); border-radius: var(--radius); }
+.duplicates p { margin: 0 0 0.5rem; }
+.duplicates form { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
+.duplicates form p { margin: 0; }
+.counter-note { color: var(--text-muted); }
+/* The result of a purchase or a sale stays in view when the page jumps to the slot it concerns. */
+.results { position: sticky; top: 0; z-index: 2; }
+.sale-notice { margin: 0; padding: 0.75rem var(--gap); background: var(--accent); color: var(--accent-text); font-weight: 600; }
+.results .unlock { margin: 0; border-radius: 0; border-top: 1px solid var(--accent-text); }
+
+/* The market: the requests, listings and answers sit under the slot they concern, in the same quiet
+   text as the Counter, and on a page of their own. The badge counts in text, not in colour alone. */
+.market { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; color: var(--text-muted); }
+.market form { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: 0; }
+.market label { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.market input[type="number"] { width: 4.5rem; padding: 0.25rem; font: inherit; }
+.market button, .market .button { padding: 0.3rem 0.6rem; font-size: 0.85rem; }
+.market p { margin: 0; }
+.market .answers, .market-list, .results-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.market .answers strong { color: var(--text); }
+.answer-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.25rem 0 0; }
+.answer-actions form { margin: 0; }
+.market-section { margin: var(--gap) 0; }
+.market-section h3 { margin: 0 0 0.25rem; }
+.market-list > li, .results-list > li { padding: 0.75rem var(--gap); border: 1px solid var(--surface); border-radius: var(--radius); }
+.market-list .answers, .market-list p { color: var(--text); }
+.market-list .shelf-note, .results-list .shelf-note { color: var(--text-muted); }
+.counter-form fieldset { margin: var(--gap) 0; border: 1px solid var(--surface); border-radius: var(--radius); }
+.counter-form label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.counter-form input[type="number"] { width: 6rem; padding: 0.3rem; font: inherit; }
+.lead a { color: var(--accent); }
+.badge { display: inline-block; min-width: 1.4rem; padding: 0 0.4rem; border-radius: 999px; background: var(--accent); color: var(--accent-text); font-size: 0.8rem; font-weight: 700; text-align: center; }
 
 .viewer { border: 0; padding: 0; background: transparent; max-width: none; max-height: none; overflow: visible; }
 .viewer::backdrop { background: rgb(8 9 14 / 85%); }
@@ -235,3 +298,6 @@ h2 { margin: 1.5rem 0 0; }
   .booster.staged .card.last.facedown { animation: none; }
   .booster.staged .card.last.facedown { box-shadow: 0 0 2rem 0.2rem var(--accent); }
 }
+
+/* A notice under the header, for what the player must not miss, such as a save that failed. */
+.notice { margin: 0; padding: 0.75rem var(--gap); background: var(--accent); color: var(--accent-text); font-weight: 600; }

@@ -26,6 +26,7 @@ type Card struct {
 	Rarity      Rarity
 	Finishes    []Finish
 	IsBasicLand bool
+	IsLand      bool     // MTGJSON "types" has Land; a basic land is one too
 	ScryfallID  string   // empty when absent from the source file
 	Colors      []string // MTGJSON "colors", e.g. ["W","U"]; empty means colourless or data absent
 }

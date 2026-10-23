@@ -113,6 +113,8 @@ many parameters at once for a config that meets the goals.
   binder was 330,000 to 1 million coins in the runs. Sinks were deferred until trades or cosmetics
   exist. Choose them, see [Economy: risks and fixes](specs-review.md#economy-risks-and-fixes). The
   leading candidate is the coin top-up in the item below.
+  - [x] The game's Counter, the first sink a player meets: a purchase costs 120% and a sale back pays
+    60%, see [The Counter](core-features.md#the-counter). The daily reward is not in the game yet.
   - [x] Foils as a sink: `counter_foil_pct` and the `master-collector` policy, see
     [ADR-0027](adr/0027-a-foil-is-a-percentage-of-its-cards-price.md). At 300 the idle pile after 90
     days fell from 260,000-300,000 to 24,000-55,000 coins on two seeds, and to under 3,000 at 500 on five seeds.
@@ -166,6 +168,9 @@ many parameters at once for a config that meets the goals.
     test pins that; a broke Counter is now offered each card once per session, not each copy.
   - [x] An ADR for vanishing sales, see
     [ADR-0018](adr/0018-cards-sold-to-the-counter-can-vanish.md).
+  - [x] The game plays the supply and the crowd on the days it catches up, see
+    [ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md). Left: the
+    Counter's coin fee in the game, which it refuses for now.
 
 ### Calibration and decisions
 
@@ -324,12 +329,20 @@ run today. The other two wait for features that are not built. The
 
 ### NPC state in the real app
 
-These need the SQLite store, which does not exist yet.
+The game keeps its NPCs in its JSON file for now. These need the SQLite store, which does not exist
+yet.
 
-- [ ] NPC generation on first launch, with the seed stored.
+- [x] NPC generation on first launch, with the seed stored: the game draws its NPCs from the saved
+  seed and config, see [ADR-0061](adr/0061-the-npcs-are-saved-in-the-games-file-in-a-compact-form.md).
 - [ ] NPC collections stored as quantities, with an index on (printing, NPC), see
   [Technical](specs-review.md#technical).
-- [ ] Offline catch-up: replay the ticks missed, capped at 48 hours, in batches with grouped writes.
+- [ ] Offline catch-up in batches with grouped writes. The game replays the missed days in memory, up
+  to `catch_up_days`, and saves the crowd compactly in its one JSON file, see
+  [ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md) and
+  [ADR-0061](adr/0061-the-npcs-are-saved-in-the-games-file-in-a-compact-form.md). With the game's 12
+  NPCs the file is 1.6 MB after 30 days and 2.0 MB after 90, see the
+  [tuning log](tuning-log.md), and every save rewrites it. It grows as more sets unlock. A dictionary
+  of the card IDs, written once for the crowd and the Counter's shelf, would cut it by more than half.
 - [ ] NPC names and avatars. The simulation has no use for them.
 
 ### After V1
@@ -349,8 +362,7 @@ The stack is server-rendered `html/template`, see
 
 - [x] Open the ten welcome boosters and reveal the cards one big card at a time, with the rare held
   back for the end, and the new cards flagged. A card already seen opens big again from its
-  miniature on the shelf. The session is in memory: it starts over when the
-  server restarts. The card back is the Magic back, downloaded once and cached, with an in-house
+  miniature on the shelf. The card back is the Magic back, downloaded once and cached, with an in-house
   drawing (`card-back.svg`) as the fallback, see
   [ADR-0036](adr/0036-the-card-back-is-downloaded-with-an-in-house-fallback.md). The reveal script
   has no automated test, since CI has no browser: it was checked
@@ -359,14 +371,60 @@ The stack is server-rendered `html/template`, see
   by the clock, the free welcome boosters spent first, and a refusal that says how long to wait,
   see [ADR-0038](adr/0038-the-games-energy-recharges-by-the-clock.md). Costs need `--prices`, or
   every booster costs the middle tier. Left: coins, so the coin fee above the cap and the coin
-  top-up, the energy saved with the session, a gauge that updates without a reload, and the
+  top-up, a gauge that updates without a reload, and the
   bonuses that add to the savings, such as the chest and the milestones.
 - [x] The collection: one binder per set at `/collection`, every card but the basic lands in
   collector number order with the empty slots greyed, progress overall and by rarity, complete
   playsets, the copies held by finish, a filter on rarity, a click to see a card big, and the
-  timeshifted cards in Time Spiral's binder, counted in its progress. Left: the collection's value, the card page, filters, selling the
-  duplicates, and the master set (foil as slots of their own).
-- [ ] The Counter, trades with NPCs, quests and the profile.
+  timeshifted cards in Time Spiral's binder, counted in its progress. Stats: an overview at the top
+  (cards held, binders complete, sets unlocked), the progress of each binder by colour, and a mark on
+  a binder past the unlock threshold, see [Collection and binders](core-features.md#collection-and-binders).
+  Left: the collection's value, the card page, filters (colour among them), and the master set
+  (foil as slots of their own).
+- [x] Saves: the collection, the welcome boosters left, the energy and the booster stream are saved
+  to one JSON file after every action and loaded on start, and the energy recharges for the time the
+  game was closed, see
+  [ADR-0052](adr/0052-the-game-is-saved-in-one-versioned-json-file.md). A save that fails is shown
+  on every page and logged. The Counter and the market are saved in it too. Left: export and import
+  from the app, and the state of what comes next (quests, rewards), each added as a field of
+  `play.Snapshot`.
+- [x] Stages: every set in scope with `--sets all`, the default, ranked from the quickest binder to
+  the slowest and cut into stages that a binder at 90% unlocks, see
+  [Stages](core-features.md#stages). Locked sets are greyed on the home page and marked in the
+  collection. Left: a `--config` for `play`, so the `unlock` keys can change without the code; and
+  the cards a set's boosters draw from another openable set, such as Kaladesh's in Aether Revolt,
+  which open but do not count in its binder.
+- [x] Coins and the Counter in `play.Game`: the welcome bonus, selling any copy or everything above
+  a playset of a binder, buying a card in stock, quotes that never show the stock and tell when a
+  card was last in stock, and a stock that the supply and the NPCs refill on the days caught up,
+  saved with the game, see [The Counter](core-features.md#the-counter). Left: the daily reward, the
+  coin top-up and the coin fee above the energy cap, and a `--config` for `play`.
+- [x] The Counter in the binders: the coins in the header, on a held card a Sell button with its
+  price, a quantity and a confirmation page when the sale empties the slot, a Sell duplicates button
+  that shows what it pays, and on an empty slot the price with a Buy button, or when the Counter has
+  no copy "last in stock 5 minutes ago" or "never seen at the Counter". No script is needed, and the
+  stock is never shown. The actions are on each binder page, not on the overview, see
+  [The Counter](core-features.md#the-counter). The page is checked by its HTML in tests and by a
+  screenshot of headless Chrome, with no browser test. Left: buying more copies of a held card (a
+  Buy button shows on empty slots only), and a way to see the Counter's prices without opening a
+  binder.
+- [x] The market in `play.Game`: ask around for a card and get the NPCs' asking prices, list a
+  card and get their offers in coins or cards, accept, decline or counter once, with answers after
+  each archetype's delay, saved with the game, see [The market](core-features.md#the-market). The
+  real game has a crowd that trades.
+- [x] The market in the binders and on `/market`: Ask around on an empty slot with the pending state
+  and the answers as they arrive, List on the market on a held card with its offers and Unlist, a
+  counter page that takes coins and spare cards, a Market page with every request, listing, answer
+  and the latest results, and a badge in the header with the answers waiting. No script is needed.
+  The pages are checked by their HTML in tests, through the demo's handlers with a moved clock, and
+  by a screenshot of headless Chrome. Left: the NPCs' names (an answer shows "NPC 4 (whale)"), a
+  message for a deal that completes a binder while the player is away (the game unlocks the sets
+  but does not tell them), counters that add cards other than the duplicates, a counter on an offer
+  with cards (ADR-0058 asks for coins), offers on a listing from NPCs who come to want the card
+  after it was listed, a lighter binder page (the controls add about 400 bytes a slot, so the
+  largest binders weigh 280 to 330 KB: one form shared by a binder's buttons would cut it), and a
+  simulation of what the market does to the coins and the Counter's stock.
+- [ ] Quests and the profile.
 - [x] Card pictures, downloaded from Scryfall on demand and cached, see
   [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md). The demo draws its own.
   Left: a cache that can be refreshed, and the two faces of a double-faced card.

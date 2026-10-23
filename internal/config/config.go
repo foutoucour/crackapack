@@ -8,6 +8,7 @@ package config
 
 import (
 	"fmt"
+	"time"
 
 	yaml "go.yaml.in/yaml/v3"
 
@@ -202,6 +203,16 @@ type CounterEnergyConfig struct {
 	SavingsCap int `yaml:"savings_cap"`
 }
 
+// Params returns the Counter's energy in the form the domain's Energy takes.
+func (e CounterEnergyConfig) Params() domain.EnergyParams {
+	return domain.EnergyParams{
+		RechargePerTick:      e.RechargePerTick,
+		ReserveCap:           e.ReserveCap,
+		SavingsIntervalTicks: e.SavingsIntervalTicks,
+		SavingsCap:           e.SavingsCap,
+	}
+}
+
 // CounterSupplyConfig is how the Counter stocks itself by opening boosters, as a special player.
 type CounterSupplyConfig struct {
 	// Mode is CounterSupplyNone (the default), CounterSupplyFixed or CounterSupplyEnergy.
@@ -270,6 +281,11 @@ type ArchetypeConfig struct {
 	// [0, 100].
 	OfferChancePct int `yaml:"offer_chance_pct"`
 
+	// ResponseDelayHours is how long an NPC of the archetype takes to answer the player on the
+	// market: an asking price, an offer on a listing or its reply to a counter. In [0, 48], 0
+	// answering at once, see docs/core-features.md#the-market.
+	ResponseDelayHours int `yaml:"response_delay_hours"`
+
 	// Colors are the Magic colours the archetype wishes for, from domain.ValidColors. Empty
 	// means no restriction.
 	Colors []string `yaml:"colors"`
@@ -302,6 +318,37 @@ type NPCConfig struct {
 	// from embedded YAML files by [Load]; see [LoadArchetypes]. The simulation config may override
 	// an archetype by name, replacing the embedded entry as a whole.
 	Archetypes map[string]ArchetypeConfig `yaml:"archetypes"`
+}
+
+// ArchetypeSpecs returns the archetypes in the form the domain generates a population from. The
+// trade settings, the behaviour, the wishes, the margin, the offer chance, the colours and the
+// traits, are left out unless trades is true, so that a crowd that does not trade behaves as it
+// did before trades existed.
+func (n NPCConfig) ArchetypeSpecs(trades bool) map[string]domain.ArchetypeSpec {
+	specs := make(map[string]domain.ArchetypeSpec, len(n.Archetypes))
+	for name, a := range n.Archetypes {
+		spec := domain.ArchetypeSpec{
+			Share:             a.Share,
+			MinBoostersPerDay: a.MinBoostersPerDay,
+			MaxBoostersPerDay: a.MaxBoostersPerDay,
+			KeepCopies:        a.KeepCopies,
+			FocusSet:          domain.FocusSetMode(a.FocusSet),
+		}
+		if trades {
+			spec.Behaviour = a.Behaviour
+			spec.WishSize = a.WishSize
+			spec.MarginPct = a.MarginPct
+			spec.OfferChancePct = a.OfferChancePct
+			spec.ResponseDelay = time.Duration(a.ResponseDelayHours) * time.Hour
+			spec.Colors = a.Colors
+			spec.Traits = make([]domain.TraitSpec, 0, len(a.Traits))
+			for _, trait := range a.Traits {
+				spec.Traits = append(spec.Traits, domain.TraitSpec{Name: trait, Params: a.TraitParams[trait]})
+			}
+		}
+		specs[name] = spec
+	}
+	return specs
 }
 
 // TradesConfig holds the parameters of the trades between the player and the NPCs, see
@@ -412,6 +459,49 @@ type Config struct {
 	// Each entry must be > 0 and the list must be strictly ascending.
 	// Default: [10, 25, 50, 100, 250, 500].
 	SweepRates []domain.CoinRate `yaml:"sweep_rates"`
+
+	// Unlock is how the sets of the game open up in stages, see docs/core-features.md#stages.
+	Unlock UnlockConfig `yaml:"unlock"`
+
+	// CatchUpDays is the most days of the Counter's supply and of the NPCs that a game catches up
+	// on when it is played again, the most recent ones (default 30). The days before them are
+	// skipped, so that a long time away does not hold up the start, see play.Game.
+	CatchUpDays int `yaml:"catch_up_days"`
+}
+
+// CounterParams returns the parameters of the Counter that the config describes, for the
+// simulation and the game alike.
+func (c Config) CounterParams() domain.CounterParams {
+	shelf := domain.VanishAfterDays(c.CounterShelfDays)
+	if c.CounterShelfDays < 0 {
+		shelf = domain.ForeverOnShelf()
+	}
+	return domain.CounterParams{
+		SellPct:       c.CounterSellPct,
+		BuyPct:        c.CounterBuyPct,
+		FoilPct:       c.CounterFoilPct,
+		CoinRate:      c.CoinRate,
+		FallbackPrice: c.FallbackPrice,
+		InitialStock:  c.InitialStock,
+		ShelfLife:     shelf,
+		Treasury:      c.CounterBudget.Enabled,
+	}
+}
+
+// UnlockConfig is how the sets of the game open up: the sets rank from the quickest binder to the
+// slowest and are cut into stages, the first open from the start, and a binder past the threshold
+// opens sets of the next stage once.
+type UnlockConfig struct {
+	// BinderThreshold is the share of a binder, in (0, 1], that opens new sets (default 0.9). It is
+	// the same for every set, and it is the share the sets are ranked by.
+	BinderThreshold float64 `yaml:"binder_threshold"`
+	// SetsPerUnlock is how many sets a binder past the threshold opens (default 3).
+	SetsPerUnlock int `yaml:"sets_per_unlock"`
+	// Stages is how many stages of equal size the sets after the first stage are cut into
+	// (default 4), so a game has one stage more than this.
+	Stages int `yaml:"stages"`
+	// StartSets is the size of the first stage, the sets open from the start (default 5).
+	StartSets int `yaml:"start_sets"`
 }
 
 // isKnownRarity reports whether r is a rarity initial_stock may name.
@@ -478,6 +568,8 @@ func defaults() Config {
 		SessionsPerDay: 3, // ASSUMPTION
 		RunDays:        90,
 		SweepRates:     []domain.CoinRate{10, 25, 50, 100, 250, 500},
+		Unlock:         UnlockConfig{BinderThreshold: 0.9, SetsPerUnlock: 3, Stages: 4, StartSets: 5},
+		CatchUpDays:    30,
 	}
 }
 
@@ -492,6 +584,9 @@ func validate(cfg Config) error {
 	}
 	if cfg.CounterSellPct <= 0 {
 		return fmt.Errorf("config: counter_sell_pct must be > 0, got %d", cfg.CounterSellPct)
+	}
+	if cfg.CatchUpDays < 1 {
+		return fmt.Errorf("config: catch_up_days must be >= 1, got %d", cfg.CatchUpDays)
 	}
 	if cfg.CounterShelfDays < -1 {
 		return fmt.Errorf("config: counter_shelf_days must be >= -1 (-1 keeps cards forever), got %d", cfg.CounterShelfDays)
@@ -564,5 +659,5 @@ func validate(cfg Config) error {
 	if err := ValidateSweepRates(cfg.SweepRates); err != nil {
 		return err
 	}
-	return nil
+	return validateUnlock(cfg.Unlock)
 }

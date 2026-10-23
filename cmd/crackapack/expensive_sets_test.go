@@ -92,7 +92,7 @@ func TestLoadInputs_theDemoLeavesItsExpensiveSetOut(t *testing.T) {
 
 func TestRunPlay_aRequestedExpensiveSetFailsBeforeServing(t *testing.T) {
 	t.Parallel()
-	a := demoPlayArgs(t)
+	a := demoListArgs(t)
 	a.setCodes = append([]string{"DEX"}, a.setCodes...)
 
 	err := runPlay(context.Background(), a)

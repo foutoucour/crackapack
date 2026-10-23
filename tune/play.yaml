@@ -1,0 +1,14 @@
+# The overlay crackapack play applies on top of base.yaml, and the search does not: overrides in the
+# form of the search's candidates. The game wants a Counter that can miss a card, so that a rare is
+# something to watch for: nothing sold or opened lasts forever, and the rares and mythics reach the
+# Counter only through its daily boosters and the player's sales. The values and why they were
+# chosen are in docs/tuning-log.md.
+- {path: counter_shelf_days, value: 28}
+- {path: initial_stock.rare, value: 0}
+- {path: initial_stock.mythic, value: 0}
+# The game's NPCs trade with the player on the market, see ADR-0058: a crowd of twelve, the smallest
+# whose archetype shares give a whale, keeping its surplus on its shelf for a week, so that the
+# cards of the sets the player can open are there to ask for. The numbers and the measurements
+# behind them are in docs/tuning-log.md.
+- {path: npcs.population, value: 12}
+- {path: npcs.surplus_hold_days, value: 7}

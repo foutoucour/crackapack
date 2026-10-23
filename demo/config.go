@@ -4,6 +4,39 @@ package demo
 // this seed via a PCG generator so the dataset is byte-identical on every platform.
 const demSeed uint64 = 42
 
+// playConfigYAML cuts the two demo sets into two stages of one, and lets a quarter of a binder
+// unlock the other set, so that the welcome boosters of the first reach it: a binder at 90% takes a
+// few dozen boosters.
+//
+// The Counter opens five boosters a day and twelve NPCs sell it their surplus once they have held
+// it three days, so that its stock moves from one day to the next, also while the demo is closed. The
+// mythics start out of stock, so that a new demo shows both a card in stock and one the Counter
+// never had. The uncommons start out of stock too, and a copy that reaches the Counter's shelf stays
+// a day: sell an uncommon, and the next day its slot says when the Counter last had it.
+//
+// Twelve NPCs is the smallest crowd the archetypes' shares give a whale: five casuals and a
+// speculator answer the market at once, and the whale, who opens dozens of boosters a day, answers
+// half a day later, as the playset hunters, the targeted collectors and the archivist do hours
+// later. Asking around for a common of DEM gets an answer at once and another later, and a listed
+// card draws the speculator's offer at once.
+const playConfigYAML = `
+unlock:
+  start_sets: 1
+  stages: 1
+  sets_per_unlock: 1
+  binder_threshold: 0.25
+counter_supply:
+  mode: fixed
+  boosters_per_day: 5
+npcs:
+  population: 12
+  surplus_hold_days: 3
+counter_shelf_days: 1
+initial_stock:
+  uncommon: 0
+  mythic: 0
+`
+
 // demoConfigYAML is the YAML configuration for the crackapack demo sweep.
 //
 // Calibration targets are pacing targets set by the maintainers. They were

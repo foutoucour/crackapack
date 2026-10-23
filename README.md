@@ -9,9 +9,25 @@ solo, local game. It is a personal project, published for anyone who wants to ru
 ## Status
 
 Pre-alpha. The simulation MVP exists, with NPCs that open boosters and supply the Counter. The
-first UI lets you open the ten welcome boosters, then more for energy that recharges by itself, and
-browse your collection, one binder per set. The following are not built yet: the Counter and
-trades in the UI, coins in the game, catalogue sync, and data persistence.
+game is playable over several days in the browser, with `crackapack play`:
+
+- You open the ten welcome boosters, then more for energy that recharges by itself, also while the
+  game is closed. The game is saved after every action, so a restart picks it up where it was.
+- It plays every set in scope, unlocked in stages as your binders fill.
+- You browse your collection, one binder per set, with the progress overall, by rarity and by
+  colour, and the collection stats on top.
+- The game has coins and a Counter that stocks itself each day. You trade at it from the binders: a
+  held card sells for its price, a missing one is bought when the Counter has a copy, and the
+  duplicates above a playset sell in one click.
+- The game's NPCs trade with you on a market. From an empty slot you ask around, and the NPCs that
+  have the card answer with their prices; from a held card you list it, and the NPCs that want it make
+  offers. You accept, counter once or decline, on the binder or on the Market page, and the header
+  counts the answers waiting. Each NPC answers at the pace of its personality, some at once and some
+  the next day.
+
+Not built yet: quests, rewards and milestones, with milestones as named groups of cards such as the
+Urzatron, the coin top-up for energy, catalogue sync, packaging, and a simulation of the market's
+effect on the economy. See the [TODO](docs/todo.md).
 
 ## Open your first boosters
 
@@ -22,12 +38,21 @@ files or network required. The demo cards are drawn as placeholders:
 go run ./cmd/crackapack play --demo
 ```
 
-Then open the address it prints. With real catalogues from `fetchdata`, pass
-`--catalogue-dir ./catalogues --sets RAV,TSP --supplementary TSB --prices ./prices.json` instead of
-`--demo`; the prices set what a booster costs in energy, and without them every booster costs the
-same. The card
+Then open the address it prints. The demo lets you try the market in a minute: on an empty slot of the
+binder press Ask around, one NPC answers at once and others later, and after opening a booster you can
+list its rare from the binder and get an offer at once. With real catalogues from `fetchdata`, pass
+`--catalogue-dir ./catalogues --prices ./prices.json` instead of `--demo`. That plays every set of
+the directory in scope, from Mirage on, in [stages](docs/core-features.md#stages): a few sets are
+open at the start, and a binder filled to 90% unlocks three more. Add
+`--sets RAV,TSP --supplementary TSB` to play a few sets, all open. The prices set what a booster
+costs in energy, and without them every booster costs the same. The card
 pictures are then downloaded from Scryfall the first time a card shows, and kept in your user cache
 directory, see [ADR-0035](docs/adr/0035-card-pictures-are-served-from-a-local-cache.md).
+
+Your game is saved in a JSON file, which the command prints on startup: `crackapack/save.json` in
+your user config directory, `save-demo.json` for the demo, or the path of `--save`. Delete the file,
+or pass another `--save`, to start a new game. See
+[ADR-0052](docs/adr/0052-the-game-is-saved-in-one-versioned-json-file.md).
 
 ## Try the simulation
 
