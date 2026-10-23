@@ -121,6 +121,11 @@ It writes `catalogues/<CODE>.json` for each set (override with `--catalogue-dir`
 `--catalogue-dir ./catalogues --prices prices.json`. Set codes are the MTGJSON ones; list a
 supplementary pool such as `TSB` there too. Both default outputs are git-ignored.
 
+Asking for `ONE` also downloads `DMU`, `NEO`, `KHM` and `SNC` and writes `PRAETORS.json`, the pool
+of the 4 cards that Phyrexia: All Will Be One's sheet borrows from them. Pass it with
+`--supplementary PRAETORS` in any run that names `ONE`, see
+[ADR-0047](adr/0047-a-sheet-card-held-by-another-sets-file-comes-from-a-derived-pool.md).
+
 The snapshot holds one price per card of the requested sets: the latest TCGplayer retail price in
 US cents, non-foil first and foil for cards that exist only as foils. A card with no TCGplayer
 price is left out, so the simulation prices it at `fallback_price` and counts it in
@@ -799,11 +804,12 @@ catalogue directory, so a pool such as TSB goes under `supplementary`.
 **Judge the stock and the coin goals on the whole scope.** What a set count does to the economy
 is large. The same config (a Counter that opens 40 boosters a day, 50 NPCs, the
 `master-collector`, 90 days) left 134 copies per rare printing and no rare out of stock on RAV and
-TSP, and 2.9 copies and 4.6% out of stock on the 106 sets of the scope. A search that scores
+TSP, and 2.9 copies and 4.6% out of stock on the 106 sets of the scope, measured before ONE loaded. A search that scores
 `rare_out_of_stock_pct`, `rare_stock_per_printing` or `final_balance` on a few sets tunes for a
 world the product does not have. Give those goals a scenario with every set in scope, and keep
 `per_set` scenarios, which are cheap, for the pace goal. A run of 106 sets takes about 20 s and 140
-MB. Phyrexia: All Will Be One does not load yet, see the [TODO](todo.md), so the scope has 106 sets.
+MB. The scope has 107 sets once Phyrexia: All Will Be One is in, and its scenario lists `PRAETORS`
+under `supplementary`.
 
 **The loss.** Each band that a run misses adds the distance outside it, divided by the band's size:
 the width of a `between` band, otherwise the magnitude of its bound, and at least 1. So a metric of
