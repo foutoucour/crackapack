@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"slices"
 	"strings"
 
 	yaml "go.yaml.in/yaml/v3"
@@ -150,7 +151,8 @@ func validateBand(t config.CalibrationTarget) error {
 }
 
 // Runs expands the scenarios into the simulations a candidate is scored on, in file order. A
-// per-set scenario gives one run per set, named "scenario/SET".
+// per-set scenario gives one run per set, named "scenario/SET", and a set is never its own pool, so
+// a donor set can be listed as a pool for the sets that borrow its cards.
 func (p Problem) Runs() []Run {
 	var runs []Run
 	for _, s := range p.Scenarios {
@@ -165,6 +167,7 @@ func (p Problem) Runs() []Run {
 			run := base
 			run.Name = s.Name + "/" + set
 			run.Sets = []string{set}
+			run.Supplementary = slices.DeleteFunc(slices.Clone(s.Supplementary), func(code string) bool { return code == set })
 			run.Bands = p.bandsOf(s.Name, strings.ToLower(set))
 			runs = append(runs, run)
 		}

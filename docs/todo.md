@@ -176,7 +176,9 @@ are the goals and their bands, the scope, and the remedies that change a rule.
   [ADR-0039](adr/0039-the-product-covers-the-sets-from-mirage-under-60-dollars-a-booster.md) to
   [ADR-0043](adr/0043-no-card-is-worth-less-than-one-coin-at-the-counter.md). The window behind
   [ADR-0006](adr/0006-coin-rate-is-100-per-dollar.md) still rests on the demo's targets.
-  ADR-0042 is still Proposed: its bands have no metric or run behind them.
+  [ADR-0049](adr/0049-a-rare-is-scarce-at-the-counter-and-still-reachable-by-trade.md) is still
+  Proposed: its Counter bands were read once, without trades, and no candidate landed inside the
+  out-of-stock band, see the [tuning log](tuning-log.md).
 - [x] **Implement the Counter's one-coin floor**, see
   [ADR-0044](adr/0044-the-counter-pays-at-least-one-coin-for-a-priced-card.md): the Counter's sell
   price and `sub_coin_cards` use `domain.PayoutCoins`, so only a card with no price is refused. The
@@ -263,15 +265,18 @@ run today. The other two wait for features that are not built. The
   that give a good economy. A run is scored by a loss, and the search lowers it, the way training
   lowers a loss. Built as `crackapack tune`, see [The tuning system](simulation.md#the-tuning-system),
   [ADR-0045](adr/0045-a-config-is-scored-by-its-distance-outside-the-bands.md) and
-  [ADR-0046](adr/0046-the-search-is-staged-and-validated-on-unseen-seeds.md). What is left is to
-  write the product's search space and goals files, and to run it on the 107 sets.
+  [ADR-0046](adr/0046-the-search-is-staged-and-validated-on-unseen-seeds.md). The product's files
+  are in `tune/` and a first search ran on the 107 sets, see the [tuning log](tuning-log.md). Its best
+  config is not applied: the defaults already meet more of the economy bands. What is left is a search
+  whose loss does not favour speed so strongly, and a wider range for the keys at the edge of theirs.
   - [x] **Goals and bands**, a manual decision. Each goal is a band on a metric, reusing the
     `between`, `at_most` and `at_least` targets. The sets they apply to are in
     [ADR-0039](adr/0039-the-product-covers-the-sets-from-mirage-under-60-dollars-a-booster.md):
-    - [x] Pace per set: [ADR-0040](adr/0040-a-binder-takes-about-two-weeks-for-a-set-played-alone.md).
+    - [x] Pace per set: [ADR-0050](adr/0050-a-binder-is-never-fast-and-some-sets-are-slow-on-purpose.md).
     - [x] No runaway coins: [ADR-0041](adr/0041-a-finished-collector-keeps-at-most-3000-coins.md).
       The money supply has no band yet.
-    - [x] Healthy Counter stock: [ADR-0042](adr/0042-the-counters-rares-are-scarce-but-not-gone.md).
+    - [x] Healthy Counter stock, trades included:
+      [ADR-0049](adr/0049-a-rare-is-scarce-at-the-counter-and-still-reachable-by-trade.md).
     - [x] Fair prices at small scale:
       [ADR-0043](adr/0043-no-card-is-worth-less-than-one-coin-at-the-counter.md).
   - [x] **Search space file:** parameters addressed by their path in the config, such as
@@ -284,8 +289,12 @@ run today. The other two wait for features that are not built. The
   - [x] **Loss:** the distance outside each band, normalised by the band's size, averaged over
     seeds and summed. A loss of 0 means every goal is met.
   - [x] **Counter stock metrics:** `rare_out_of_stock_pct` and `rare_stock_per_printing`, with the
-    bands of [ADR-0042](adr/0042-the-counters-rares-are-scarce-but-not-gone.md). That ADR is still
-    Proposed: no run has judged its numbers yet.
+    bands of [ADR-0049](adr/0049-a-rare-is-scarce-at-the-counter-and-still-reachable-by-trade.md), which
+    kept the numbers of ADR-0042, now superseded. It is still Proposed: a first search judged the bands
+    without trades, see the [tuning log](tuning-log.md), and the out-of-stock band was not met.
+  - [ ] **`rare_unreachable_pct`**, the share of rare printings that neither the Counter nor an NPC's shelf
+    holds, and a goal scenario with `trades.enabled`. Until then `tune/goals.yaml` judges the Counter's
+    stock without trades.
   - [x] **Parallel evaluation** across cores, reproducible from a search seed.
   - [x] **Search:** staged random search. A cheap stage on one seed keeps the best fraction, and the
     full batch of seeds, policies and sets scores the survivors.
@@ -296,6 +305,9 @@ run today. The other two wait for features that are not built. The
     `sweep` accept.
   - [x] **Demo:** `crackapack demo --tune` ships a small search space and goals with the feature, see
     [Demo data ships with the feature](../.claude/skills/crackapack-conventions/SKILL.md#demo-data-ships-with-the-feature).
+  - [ ] **Pace of 14 sets that never finish in 40 days:** 10E, 7ED, 8ED, 9ED, AER, AKH, BFZ, FRF, HOU,
+    KLD, OGW, ONS, PLS and SHM, see the [tuning log](tuning-log.md). Find why, then decide whether the goal
+    or the binder rule changes, see [Star printings](#calibration-and-decisions).
   - [ ] **Adaptive search:** an evolution strategy that starts from the survivors, once random
     search runs out of reach.
   - [ ] **New goals** for quests, milestones and trades as those mechanics land. The system does

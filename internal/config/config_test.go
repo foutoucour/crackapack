@@ -369,6 +369,31 @@ energy:
 `,
 			wantKeyword: "cost_table",
 		},
+		// Semantic validation: a dearer tier must cost more energy, see ADR-0048.
+		{
+			name: "cost_table_cost_falls_at_a_higher_tier",
+			yaml: `
+energy:
+  cost_table:
+    - threshold: 100
+      cost: 9
+    - threshold: 200
+      cost: 8
+`,
+			wantKeyword: "energy.cost_table[1].cost",
+		},
+		{
+			name: "cost_table_cost_repeats_at_a_higher_tier",
+			yaml: `
+energy:
+  cost_table:
+    - threshold: 100
+      cost: 8
+    - threshold: 200
+      cost: 8
+`,
+			wantKeyword: "energy.cost_table[1].cost",
+		},
 		// Type mismatch inside a sequence item: full dotted path must appear.
 		{
 			name: "type_mismatch_in_target_seq_names_path",

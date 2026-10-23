@@ -1,0 +1,42 @@
+# The product's goals: one band per ADR, judged on the 107 sets in scope, see ADR-0039. The pace is
+# judged on each set played alone (ADR-0050), and its ceiling is the run length, so a slow set passes
+# and one that never finishes fails; the coin pile, the Counter's stock and the small-price
+# bands on the whole scope played together (ADR-0041, ADR-0049 and ADR-0043), since a set count changes them a
+# lot. `supplementary` lists the card-only pools the scope's sheets borrow from, ADR-0047 included;
+# `go run ./tools/fetchdata --sets ...` writes them next to the set files. A set alone also takes as
+# pools the donor sets that 12 sets draw cards from (KLD for AER, ALA for ARB and CON, and so on), and
+# a set is never its own pool, see "The tuning system" in docs/simulation.md.
+scenarios:
+  - name: pace-3-visits
+    player: collector
+    sessions_per_day: 3
+    run_days: 40
+    per_set: true
+    sets: &scope [10E, 5DN, 5ED, 6ED, 7ED, 8ED, 9ED, AER, AFR, AKH, ALA, APC, ARB, AVR, BFZ, BNG, BOK, BRO,
+      CHK, CON, CSP, DGM, DIS, DKA, DMU, DOM, DST, DTK, ELD, EMN, EVE, EXO, FRF, FUT, GPT, GRN, GTC, HOU,
+      IKO, INV, ISD, JOU, JUD, KHM, KLD, KTK, LCI, LGN, LRW, M10, M11, M12, M13, M14, M15, M19, M20, M21,
+      MAT, MBS, MID, MIR, MMQ, MOM, MOR, MRD, NEM, NEO, NPH, ODY, OGW, ONE, ONS, ORI, PCY, PLC, PLS, RAV,
+      RIX, RNA, ROE, RTR, SCG, SHM, SNC, SOI, SOK, SOM, STH, STX, THB, THS, TMP, TOR, TSP, UDS, ULG, USG,
+      VIS, VOW, WAR, WOE, WTH, WWK, XLN, ZEN, ZNR]
+    supplementary: &alone [BRR, EXP, MP2, MPS, MUL, PRAETORS, STA, TSB, WOT,
+      ALA, BFZ, BNG, GTC, ISD, KLD, KTK, RTR, SOI, THS, ZEN]
+  - name: pace-6-visits
+    player: collector
+    sessions_per_day: 6
+    run_days: 20
+    per_set: true
+    sets: *scope
+    supplementary: *alone
+  - name: whole-scope
+    player: master-collector
+    run_days: 90
+    sets: *scope
+    supplementary: [BRR, EXP, MP2, MPS, MUL, PRAETORS, STA, TSB, WOT]
+goals:
+  - {scenario: pace-3-visits, metric: "days_to_100pct.{set}", comparison: between, min: 10, max: 40}
+  - {scenario: pace-6-visits, metric: "days_to_100pct.{set}", comparison: between, min: 5, max: 20}
+  - {scenario: whole-scope, metric: final_balance, comparison: at_most, max: 3000}
+  - {scenario: whole-scope, metric: rare_out_of_stock_pct, comparison: between, min: 10, max: 50}
+  - {scenario: whole-scope, metric: rare_stock_per_printing, comparison: between, min: 0.5, max: 3}
+  - {scenario: whole-scope, metric: sub_coin_cards, comparison: at_most, max: 0}
+  - {scenario: whole-scope, metric: daily_reward_commons, comparison: between, min: 3, max: 15}

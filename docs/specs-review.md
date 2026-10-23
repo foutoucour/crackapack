@@ -611,8 +611,8 @@ The most uncertain item is the NPC simulation's behaviour at scale. Hosting no l
   [The star printings of 10E, 9ED and ONS](#the-star-printings-of-10e-9ed-and-ons).
 - [ ] Reference value of a card with no TCGplayer price.
 - [x] Pacing target: a set's binder in about two weeks at 3 visits a day and about one week at 6,
-  for a set played alone, see
-  [ADR-0040](adr/0040-a-binder-takes-about-two-weeks-for-a-set-played-alone.md). The simulation gives
+  for a set played alone, and no set faster than that floor, see
+  [ADR-0050](adr/0050-a-binder-is-never-fast-and-some-sets-are-slow-on-purpose.md). The simulation gives
   8 days for RAV and TSP at 3 visits and 6 days at 6, faster than the goal.
 - [x] Energy cost tiers are relative to the median booster value of the whole catalogue, not of the
   sets in a run or what the player has unlocked; see

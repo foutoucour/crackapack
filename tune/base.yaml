@@ -1,0 +1,8 @@
+# The base config of the product search. Every key the search space names is replaced for a
+# candidate; this file sets what the search does not vary. Run with
+#   crackapack tune --config tune/base.yaml --space tune/space.yaml --goals tune/goals.yaml ...
+# The Counter's supply is on because the goals on stock and on the coin pile read a world where the
+# Counter opens boosters, see ADR-0041 and ADR-0049.
+counter_supply:
+  mode: fixed
+  boosters_per_day: 13
