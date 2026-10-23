@@ -204,13 +204,13 @@ func parseSetCards(d mtgSetData, name string) (map[CardID]Card, error) {
 		}
 
 		cards[id] = Card{
-			IsLand:      slices.Contains(mc.Types, "Land"),
 			ID:          id,
 			Name:        mc.Name,
 			Number:      mc.Number,
 			Rarity:      r,
 			Finishes:    finishes,
 			IsBasicLand: isBasic,
+			IsLand:      slices.Contains(mc.Types, "Land"),
 			ScryfallID:  mc.Identifiers.ScryfallID,
 			Colors:      colors,
 		}

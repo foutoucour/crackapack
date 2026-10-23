@@ -29,9 +29,13 @@ func ColourGroups() []ColourGroup {
 	return []ColourGroup{ColourWhite, ColourBlue, ColourBlack, ColourRed, ColourGreen, ColourGold, ColourColourless, ColourLand}
 }
 
-// ColourGroupOf returns the group of c. A land is a land whatever its colour, so that Dryad Arbor
-// counts with the lands. A card of one colour is in that colour's group, and a card of several is
-// gold. A card with no colour, or with data the loader would have refused, is colourless.
+// ColourGroupOf returns the group of c, from the MTGJSON "colors" of the one face of the card that a
+// binder holds. The loader keeps the faces a booster sheet draws, which is the a side of a split or
+// double-faced card, so the b side is not in a binder and a split card is classified by its a half
+// only. A non-basic land is a land whatever its colours, so that Dryad Arbor counts with the lands.
+// Otherwise a card with two colours or more is gold, and one with none is colourless, which includes
+// devoid cards and colour indicators that MTGJSON leaves out of "colors". A card of one colour is in
+// that colour's group. Data the loader would have refused is colourless.
 func ColourGroupOf(c Card) ColourGroup {
 	switch {
 	case c.IsLand:

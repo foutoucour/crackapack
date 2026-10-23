@@ -155,9 +155,14 @@ printing: the same card in two sets counts as two cards.
 - **Progress shown:** cards owned / total, by rarity and for the whole set, plus complete playsets
   (4 copies of a card, the reference unit in Magic).
 - **Progress by colour:** the same count in eight groups, white, blue, black, red, green, gold (two
-  colours or more), colourless and land. A card is in one group only, and a land is a land whatever
-  its colour. A group the set has no card in is left out, as a rarity is. The count is of the cards
-  the boosters can draw, as for the binder.
+  colours or more), colourless and land. A card is in one group only. The colour is the MTGJSON
+  `colors` of the one face the binder holds, which is the a side of a split or double-faced card, as
+  the b side is not drawn by a booster and so is not in the binder, see
+  [ADR-0037](adr/0037-a-binder-counts-the-pool-cards-its-boosters-draw.md). A card with two colours
+  or more is gold. A card with no `colors`, devoid and colour-indicator cards included, is
+  colourless. A non-basic land is a land whatever its colours. So a split card counts by its a half
+  only: Fire // Ice is red, not gold. A group the set has no card in is left out, as a rarity is. The
+  count is of the cards the boosters can draw, as for the binder.
 - **Overview:** at the top of the collection page, the cards held out of the cards of the unlocked
   sets, the binders complete (every card held) and the sets unlocked out of all of them. Locked sets
   do not count in the cards, since they cannot be played yet.

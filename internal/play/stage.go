@@ -135,8 +135,9 @@ func (g *Game) locked(code string) bool {
 	return g.staging != nil && !g.staging.unlocked[code]
 }
 
-// pastThreshold reports whether the binder of code has reached the unlock threshold. It is the
-// binder that unlocked sets, not what it holds now: an unlock is permanent. g.mu must be held.
+// pastThreshold reports whether the binder of code has reached the unlock threshold at some point,
+// not whether it holds that many cards now: an unlock is permanent. It is true even when no locked
+// set was left for the binder to unlock. g.mu must be held.
 func (g *Game) pastThreshold(code string) bool {
 	return g.staging != nil && g.staging.triggered[code]
 }

@@ -15,7 +15,7 @@ type BinderSummary struct {
 	// Locked is true while the set cannot be opened, see [Pack].
 	Locked bool
 	// PastThreshold is true once the binder has reached the unlock threshold, see [StageRules]. It
-	// stays true when cards leave the binder, as the sets it unlocked stay unlocked.
+	// stays true when cards leave the binder, as an unlock is permanent.
 	PastThreshold bool
 }
 

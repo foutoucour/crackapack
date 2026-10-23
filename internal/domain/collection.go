@@ -145,6 +145,10 @@ func (c *Collection) Quantity(key CardKey) int {
 //
 // Copies are counted by summing FinishNonFoil and FinishFoil, not card.Finishes,
 // so a copy stored under a finish the catalogue does not list still counts.
+//
+// The rarity and the colour group are keys read from the card and tallied in the one pass, since the
+// game counts every binder at every opening. A named group of cards, such as the Urzatron, will need
+// a tally of its own.
 func (c *Collection) BinderProgress(cat SetCatalogue) Progress {
 	p := Progress{ByRarity: make(map[Rarity]RarityProgress), ByColour: make(map[ColourGroup]RarityProgress)}
 	for _, card := range cat.Cards {
