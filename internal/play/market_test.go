@@ -431,3 +431,15 @@ func TestMarket_theNPCsOpenTheSetsThePlayerCanOpen(t *testing.T) {
 		t.Error("three days after B unlocked, no NPC holds a card of B")
 	}
 }
+
+// A save from before the game had NPCs loads with a crowd as a new game has it, whose shelves hold
+// cards to trade at once.
+func TestPersist_aSaveWithoutNPCsGetsACrowdReadyToTrade(t *testing.T) {
+	t.Parallel()
+	store := &memStore{}
+	counterGame(t, store, playtest.NewClock(), counterRules(), counterSet())
+	g := counterGame(t, store.copied(), playtest.NewClock(), marketRules(), counterSet())
+	if _, err := g.AskAround(cheap().ID, cheap().Finish); err != nil {
+		t.Errorf("AskAround after loading a save without NPCs: %v", err)
+	}
+}

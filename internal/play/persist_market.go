@@ -39,13 +39,14 @@ func snapshotNPC(n domain.NPCState) (NPCSnapshot, error) {
 	return out, errors.Join(errs[:]...)
 }
 
-// restoreCrowd puts the NPCs of snap in the crowd of e. A save whose crowd has another number of
-// NPCs than the game's, which a change of the population makes, keeps the game's new crowd, see
-// docs/adr/0062-a-save-whose-npcs-do-not-fit-gets-the-games-new-ones.md, and reset is true.
+// restoreCrowd puts the NPCs of snap in the crowd of e. A save with no NPCs, or whose crowd has
+// another number of NPCs than the game's, which a change of the population makes, keeps the game's
+// new crowd, see docs/adr/0062-a-save-whose-npcs-do-not-fit-gets-the-games-new-ones.md, and reset is
+// true.
 func restoreCrowd(e *economy, snap *CrowdSnapshot) (reset bool, err error) {
 	switch {
 	case snap == nil:
-		return false, nil
+		return e.crowd != nil, nil
 	case e.crowd == nil:
 		return false, errors.New("counter: the save has NPCs, and this game has none")
 	}

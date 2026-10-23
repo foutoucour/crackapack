@@ -18,8 +18,9 @@ save, and a change of the NPCs' number would cost it.
 ## Decision
 
 The NPCs are the world, not the player's progress. A save whose crowd has another number of NPCs
-than the game's loads with the game's new crowd, as a new game has it. The market drops what the old
-NPCs answered and were still to answer, and keeps what the player asked for and listed.
+than the game's loads with the game's new crowd, as a new game has it. So does a save from before the
+game had NPCs. The market drops what the old NPCs answered and were still to answer, and keeps what
+the player asked for and listed.
 
 ## Consequences
 
