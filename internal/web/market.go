@@ -315,7 +315,7 @@ func (h *handler) counterAnswer(w http.ResponseWriter, r *http.Request) {
 // counterTerms reads the coins and the cards of a counter from the form: an empty field is 0, and
 // each give:<card>:<finish> field holds the copies of that card given.
 func counterTerms(r *http.Request) (domain.Coins, []domain.TradeLine, bool) {
-	coins, ok := wholeNumber(r.PostFormValue("coins"))
+	coins, ok := wholeNumber(r.PostFormValue("coins"), 64)
 	if !ok {
 		return 0, nil, false
 	}
@@ -326,7 +326,7 @@ func counterTerms(r *http.Request) (domain.Coins, []domain.TradeLine, bool) {
 		if !isGive || sep < 0 || len(values) == 0 {
 			continue
 		}
-		qty, ok := wholeNumber(values[0])
+		qty, ok := wholeNumber(values[0], 32)
 		if !ok {
 			return 0, nil, false
 		}
@@ -337,13 +337,13 @@ func counterTerms(r *http.Request) (domain.Coins, []domain.TradeLine, bool) {
 	return domain.Coins(coins), lines, true
 }
 
-// wholeNumber reads a field that is empty, which is 0, or a whole number.
-func wholeNumber(field string) (int64, bool) {
+// wholeNumber reads a field that is empty, which is 0, or a whole number that fits bits bits.
+func wholeNumber(field string, bits int) (int64, bool) {
 	field = strings.TrimSpace(field)
 	if field == "" {
 		return 0, true
 	}
-	n, err := strconv.ParseInt(field, 10, 64)
+	n, err := strconv.ParseInt(field, 10, bits)
 	return n, err == nil
 }
 

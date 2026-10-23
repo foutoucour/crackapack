@@ -138,6 +138,7 @@ func TestCounterTerms_readsCoinsAndTheCardsGiven(t *testing.T) {
 		{name: "other fields are not cards", form: url.Values{"giver": {"x"}, "give:nocolon": {"3"}}, wantOK: true},
 		{name: "coins that are not a number", form: url.Values{"coins": {"1.5"}}},
 		{name: "a quantity that is not a number", form: url.Values{"give:S-01:nonfoil": {"two"}}},
+		{name: "a quantity too large to mean anything", form: url.Values{"give:S-01:nonfoil": {"4294967296"}}},
 		{name: "negative numbers go to the game", form: url.Values{"coins": {"-3"}, "give:S-01:foil": {"-1"}}, wantCoins: -3, wantOK: true,
 			wantLines: []domain.TradeLine{{Key: domain.CardKey{ID: "S-01", Finish: domain.FinishFoil}, Qty: -1}}},
 	}
