@@ -11,7 +11,9 @@ import (
 	"testing"
 )
 
-var costPattern = regexp.MustCompile(`(?s)<h2>([^<]*)</h2>\s*<p class="count">(\d+) energy</p>`)
+// costPattern matches the name of a tile's button, which spells the price out: the icon next to it
+// says nothing to a screen reader.
+var costPattern = regexp.MustCompile(`aria-label="Open a ([^"]*) booster, (\d+) energy"`)
 
 // tileCosts reads the energy each tile of the home page asks for, by set name.
 func tileCosts(t *testing.T, home string) map[string]string {

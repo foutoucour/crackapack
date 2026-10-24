@@ -1,6 +1,9 @@
 :root {
   --bg: #14161c;
   --surface: #1f232d;
+  --surface-raised: #2b3142;
+  --surface-deep: #171a22;
+  --surface-edge: #343b4e;
   --text: #eceef4;
   --text-muted: #b4b9c6;
   --accent: #f2b84b;
@@ -58,9 +61,21 @@ button, .button {
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
 button:disabled { opacity: 0.55; cursor: not-allowed; }
 
-.packs { list-style: none; margin: var(--gap) 0; padding: 0; display: grid; gap: var(--gap); }
-.pack-tile { background: var(--surface); border-radius: var(--radius); padding: var(--gap); }
-.pack-tile h2, .pack-tile h3 { margin: 0 0 0.25rem; font-size: 1.15rem; }
+.packs { list-style: none; margin: var(--gap) 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); gap: 0.5rem; }
+/* A set is one row: its name and cost, and the button to open it, over the set's icon. */
+.pack-tile { position: relative; isolation: isolate; display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0 0.5rem 0.75rem; overflow: hidden; border: 1px solid var(--surface-edge); border-radius: var(--radius); background: linear-gradient(160deg, var(--surface-raised) 0%, var(--surface) 55%, var(--surface-deep) 100%); }
+/* The watermark is a mask over a light box, like the icon of the button: /set-icons.css gives each
+   set's picture under its set-icon-<code> class, as the CSP allows no inline style to carry it. */
+.pack-watermark { position: absolute; z-index: -1; left: -0.75rem; top: 50%; width: 6rem; height: 6rem; transform: translateY(-50%); background-color: var(--text); opacity: 0.1; mask-size: contain; mask-repeat: no-repeat; mask-position: center; pointer-events: none; }
+.pack-info { flex: 1; min-width: 0; }
+.pack-info h2, .pack-info h3 { margin: 0; font-size: 1.05rem; }
+.pack-info .count, .pack-info .hint { margin: 0; font-size: 0.85rem; }
+/* The button is the right end of the row: a strip as tall as the row, clipped by its corners. */
+.pack-tile form { display: flex; align-self: stretch; margin: -0.5rem 0; }
+.pack-tile button { padding: 0 1rem; border: 0; border-radius: 0; font-weight: 700; white-space: nowrap; }
+.pack-tile button::after { content: " \203A"; }
+.energy-icon { width: 1em; height: 1em; vertical-align: -0.125em; }
+.pack-tile button:focus-visible { outline-offset: -4px; }
 /* A stage lists its locked sets in short, greyed, with nothing to press. */
 .stage-count { color: var(--text-muted); font-size: 0.9rem; font-weight: 400; }
 .locked-sets { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; margin: var(--gap) 0; padding: 0; }
@@ -363,7 +378,6 @@ html:not(.js) .pick { display: none; }
 .actions form { margin: 0; }
 
 @media (min-width: 40rem) {
-  .packs { grid-template-columns: repeat(2, 1fr); }
   .booster { grid-template-columns: repeat(3, 1fr); }
 }
 @media (min-width: 60rem) {
