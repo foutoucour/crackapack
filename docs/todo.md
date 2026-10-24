@@ -371,8 +371,7 @@ The stack is server-rendered `html/template`, see
   by the clock, the free welcome boosters spent first, and a refusal that says how long to wait,
   see [ADR-0038](adr/0038-the-games-energy-recharges-by-the-clock.md). Costs need `--prices`, or
   every booster costs the middle tier. Left: coins, so the coin fee above the cap and the coin
-  top-up, a gauge that updates without a reload, and the
-  bonuses that add to the savings, such as the chest and the milestones.
+  top-up, and the bonuses that add to the savings, such as the chest and the milestones.
 - [x] The collection: one binder per set at `/collection`, every card but the basic lands in
   collector number order with the empty slots greyed, progress overall and by rarity, complete
   playsets, the copies held by finish, filters on rarity and colour, a click to see a card big, and the
@@ -424,6 +423,13 @@ The stack is server-rendered `html/template`, see
   largest binders weigh 280 to 330 KB: one form shared by a binder's buttons would cut it), and a
   simulation of what the market does to the coins and the Counter's stock.
 - [ ] Quests and the profile.
+- [ ] **Hunted cards.** A player marks a card as a favorite to hunt for. NPCs then offer an exchange
+  for it, and the player is told when it appears at the Counter. See [The Counter](core-features.md#the-counter)
+  and [The market](core-features.md#the-market).
+- [ ] **A header that stays visible** while the page scrolls.
+- [ ] **One style across the pages.** Home, boosters, collection, binders and market do not share
+  one look yet.
+- [ ] **A live energy gauge.** The header gauge updates without a reload.
 - [x] Card pictures, downloaded from Scryfall on demand and cached, see
   [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md). The demo draws its own.
   Left: a cache that can be refreshed, and the two faces of a double-faced card.
