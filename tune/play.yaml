@@ -7,11 +7,15 @@
 - {path: initial_stock.rare, value: 0}
 - {path: initial_stock.mythic, value: 0}
 # The game's NPCs trade with the player on the market, see ADR-0058: a crowd of twelve, the smallest
-# whose archetype shares give a whale, keeping its surplus on its shelf for a week, so that the
-# cards of the sets the player can open are there to ask for. The numbers and the measurements
-# behind them are in docs/tuning-log.md.
+# whose archetype shares give a whale, so that the cards of the sets the player can open are there
+# to ask for. The numbers and the measurements behind them are in docs/tuning-log.md.
 - {path: npcs.population, value: 12}
-- {path: npcs.surplus_hold_days, value: 7}
+# The crowd is the Counter's main supply, since it sells the Counter its surplus. Keeping that surplus
+# on a shelf for four weeks, and the Counter opening a single booster a day of its own, make the
+# Counter a third faster than boosters alone, where it was three times, and leave the market the
+# fast road. See the market study of 2026-10-24 in docs/tuning-log.md.
+- {path: npcs.surplus_hold_days, value: 28}
+- {path: counter_supply.boosters_per_day, value: 1}
 # Energy has a price in coins, see ADR-0068 and ADR-0069: a booster worth more than the cap's energy
 # pays the difference as a fee, and a player short of energy can top it up. The price and what it
 # does to the sets are in docs/tuning-log.md. A 1 turns the top-up on.

@@ -75,21 +75,29 @@ were 334 KB of the 359. The table of the 2026-10-23 entry below was measured bef
 **What it does not show:** what the fee and the top-up do to the pace and to the coin pile. No search
 runs them, and the price was not tuned. The goals of ADR-0041 and ADR-0051 were read without them.
 
-## 2026-10-24 – What makes a binder fast: the Counter, the crowd and the market, no value applied
+## 2026-10-24 – What makes a binder fast: the Counter, the crowd and the market, two values applied to the game
 
 **Trigger:** the market of the game was thought too generous, see
 [ADR-0060](adr/0060-an-npc-pays-coins-for-a-card-on-the-market.md), and no simulation ran it. The
 maintainers' aim is that trading is the fast road: with boosters alone as speed 1, the Counter should
 make a binder about a third faster (1.2 to 1.5), the market at least twice as fast and 1.5 times the
 Counter, and no set should be done with it in under 5 days. `crackapack market-study` measured it, see
-[The market study](simulation.md#the-market-study). No config value was applied: `config.defaults()`,
-`tune/base.yaml` and `tune/play.yaml` are unchanged. The variants are in
+[The market study](simulation.md#the-market-study). The variants are in
 [`tune/market-study.yaml`](../tune/market-study.yaml).
+
+**Applied** to the game only, in [`tune/play.yaml`](../tune/play.yaml), the stack `supply-1-hold-28`
+below. `config.defaults()`, `tune/base.yaml` and the search are unchanged, so the goals of
+[`tune/goals.yaml`](../tune/goals.yaml) read as before.
+
+| Key | Before | Now |
+|-----|-------:|----:|
+| `npcs.surplus_hold_days` | 7 | 28 |
+| `counter_supply.boosters_per_day` | 13 | 1 |
 
 **Measured** on the 107 sets of the scope played one at a time, `pace-3-visits` (3 visits a day, 120
 days), seeds 42, 43 and 44 pooled: 321 runs of each player per variant. The speeds are the median
 days of boosters alone over the median of the player, and 24% of the sets were not finished by
-boosters alone in 120 days.
+boosters alone in 120 days. This first table is the game before energy had a price in coins.
 
 | Variant | Days: boosters | Counter | Market | Counter speed | Market speed | Fastest set |
 |---------|---------------:|--------:|-------:|--------------:|-------------:|------------:|
@@ -110,6 +118,28 @@ boosters alone in 120 days.
   alone moves it as far as the hold does, to 2.33, and the Counter's sale price, its shelf life and
   the daily reward less, to 2.62, 2.80 and 2.80. Once the supply and the hold are set the price adds
   nothing: 1.27 with it and without it.
+**Measured again** with the stack applied, in the game as it is now, with energy priced in coins and
+the top-up on, the same scenario and seeds. 30% of the sets were not finished by boosters alone.
+
+| Variant | Days: boosters | Counter | Market | Counter speed | Market speed | Fastest set |
+|---------|---------------:|--------:|-------:|--------------:|-------------:|------------:|
+| baseline (the game before this entry) | 50 | 15 | 12 | 3.33 | 4.17 | 5 days |
+| `supply-1` | 50 | 18 | 12 | 2.78 | 4.17 | 5 days |
+| `hold-28` | 50 | 19 | 12 | 2.63 | 4.17 | 5 days |
+| `supply-1-hold-28` (applied) | 50 | 34 | 12 | 1.47 | 4.17 | 5 days |
+| `crowd-24-supply-1-hold-28-buy-400` | 50 | 33 | 11 | 1.52 | 4.55 | 5 days |
+
+The applied stack still meets every target, with the Counter's speed at 1.47 in a band that ends at
+1.5, so it has little room: a game a little more generous would leave the band. The coin price of
+energy moved the baseline's Counter from 3.00 to 3.33.
+
+**The cost of the hold.** A new game warms its NPCs up for the days of the hold but one, see
+[ADR-0064](adr/0064-a-new-games-npcs-have-most-of-a-hold-behind-them.md). Measured on the real binary
+with every set in scope and seed 42, a new game answers its first request in 1.81 s, against 1.12 s,
+and its save weighs 351 KB, against 108 KB. The save of a game weeks old was not measured: its
+shelves hold four times the cards, and the 1.6 MB of a month at a hold of 7, in the entry below, will
+grow.
+
 - **Six variants meet every target, and two keys are enough.** `supply-1-hold-28` sets
   `counter_supply.boosters_per_day` to 1 and `npcs.surplus_hold_days` to 28. The stack with a crowd of
   24 has the most room on its tightest speed, 9%, and the one with a hold of 21 days sits on the edge
@@ -130,10 +160,11 @@ boosters alone in 120 days.
   pace bands of the product are judged the same way, see
   [ADR-0051](adr/0051-the-pace-of-the-scope-is-a-bell-curve-around-two-weeks.md).
 - **The other goals.** The coin pile, the Counter's stock and the small prices, the goals of
-  ADR-0041, ADR-0049 and ADR-0043, were not read with any of these variants. A Counter fed less by the
-  crowd stocks fewer rares, which ADR-0049 wants between 10% and 50% out of stock.
-- **The size of the save.** A hold of 28 days keeps four times as many cards on the shelves as one of
-  7, and the save holds them. It was not measured.
+  ADR-0041, ADR-0049 and ADR-0043, were not read with any of these variants. They are judged on
+  `tune/base.yaml`, which does not carry the stack, so they read as before, and the game now plays in
+  a world they do not judge. A Counter fed less by the crowd stocks fewer rares, which ADR-0049 wants
+  between 10% and 50% out of stock.
+- **The size of an older save.** Only a new game's was measured, see above.
 - **One way of trading.** The market player asks around for the rares it lacks, lists every card it
   holds twice and takes the cheapest asking price it can pay, and never counters. A player who
   counters, or who hoards, would find another speed. Its calls are listed in
