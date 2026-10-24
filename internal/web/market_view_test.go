@@ -79,10 +79,10 @@ func TestTermsText(t *testing.T) {
 		cards []play.CardLine
 		want  string
 	}{
-		{83, nil, "83 coins"},
-		{1, nil, "1 coin"},
+		{83, nil, "◎83"},
+		{1, nil, "◎1"},
 		{0, []play.CardLine{bolt}, "Bolt ×2"},
-		{10, []play.CardLine{bolt, sol}, "10 coins and Bolt ×2 and Sol Ring (foil) ×1"},
+		{10, []play.CardLine{bolt, sol}, "◎10 and Bolt ×2 and Sol Ring (foil) ×1"},
 	}
 	for _, tt := range tests {
 		if got := termsText(tt.coins, tt.cards); got != tt.want {
@@ -103,10 +103,10 @@ func TestNewResultView_saysEveryWayAnAnswerEnds(t *testing.T) {
 		result play.Result
 		want   string
 	}{
-		{"bought", play.Result{Kind: domain.AnswerAsk, Outcome: domain.MarketAccepted, Answer: npc}, "Bought Bolt from NPC 5 (playset hunter) for 30 coins."},
-		{"bought on a counter", play.Result{Kind: domain.AnswerAsk, Outcome: domain.MarketAccepted, Answer: countered}, "Bought Bolt from NPC 5 (playset hunter) for 20 coins."},
-		{"sold", play.Result{Kind: domain.AnswerOffer, Outcome: domain.MarketAccepted, Answer: npc}, "Sold Bolt to NPC 5 (playset hunter) for 30 coins."},
-		{"refused", play.Result{Kind: domain.AnswerAsk, Outcome: domain.MarketRefused, Answer: countered}, "NPC 5 (playset hunter) refused your counter of 20 coins for Bolt."},
+		{"bought", play.Result{Kind: domain.AnswerAsk, Outcome: domain.MarketAccepted, Answer: npc}, "Bought Bolt from NPC 5 (playset hunter) for ◎30."},
+		{"bought on a counter", play.Result{Kind: domain.AnswerAsk, Outcome: domain.MarketAccepted, Answer: countered}, "Bought Bolt from NPC 5 (playset hunter) for ◎20."},
+		{"sold", play.Result{Kind: domain.AnswerOffer, Outcome: domain.MarketAccepted, Answer: npc}, "Sold Bolt to NPC 5 (playset hunter) for ◎30."},
+		{"refused", play.Result{Kind: domain.AnswerAsk, Outcome: domain.MarketRefused, Answer: countered}, "NPC 5 (playset hunter) refused your counter of ◎20 for Bolt."},
 		{"a price that lapsed", play.Result{Kind: domain.AnswerAsk, Outcome: domain.MarketExpired, Answer: npc}, "The price of NPC 5 (playset hunter) for Bolt lapsed."},
 		{"an offer that lapsed", play.Result{Kind: domain.AnswerOffer, Outcome: domain.MarketExpired, Answer: npc}, "The offer of NPC 5 (playset hunter) for Bolt lapsed."},
 		{"a deal that failed", play.Result{Kind: domain.AnswerOffer, Outcome: domain.MarketFailed, Answer: npc}, "The deal with NPC 5 (playset hunter) for Bolt fell through"},

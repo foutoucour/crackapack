@@ -148,7 +148,7 @@ func TestRunPlay_theDemoMarketWorksThroughThePages(t *testing.T) {
 	rares := getBody(t, base+"/collection?set=DEM&rarity=rare")
 	rare := firstMatch(t, regexp.MustCompile(`action="/list" class="list">\s*<input type="hidden" name="set" value="DEM"><input type="hidden" name="card" value="([^"]+)"`), rares)
 	listed := postBody(t, base, "/list", url.Values{"set": {"DEM"}, "card": {rare}, "finish": {"nonfoil"}, "price": {"1000"}, "rarity": {"rare"}})
-	pageHas(t, "the binder after listing", listed, "Listed ", "Listed at 1000 coins", "offers ", `class="badge"`)
+	pageHas(t, "the binder after listing", listed, "Listed ", "Listed at ◎1000", "offers ", `class="badge"`)
 	sold := postBody(t, base, "/accept", url.Values{"answer": {cheapestAnswerID(t, entryOf(t, listed, rare))}, "set": {"DEM"}, "card": {rare}, "rarity": {"rare"}})
 	pageHas(t, "the binder after the sale", sold, "Sold ")
 	pageHas(t, "the slot of the rare after the sale", entryOf(t, sold, rare), "slot empty")

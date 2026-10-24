@@ -43,7 +43,7 @@ func TestCollection_theBuyAndSellButtonsAreIconsInTheToolsOfTheCard(t *testing.T
 	shop.open(t, 1)
 	held := toolsOf(t, slot(t, shop.get(t, "/collection?set=S"), cheapCard))
 
-	mustContain(t, "the tools of an empty slot", empty, `action="/buy"`, `class="tool buy"`, `<span class="tool-price">120</span>`, `<span class="sr-only">Buy S-00 for 120 coins</span>`)
+	mustContain(t, "the tools of an empty slot", empty, `action="/buy"`, `class="tool buy"`, `<span class="tool-price">120</span>`, `<span class="sr-only">Buy S-00 for ◎120</span>`)
 	mustNotContain(t, "the tools of an empty slot", empty, `action="/sell"`)
 	mustContain(t, "the tools of a held card", held, `action="/sell"`, `class="tool sell"`, `<span class="tool-price">60</span>`, `name="qty" value="1"`)
 	mustNotContain(t, "the tools of a held card", held, `action="/buy"`, `<details`)
@@ -55,7 +55,7 @@ func TestCollection_aCardTheCounterWillNotSellStillSaysWhyInItsTools(t *testing.
 
 	got := toolsOf(t, slot(t, shop.get(t, "/collection?set=S"), neverCard))
 
-	mustContain(t, "the tools of a card never in stock", got, "never seen at the Counter", "120 coins")
+	mustContain(t, "the tools of a card never in stock", got, "never seen at the Counter", "◎120")
 	mustNotContain(t, "the tools of a card never in stock", got, `action="/buy"`)
 }
 

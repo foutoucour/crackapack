@@ -61,6 +61,7 @@ func NewHandler(game *play.Game, pics, icons images.Source, log *slog.Logger) ht
 		"hasCounter": h.game.HasCounter,
 		"balance":    h.game.Balance,
 		"coins":      coinsText,
+		"coinSymbol": func() string { return coinSymbol },
 		"percent":    percentOf,
 		// A save that failed is told on every page until one goes through.
 		"saveFailed": func() bool { return h.game.SaveError() != nil },

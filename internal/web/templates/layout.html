@@ -27,7 +27,7 @@
     {{end}}
     {{if hasCounter}}
     <div class="coins" role="status">
-      <span class="coins-label">Coins</span>
+      <span class="coins-label" aria-hidden="true">{{coinSymbol}}</span><span class="sr-only">Coins</span>
       <strong>{{balance}}</strong>
     </div>
     {{end}}
