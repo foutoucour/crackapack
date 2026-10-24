@@ -15,26 +15,30 @@ import (
 // Run may be called at most once: the engine mutates its domain objects
 // (journal, energy, collection, counter) and there is no reset path.
 type Engine struct {
-	cfg           config.Config
-	catalogues    []domain.SetCatalogue // openable sets only
-	supplementary []domain.SetCatalogue // supplementary pools: the Counter knows their cards
-	binderCats    []domain.SetCatalogue // catalogues plus the pool cards their boosters draw: the binders
-	prices        domain.PriceSnapshot
-	journal       *domain.Journal
-	energy        *domain.Energy
-	collection    *domain.Collection
-	counter       *domain.Counter
-	crowd         *domain.Crowd         // nil in a run without NPCs
-	supply        *domain.CounterSupply // nil unless the Counter opens boosters
-	counterOn     bool                  // the run reports the Counter's own metrics
-	exchange      *domain.Exchange      // nil unless trades are enabled
-	opener        *domain.Opener
-	policy        PlayerPolicy
-	boosterCosts  map[string]int          // setCode -> energy cost; openable sets only
-	boosterFees   map[string]domain.Coins // setCode -> coin fee the player pays; only sets that have one
-	feeOn         bool                    // the run prices energy and so reports the player's fees
-	maxWait       float64                 // max_booster_wait_minutes of the run
-	ran           bool                    // guards against calling Run more than once
+	cfg            config.Config
+	catalogues     []domain.SetCatalogue // openable sets only
+	supplementary  []domain.SetCatalogue // supplementary pools: the Counter knows their cards
+	binderCats     []domain.SetCatalogue // catalogues plus the pool cards their boosters draw: the binders
+	prices         domain.PriceSnapshot
+	journal        *domain.Journal
+	energy         *domain.Energy
+	collection     *domain.Collection
+	counter        *domain.Counter
+	crowd          *domain.Crowd         // nil in a run without NPCs
+	supply         *domain.CounterSupply // nil unless the Counter opens boosters
+	counterOn      bool                  // the run reports the Counter's own metrics
+	exchange       *domain.Exchange      // nil unless trades are enabled
+	market         *domain.Market        // nil unless the player uses the market
+	marketAsks     int                   // requests the player made on the market
+	marketListings int                   // cards the player listed on the market
+	marketDeals    int                   // answers the player took on the market
+	opener         *domain.Opener
+	policy         PlayerPolicy
+	boosterCosts   map[string]int          // setCode -> energy cost; openable sets only
+	boosterFees    map[string]domain.Coins // setCode -> coin fee the player pays; only sets that have one
+	feeOn          bool                    // the run prices energy and so reports the player's fees
+	maxWait        float64                 // max_booster_wait_minutes of the run
+	ran            bool                    // guards against calling Run more than once
 
 	// coin top-up state (coins substituted for missing energy when opening a booster)
 	coinTopupOn        bool         // energy.coin_topup.enabled and coins_per_energy > 0
@@ -62,6 +66,7 @@ type Engine struct {
 type options struct {
 	reference     []domain.SetCatalogue
 	traitRegistry domain.TraitRegistry
+	tradingCrowd  bool
 }
 
 // Option tunes NewEngine.
@@ -73,6 +78,14 @@ type Option func(*options)
 // openable catalogues themselves and a set run alone always lands in the x1 tier.
 func WithReferenceCatalogues(reference []domain.SetCatalogue) Option {
 	return func(o *options) { o.reference = reference }
+}
+
+// WithTradingCrowd gives the NPC crowd its trade settings and its surplus shelf whatever the player
+// does. Without it the crowd trades only when the config enables trades or the player uses the
+// market, so players that do not trade play in a crowd that sells its surplus to the Counter at
+// once. A study that compares players needs them all in the one world of the game.
+func WithTradingCrowd() Option {
+	return func(o *options) { o.tradingCrowd = true }
 }
 
 // WithTraitRegistry sets the trait registry used by the NPC crowd. Without it the
@@ -179,12 +192,16 @@ func NewEngine(
 	}
 
 	valuer := domain.NewValuer(prices, cfg.FallbackPrice)
-	crowd, err := newCrowd(cfg, catalogues, counter, valuer, o.traitRegistry)
+	crowd, err := newCrowd(cfg, catalogues, counter, valuer, o.traitRegistry, cfg.Trades.Enabled || o.tradingCrowd || usesMarket(policy))
 	if err != nil {
 		return nil, err
 	}
 	collection := domain.NewCollection()
 	exchange, err := newExchange(cfg, crowd, collection, journal, valuer)
+	if err != nil {
+		return nil, err
+	}
+	market, err := newMarket(cfg, policy, crowd, collection, journal, valuer)
 	if err != nil {
 		return nil, err
 	}
@@ -273,6 +290,7 @@ func NewEngine(
 		supply:             supply,
 		counterOn:          supply != nil || cfg.CounterBudget.Enabled,
 		exchange:           exchange,
+		market:             market,
 		opener:             opener,
 		policy:             policy,
 		boosterCosts:       boosterCosts,
@@ -367,8 +385,12 @@ func (e *Engine) Run() (Result, error) {
 			if err := e.tickTrades(); err != nil {
 				return Result{}, fmt.Errorf("sim: day %d tick %d: %w", day, tick, err)
 			}
+			now := tickTime(day, tick)
+			if err := e.tickMarket(now); err != nil {
+				return Result{}, fmt.Errorf("sim: day %d tick %d: market: %w", day, tick, err)
+			}
 			if _, isSession := sessionSet[tick]; isSession {
-				port := &port{e: e, day: day}
+				port := &port{e: e, day: day, now: now}
 				e.policy.RunSession(port)
 				if port.fatalErr != nil {
 					return Result{}, fmt.Errorf("sim: day %d tick %d: session: %w", day, tick, port.fatalErr)
@@ -404,6 +426,9 @@ func (e *Engine) Run() (Result, error) {
 	}
 	if e.exchange != nil {
 		addTradeSummary(summary, days)
+	}
+	if e.market != nil {
+		addMarketSummary(summary, e)
 	}
 	if e.counterOn {
 		addCounterSummary(summary, days)

@@ -60,6 +60,9 @@ type simRunner struct {
 	reference     []domain.SetCatalogue
 	prices        domain.PriceSnapshot
 	policies      map[string]func() sim.PlayerPolicy
+	// tradingCrowd puts every player in a crowd that keeps its surplus on a shelf, see
+	// sim.WithTradingCrowd.
+	tradingCrowd bool
 }
 
 // Run implements tune.Runner.
@@ -73,8 +76,11 @@ func (r simRunner) Run(cfg config.Config, run tune.Run) (sim.Summary, error) {
 		supplementary[i] = r.supplementary[code]
 	}
 	rng := rand.New(rand.NewPCG(cfg.Seed, cfg.Seed))
-	engine, err := sim.NewEngine(cfg, cats, supplementary, r.prices, r.policies[run.Player](), rng,
-		sim.WithReferenceCatalogues(r.reference))
+	opts := []sim.Option{sim.WithReferenceCatalogues(r.reference)}
+	if r.tradingCrowd {
+		opts = append(opts, sim.WithTradingCrowd())
+	}
+	engine, err := sim.NewEngine(cfg, cats, supplementary, r.prices, r.policies[run.Player](), rng, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("engine: %w", err)
 	}

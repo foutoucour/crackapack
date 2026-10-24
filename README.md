@@ -73,7 +73,7 @@ go run ./cmd/crackapack demo
 ```
 
 See [Simulation guide](docs/simulation.md) for the other commands (`simulate`,
-`sweep`, `compare`, `tune`) and how to read the sweep table.
+`sweep`, `compare`, `tune`, `market-study`) and how to read the sweep table.
 
 ## Scope
 

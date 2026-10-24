@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Market study: boosters, the Counter and the market</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --ring: rgba(11, 11, 11, 0.10);
+  --band: rgba(42, 120, 214, 0.12);
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --good: #006300;
+  --bad: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --ring: rgba(255, 255, 255, 0.10);
+    --band: rgba(57, 135, 229, 0.20);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --good: #0ca30c;
+    --bad: #e66767;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 32px 16px 64px; background: var(--page); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 1040px; margin: 0 auto; }
+h1 { font-size: 28px; margin: 0 0 4px; }
+h2 { font-size: 18px; margin: 40px 0 4px; }
+p { margin: 8px 0; max-width: 72ch; }
+.sub, .note { color: var(--ink-2); }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 20px; margin-top: 12px; }
+.hero { font-size: 28px; line-height: 1.25; font-weight: 600; margin: 0; max-width: none; }
+.targets { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.tile { flex: 1 1 200px; background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 14px 16px; }
+.tile .label { color: var(--ink-2); font-size: 13px; }
+.tile .value { font-size: 26px; font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0 4px; font-size: 13px; color: var(--ink-2); }
+.legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.legend .s1::before { background: var(--series-1); }
+.legend .s2::before { background: var(--series-2); }
+.legend .s3::before { background: var(--series-3); }
+.chart { width: 100%; height: auto; max-width: 100%; display: block; }
+.chart text { fill: var(--ink-2); font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; }
+.chart .name { fill: var(--ink); }
+.chart .grid { stroke: var(--grid); stroke-width: 1; }
+.chart .axis { stroke: var(--axis); stroke-width: 1; }
+.chart .s1 { fill: var(--series-1); }
+.chart .s2 { fill: var(--series-2); }
+.chart .s3 { fill: var(--series-3); }
+.chart .band { fill: var(--band); }
+.chart .target { stroke: var(--ink-2); stroke-width: 1; }
+.chart .dot { stroke: var(--surface); stroke-width: 2; }
+.chart .mark:hover { opacity: 0.8; }
+.chart .lift:hover { stroke: var(--ink); stroke-width: 2; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { color: var(--ink-2); font-weight: 600; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+td .nm { font-weight: 600; }
+td .ov { color: var(--ink-2); font-size: 12px; }
+.ok { color: var(--good); font-weight: 600; }
+.ko { color: var(--bad); font-weight: 600; }
+.delta { color: var(--ink-2); font-size: 12px; }
+.scroll { overflow-x: auto; }
+details { margin-top: 12px; }
+summary { cursor: pointer; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<main>
+<h1>Market study</h1>
+<p class="sub">Boosters alone, the Counter and the market, on each of the sets of {{.Scenario}}: {{.SessionsPerDay}} visits a day, {{.Horizon}} days, {{.SeedText}}. A speed is the median days of a player who only opens boosters, over the median days of the player judged: higher is faster.</p>
+
+<div class="card">
+  <p class="hero">{{.Headline}}</p>
+  {{if .LowerBound}}<p class="note">Most sets were never finished with boosters alone inside {{.Horizon}} days in at least one variant, so the speeds of that variant are a lower bound: boosters alone is slower than measured.</p>{{end}}
+</div>
+
+<h2>The targets</h2>
+<div class="targets">
+  <div class="tile"><div class="label">The Counter, the country road</div><div class="value">{{printf "%.2f" .Targets.CounterSpeed.Min}} to {{printf "%.2f" .Targets.CounterSpeed.Max}}</div><div class="label">times boosters alone</div></div>
+  <div class="tile"><div class="label">The market, the highway</div><div class="value">at least {{printf "%.2f" .Targets.MarketSpeedMin}}</div><div class="label">and {{printf "%.2f" .Targets.MarketOverCounterMin}} times the Counter</div></div>
+  <div class="tile"><div class="label">The fastest set with the market</div><div class="value">{{printf "%.0f" .Targets.FloorDays}} days or more</div><div class="label">no set done sooner</div></div>
+</div>
+
+<h2>Days to finish a set</h2>
+<p class="sub">Median over the sets, per variant, best variant first. Shorter is faster.</p>
+<div class="legend" aria-hidden="true">{{range .Players}}<span class="s{{.Slot}}">{{.Label}}</span>{{end}}</div>
+<div class="card">
+<svg class="chart" viewBox="0 0 {{.Bars.Width}} {{.Bars.Height}}" role="img" aria-label="Median days to finish a set, for each variant and each player. The table below has the same numbers.">
+  {{range .Bars.Ticks}}<line class="grid" x1="{{.X}}" x2="{{.X}}" y1="{{$.Bars.GridTop}}" y2="{{$.Bars.GridBottom}}"/><text x="{{.X}}" y="{{$.Bars.GridTop}}" dy="-6" text-anchor="middle">{{.Label}}</text>{{end}}
+  <line class="axis" x1="{{.Bars.Baseline}}" x2="{{.Bars.Baseline}}" y1="{{.Bars.GridTop}}" y2="{{.Bars.GridBottom}}"/>
+  {{range .Bars.Rows}}
+  <text class="name" x="{{$.Bars.Baseline}}" dx="-10" y="{{.LabelY}}" text-anchor="end">{{.Label}}</text>
+  {{range .Bars}}<g><title>{{.Title}}</title><path class="mark lift s{{.Slot}}" d="{{.Path}}"/><text x="{{.ValueX}}" y="{{.ValueY}}">{{.Value}}</text></g>
+  {{end}}{{end}}
+</svg>
+</div>
+
+<h2>Speed against boosters alone</h2>
+<p class="sub">The shaded band is the Counter's target and the line is the least the market must reach. Right is faster.</p>
+<div class="legend" aria-hidden="true"><span class="s2">The Counter</span><span class="s3">The market</span></div>
+<div class="card">
+<svg class="chart" viewBox="0 0 {{.Speeds.Width}} {{.Speeds.Height}}" role="img" aria-label="Speed of the Counter and of the market against boosters alone, for each variant. The table below has the same numbers.">
+  <rect class="band" x="{{.Speeds.BandX}}" y="{{.Speeds.GridTop}}" width="{{.Speeds.BandWidth}}" height="{{.Speeds.BandHeight}}"/>
+  {{range .Speeds.Ticks}}<line class="grid" x1="{{.X}}" x2="{{.X}}" y1="{{$.Speeds.GridTop}}" y2="{{$.Speeds.GridBottom}}"/><text x="{{.X}}" y="{{$.Speeds.GridTop}}" dy="-6" text-anchor="middle">{{.Label}}</text>{{end}}
+  <line class="target" x1="{{.Speeds.MinX}}" x2="{{.Speeds.MinX}}" y1="{{.Speeds.GridTop}}" y2="{{.Speeds.GridBottom}}"/>
+  {{range .Speeds.Rows}}
+  <text class="name" x="{{$.Bars.Baseline}}" dx="-10" y="{{.LabelY}}" text-anchor="end">{{.Label}}</text>
+  <g><title>{{.Counter.Title}}</title><circle class="dot mark s2" cx="{{.Counter.X}}" cy="{{.Counter.Y}}" r="5"/></g>
+  <g><title>{{.Market.Title}}</title><circle class="dot mark s3" cx="{{.Market.X}}" cy="{{.Market.Y}}" r="5"/></g>
+  {{end}}
+</svg>
+</div>
+
+<h2>Every variant</h2>
+<p class="sub">Best first. The change columns compare with {{.Baseline}}.</p>
+<div class="card scroll">
+<table>
+<thead><tr>
+  <th>#</th><th>Variant</th>
+  <th class="n">Boosters only</th><th class="n">Counter</th><th class="n">Market</th>
+  <th class="n">Counter speed</th><th class="n">Market speed</th>
+  <th class="n">Fastest set</th><th>Targets</th><th class="n">Room</th>
+</tr></thead>
+<tbody>
+{{range .Rows}}
+<tr>
+  <td class="n">{{.Rank}}</td>
+  <td><div class="nm">{{.Name}}</div>{{if .Note}}<div class="ov">{{.Note}}</div>{{end}}{{range .Overrides}}<div class="ov">{{.}}</div>{{end}}</td>
+  <td class="n">{{printf "%.0f" .Boosters.Median}}{{if .UnfinishedBoosters}}<div class="delta">{{.UnfinishedBoosters}} unfinished</div>{{end}}</td>
+  <td class="n">{{printf "%.0f" .Counter.Median}}{{if .UnfinishedCounter}}<div class="delta">{{.UnfinishedCounter}} unfinished</div>{{end}}</td>
+  <td class="n">{{printf "%.0f" .Market.Median}}{{if .UnfinishedMarket}}<div class="delta">{{.UnfinishedMarket}} unfinished</div>{{end}}</td>
+  <td class="n">{{.CounterSpeed}}{{if .LowerBound}}+{{end}}{{if .CounterDelta}}<div class="delta">{{.CounterDelta}}</div>{{end}}</td>
+  <td class="n">{{.MarketSpeed}}{{if .LowerBound}}+{{end}}{{if .MarketDelta}}<div class="delta">{{.MarketDelta}}</div>{{end}}</td>
+  <td class="n">{{printf "%.0f" .Market.Min}} days<div class="delta">10th percentile {{printf "%.0f" .Market.P10}}</div></td>
+  <td>{{if .Pass}}<span class="ok">✓ meets every target</span>{{else}}<span class="ko">✗ misses</span><div class="ov">{{.Missed}}</div>{{end}}</td>
+  <td class="n">{{.Room}}<div class="delta">tightest speed</div></td>
+</tr>
+{{end}}
+</tbody>
+</table>
+</div>
+
+<h2>What the market player did</h2>
+<p class="sub">Totals over the sets, for the player who uses the market.</p>
+<div class="card scroll">
+<table>
+<thead><tr><th>Variant</th><th class="n">Asked around</th><th class="n">Listed</th><th class="n">Deals</th></tr></thead>
+<tbody>
+{{range .Rows}}<tr><td>{{.Name}}</td><td class="n">{{.Asks}}</td><td class="n">{{.Listings}}</td><td class="n">{{.Deals}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+
+<details>
+<summary>How to read this, and what it does not show</summary>
+<p>Each set is played alone, as the pace goals of the product are, so the Counter and the crowd put all of their supply into that one set. That makes the Counter and the market faster than they are across the 107 sets of the game.</p>
+<p>The player who opens boosters only never sells, buys or trades. The Counter player is the collector: it buys the cheapest cards it lacks and sells what is above a playset. The market player is the collector too, and also asks around for the rares and mythics it lacks, lists every card it holds twice at its reference value, and takes the cheapest asking price it can pay, an offer of a card it lacks, else the highest coin offer. It never counters.</p>
+<p>A set never finished within {{.Horizon}} days counts as {{.Horizon}} plus one day. The medians pool the sets of every seed. The speed of one variant moved by up to a third from one seed to another when a single seed was run, so a gap between two variants of a few tenths is within the noise.</p>
+</details>
+</main>
+</body>
+</html>

@@ -242,7 +242,7 @@ func (s *searcher) score(ctx context.Context, stage string, cands []Candidate, s
 	results := make([]seedResult, len(jobs))
 	var mu sync.Mutex
 	done := 0
-	err := parallel(ctx, s.opts.Workers, len(jobs), func(n int) error {
+	err := Parallel(ctx, s.opts.Workers, len(jobs), func(n int) error {
 		j := jobs[n]
 		res, err := s.runAll(cfgs[j.cand], seeds[j.seed])
 		if err != nil {
@@ -397,9 +397,9 @@ func deriveSeeds(seed uint64, search, validation int) ([]uint64, []uint64) {
 	return draw(search), draw(validation)
 }
 
-// parallel calls do for each index below n on workers goroutines. The first error cancels the rest
+// Parallel calls do for each index below n on workers goroutines. The first error cancels the rest
 // and is returned.
-func parallel(ctx context.Context, workers, n int, do func(int) error) error {
+func Parallel(ctx context.Context, workers, n int, do func(int) error) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
