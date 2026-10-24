@@ -41,13 +41,13 @@ func (b *noticeBox) take() noticeView {
 	return n
 }
 
-// binderHref is the address of the binder of set, filtered on rarity when it is not empty, at the
-// slot of card when it is not empty. A set it does not name leads to the first binder.
-func binderHref(set, rarity string, card domain.CardID) string {
+// binderHref is the address of the binder of set with filter in force, at the slot of card when it
+// is not empty. A set it does not name leads to the first binder.
+func binderHref(set string, filter binderFilter, card domain.CardID) string {
 	if set == "" {
 		return "/collection"
 	}
-	href := collectionHref(set, rarity)
+	href := collectionHref(set, filter)
 	if card != "" {
 		href += "#" + (&url.URL{Fragment: slotAnchor(card)}).EscapedFragment()
 	}
@@ -58,7 +58,7 @@ func slotAnchor(card domain.CardID) string { return "c-" + string(card) }
 
 // cardRefOf reads the card, its finish and the binder to come back to from a form of the Counter.
 func cardRefOf(r *http.Request) (cardRef, bool) {
-	ref := cardRef{Set: r.PostFormValue("set"), ID: domain.CardID(r.PostFormValue("card")), Finish: r.PostFormValue("finish"), Filter: r.PostFormValue("rarity")}
+	ref := cardRef{Set: r.PostFormValue("set"), ID: domain.CardID(r.PostFormValue("card")), Finish: r.PostFormValue("finish"), Filter: binderFilterOf(r)}
 	switch domain.Finish(ref.Finish) {
 	case domain.FinishNonFoil, domain.FinishFoil:
 		return ref, ref.ID != ""
@@ -136,15 +136,15 @@ func (h *handler) confirmSale(w http.ResponseWriter, ref cardRef, qty int) {
 
 // sellDuplicates sells the copies above a playset of a binder, for the total the binder page showed.
 func (h *handler) sellDuplicates(w http.ResponseWriter, r *http.Request) {
-	set, rarity := r.PostFormValue("set"), r.PostFormValue("rarity")
-	back := binderHref(set, rarity, "")
+	set, filter := r.PostFormValue("set"), binderFilterOf(r)
+	back := binderHref(set, filter, "")
 	paid, err := h.game.SellDuplicates(set)
 	if errors.Is(err, play.ErrNothingToSell) {
 		h.refuse(w, http.StatusConflict, "You have no duplicates above a playset in this binder.", back)
 		return
 	}
 	if err != nil {
-		h.counterFailed(w, err, cardRef{Set: set, Filter: rarity})
+		h.counterFailed(w, err, cardRef{Set: set, Filter: filter})
 		return
 	}
 	h.notices.put(noticeView{Text: "Sold your duplicates for " + coinsText(paid) + "."})
@@ -153,7 +153,7 @@ func (h *handler) sellDuplicates(w http.ResponseWriter, r *http.Request) {
 
 // duplicatesOf is what the binder of set offers to sell in bulk. A binder with a duplicate that
 // the Counter does not trade offers nothing, since the Counter would refuse the lot.
-func (h *handler) duplicatesOf(set, rarity string) (duplicatesView, error) {
+func (h *handler) duplicatesOf(set string, filter binderFilter) (duplicatesView, error) {
 	d, err := h.game.Duplicates(set)
 	switch {
 	case errors.Is(err, play.ErrNotTraded):
@@ -161,7 +161,7 @@ func (h *handler) duplicatesOf(set, rarity string) (duplicatesView, error) {
 	case err != nil:
 		return duplicatesView{}, err
 	}
-	return duplicatesView{Offered: true, Set: set, Filter: rarity, Copies: d.Copies, Value: d.Value}, nil
+	return duplicatesView{Offered: true, Set: set, Filter: filter, Copies: d.Copies, Value: d.Value}, nil
 }
 
 // counterFailed answers a refusal of the Counter with the status that says what went wrong, and a

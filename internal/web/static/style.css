@@ -16,7 +16,13 @@
   --green: #bfe0bd;
   --gold: #efd88a;
   --colourless: #d4d6dc;
+  --land: #a89070;
   --card-text: #15161a;
+
+  --rarity-common: #000000;
+  --rarity-uncommon: #c0c0c0;
+  --rarity-rare: #d4af37;
+  --rarity-mythic: #9d4edd;
 }
 
 * { box-sizing: border-box; }
@@ -59,8 +65,6 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .stage-count { color: var(--text-muted); font-size: 0.9rem; font-weight: 400; }
 .locked-sets { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; margin: var(--gap) 0; padding: 0; }
 .locked-sets li { padding: 0.25rem 0.75rem; border: 1px dashed var(--text-muted); border-radius: 999px; color: var(--text-muted); }
-.binders li.locked a { border-style: dashed; color: var(--text-muted); }
-.tab-lock { font-size: 0.85rem; }
 .unlock { padding: 0.75rem var(--gap); border-radius: var(--radius); background: var(--accent); color: var(--accent-text); font-weight: 600; }
 .unlock a { color: inherit; }
 .count { color: var(--text-muted); margin: 0 0 var(--gap); }
@@ -161,8 +165,8 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .shelf .face { height: auto; }
 .shelf .tag, .shelf .meta { display: none; }
 /* The button covers the miniature, so the whole card is the target and the list stays a list. */
-.shelf .view, .binder .view { position: absolute; inset: 0; width: 100%; padding: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
-.shelf .view:hover, .binder .view:hover { background: rgb(255 255 255 / 15%); }
+.shelf .view { position: absolute; inset: 0; width: 100%; padding: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
+.shelf .view:hover { background: rgb(255 255 255 / 15%); }
 
 .site-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--gap); }
 
@@ -187,23 +191,82 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .overview dt, .overview dd { margin: 0; }
 .overview dd { color: var(--text); font-weight: 700; }
 
-.binders ul { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; margin: var(--gap) 0; padding: 0; }
-.binders a { display: inline-block; padding: 0.4rem 0.9rem; border: 1px solid var(--text-muted); border-radius: 999px; color: var(--text); text-decoration: none; }
-.binders a[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
-.tab-count { font-size: 0.85rem; opacity: 0.85; }
+/* The collection page is a column of binders beside the binder in view. On a narrow screen the column
+   folds into the name of the set in view, and opens over the binder. */
+.collection-layout { display: grid; gap: var(--gap); margin-top: var(--gap); }
+.collection-main { min-width: 0; }
+/* The binders and the filters need more room than a page of text does. */
+main:has(.collection-layout) { max-width: 90rem; }
+@media (min-width: 56rem) {
+  .collection-layout { grid-template-columns: 17rem minmax(0, 1fr); align-items: start; }
+  .binders { position: sticky; top: var(--gap); max-height: calc(100vh - 2 * var(--gap)); overflow-y: auto; }
+  .set-picker > summary { display: none; }
+}
+.set-picker > summary, .locked-binders > summary { cursor: pointer; padding: 0.5rem 0.75rem; border-radius: 0.6rem; background: var(--surface); }
+.locked-binders { margin-top: var(--gap); }
+.locked-binders > summary { border: 2px dashed var(--text-muted); background: transparent; color: var(--text-muted); }
+.binders ul { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; margin: 0.5rem 0 0; padding: 0; }
+.set-search { width: 100%; margin-top: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid var(--text-muted); border-radius: 0.6rem; background: var(--surface); color: var(--text); font: inherit; }
+html:not(.js) .set-search { display: none; }
+/* An entry is filled from the left up to what the player holds of the set, with a progress element
+   laid under its text, so that the fill needs no inline style. */
+.binders a { position: relative; display: flex; align-items: center; overflow: hidden; padding: 0.5rem 0.75rem; border: 2px solid transparent; border-radius: 0.6rem; background: var(--surface); color: var(--text); text-decoration: none; }
+.binders a:hover { border-color: var(--text-muted); }
+.binders a[aria-current="page"] { border-color: var(--accent); font-weight: 600; }
+.binders a > :not(progress) { position: relative; }
+.binders progress { position: absolute; inset: 0; width: 100%; height: 100%; appearance: none; border: 0; background: transparent; }
+.binders progress::-webkit-progress-bar { background: transparent; }
+.binders progress::-webkit-progress-value { background: color-mix(in srgb, var(--text) 12%, transparent); }
+.binders progress::-moz-progress-bar { background: color-mix(in srgb, var(--text) 12%, transparent); }
+.binders a[aria-current="page"] progress::-webkit-progress-value { background: color-mix(in srgb, var(--accent) 40%, transparent); }
+.binders a[aria-current="page"] progress::-moz-progress-bar { background: color-mix(in srgb, var(--accent) 40%, transparent); }
+.binders li.locked a { border-style: dashed; border-color: var(--text-muted); background: transparent; color: var(--text-muted); }
+.binders li.locked a[aria-current="page"] { border-color: var(--accent); }
+.binders li[hidden] { display: none; }
+.pct { color: var(--text-muted); font-size: 0.85em; font-weight: 400; }
+.tab-count { margin-left: auto; padding-left: 0.5rem; font-size: 0.85rem; opacity: 0.85; white-space: nowrap; }
+.tab-lock { font-size: 0.85rem; }
+
+/* The header of a binder: the title and its progress, the two filters, and a faint copy of the set icon. */
+.set-header { position: relative; display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--gap); overflow: hidden; padding: var(--gap); border-radius: var(--radius); background: var(--surface); }
+.set-header > :not(.set-watermark) { position: relative; }
+.set-title { flex: 1 1 12rem; align-self: start; }
+.set-title h1 { margin: 0 0 0.5rem; }
+.set-title .playsets { margin: 0.5rem 0 0; color: var(--text-muted); }
+.set-watermark { position: absolute; top: -20%; left: -5%; height: 140%; aspect-ratio: 1; opacity: 0.12; mask-size: contain; mask-repeat: no-repeat; mask-position: center; pointer-events: none; }
+.set-watermark.rarity-common { background-color: var(--white); }
+.set-watermark.rarity-uncommon { background-color: var(--rarity-uncommon); }
+.set-watermark.rarity-rare { background-color: var(--rarity-rare); }
+.set-watermark.rarity-mythic { background-color: var(--rarity-mythic); }
 
 .progress-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap); }
 .progress-line .lead { margin: 0; }
 progress { width: min(100%, 24rem); height: 1rem; accent-color: var(--accent); }
-/* The rarity list is the filter: each entry is a link, and the one in force is filled in. */
-.rarities ul { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.75rem 0 0; padding: 0; color: var(--text-muted); }
-.rarities a { display: inline-block; padding: 0.25rem 0.75rem; border: 1px solid var(--text-muted); border-radius: 999px; color: var(--text); text-decoration: none; }
-.rarities a:hover { border-color: var(--text); }
-.rarities a[aria-current="true"] { background: var(--text); border-color: var(--text); color: var(--bg); }
-.rarities .playsets { margin-left: 0.75rem; }
-.rarities strong { font-weight: 700; }
-.colours ul { list-style: none; display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin: 0.5rem 0 0; padding: 0; color: var(--text-muted); }
-.colours strong { color: var(--text); font-weight: 700; }
+/* Each filter is a panel of links, one a row with a bar of what the player holds of it. The row in
+   force is outlined, and the link of that row clears the filter. */
+.filter-panel { flex: 0 1 14rem; padding: 0.5rem; border-radius: 0.75rem; background: color-mix(in srgb, var(--bg) 70%, transparent); }
+.filter-panel h2 { margin: 0; padding: 0.15rem 0.5rem; color: var(--text-muted); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.filter-panel ul { list-style: none; margin: 0; padding: 0; }
+.filter-panel a { display: grid; grid-template-columns: 1fr auto 2.3rem; column-gap: 0.3rem; white-space: nowrap; align-items: baseline; padding: 0.3rem 0.5rem; border: 2px solid transparent; border-radius: 0.5rem; color: var(--text); font-size: 0.9rem; text-decoration: none; }
+.filter-panel a:hover { border-color: var(--text-muted); }
+.filter-panel a[aria-current="true"] { border-color: var(--accent); font-weight: 600; }
+.filter-panel .pct { text-align: right; }
+.filter-panel progress { display: block; grid-column: 1 / -1; width: 100%; height: 0.5rem; margin-top: 0.2rem; appearance: none; border: 0; border-radius: 0.25rem; overflow: hidden; background: color-mix(in srgb, var(--text) 15%, transparent); }
+.filter-panel progress::-webkit-progress-bar { background: transparent; }
+.filter-panel progress::-webkit-progress-value { background: var(--bar, var(--accent)); }
+.filter-panel progress::-moz-progress-bar { background: var(--bar, var(--accent)); }
+.filter-panel progress.bar-common, .filter-panel progress.bar-white { --bar: var(--white); }
+.filter-panel progress.bar-uncommon { --bar: var(--rarity-uncommon); }
+.filter-panel progress.bar-rare { --bar: var(--rarity-rare); }
+.filter-panel progress.bar-mythic { --bar: var(--rarity-mythic); }
+.filter-panel progress.bar-special { --bar: #b58cf2; }
+.filter-panel progress.bar-blue { --bar: var(--blue); }
+.filter-panel progress.bar-black { --bar: var(--black); }
+.filter-panel progress.bar-red { --bar: var(--red); }
+.filter-panel progress.bar-green { --bar: var(--green); }
+.filter-panel progress.bar-gold { --bar: var(--gold); }
+.filter-panel progress.bar-colourless { --bar: var(--colourless); }
+.filter-panel progress.bar-land { --bar: var(--land); }
 .unlock-mark { margin: 0; padding: 0.15rem 0.6rem; border: 1px solid var(--accent); border-radius: 999px; color: var(--accent); font-size: 0.9rem; }
 h2 { margin: 1.5rem 0 0; }
 
@@ -215,17 +278,48 @@ h2 { margin: 1.5rem 0 0; }
 .slot.empty { display: flex; align-items: flex-end; justify-content: center; aspect-ratio: 488 / 680; padding: 0.5rem; border: 2px dashed #3a4052; border-radius: 0.6rem; color: #8a90a0; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* The Counter's side of a binder: the buttons and prices sit under each card, in text that does not
-   rely on colour, so the grid keeps its cards at the proportions of a card. */
+/* The tools of a slot, over its card, show when the card is picked: the name on top, and a row of
+   buttons at the bottom. They are icons, so each carries its words for a screen reader. Without the
+   script nothing can be picked, and the tools show under the card as plain forms. */
 .binder .entry { display: flex; flex-direction: column; gap: 0.4rem; scroll-margin-top: 4rem; }
-.counter { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; color: var(--text-muted); }
-.counter form { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: 0; }
-.counter label { display: flex; align-items: center; gap: 0.35rem; }
-.counter input[type="number"] { width: 3.5rem; padding: 0.25rem; font: inherit; }
-.counter button { padding: 0.3rem 0.6rem; font-size: 0.85rem; }
-.counter p { margin: 0; }
-.shelf-name { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
-.shelf-price { color: var(--text); }
+.slot.empty { position: relative; }
+.pick { position: absolute; inset: 0; width: 100%; padding: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
+html:not(.js) .pick { display: none; }
+.tools { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; color: var(--text); }
+.tools p { margin: 0; }
+.tool-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.25rem; }
+.tool-row form, .tool-panel form { margin: 0; }
+.tool { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: 1.9rem; height: 2rem; padding: 0 0.2rem; border: 2px solid var(--text); border-radius: 999px; background: var(--surface); color: var(--text); font: inherit; font-size: 0.55rem; font-weight: 700; line-height: 1.1; cursor: pointer; }
+.tool.buy { border-color: var(--accent); }
+.tool.sell { border-color: var(--green); }
+.tool.trade { border-color: var(--focus); }
+.tool:hover { background: var(--bg); }
+.tool-price { color: var(--accent); }
+.tool-price + .tool-finish { margin-top: -0.1rem; }
+.tool-finish { color: var(--accent); }
+.glyph { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sprite { position: absolute; }
+.tool-note { padding: 0.2rem 0.4rem; border-radius: 0.4rem; background: var(--surface); font-size: 0.7rem; }
+.tool-panel summary { list-style: none; }
+.tool-panel summary::-webkit-details-marker { display: none; }
+.tool-panel form { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.75rem; }
+.tool-panel label { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.tool-panel input[type="number"] { width: 4.5rem; padding: 0.25rem; font: inherit; }
+.tool-panel form button { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+.tools-name { font-size: 0.8rem; font-weight: 700; overflow-wrap: anywhere; }
+/* With the script the tools are laid over the card. A panel that opens takes the whole card. */
+.js .tools { position: absolute; inset: 0; display: none; justify-content: space-between; border-radius: inherit; pointer-events: none; }
+.js .entry.selected .tools { display: flex; }
+.js .tools-name { padding: 0.5rem 0.5rem 1.2rem; background: linear-gradient(rgb(14 16 22 / 95%), transparent); }
+.js .tool-row { padding: 1.5rem 0.2rem 0.4rem; background: linear-gradient(transparent, rgb(14 16 22 / 95%)); }
+.js .tool, .js .tool-panel form, .js .tool-note { pointer-events: auto; }
+.js .tools:has(.tool-panel[open]) .tools-name { visibility: hidden; }
+.js .tool-panel[open] { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 0.5rem; border-radius: inherit; background: rgb(14 16 22 / 94%); pointer-events: auto; }
+.js .tool-panel[open] > summary { position: absolute; top: 0.4rem; right: 0.4rem; }
+.js .entry.selected .card, .js .entry.selected .slot.empty { border-color: var(--accent); border-style: solid; }
+.js .entry.selected .card.has-image .face { top: 26%; }
+.js .entry.selected .card:not(.has-image) .face .name { visibility: hidden; }
+.shelf-note { color: var(--text-muted); }
 .coins { display: flex; align-items: center; gap: 0.4rem; color: var(--text-muted); font-size: 0.9rem; }
 .coins strong { color: var(--accent); }
 .duplicates { margin: var(--gap) 0; padding: 0.75rem var(--gap); border: 1px solid var(--surface); border-radius: var(--radius); }
@@ -301,3 +395,33 @@ h2 { margin: 1.5rem 0 0; }
 
 /* A notice under the header, for what the player must not miss, such as a save that failed. */
 .notice { margin: 0; padding: 0.75rem var(--gap); background: var(--accent); color: var(--accent-text); font-weight: 600; }
+
+/* A set icon is a mask over a coloured box: the picture comes from /set-icons.css, one rule per
+   set, and the colour is the rarity's. It sits on a round chip so that every colour reads on the
+   dark page, on the gold button and on the card pictures: a light chip behind the black icon of a
+   common, a dark one behind the others. */
+.set-icon-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.6em;
+  height: 1.6em;
+  margin-right: 0.4em;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: var(--bg);
+}
+.set-icon-chip.rarity-common { background: var(--white); }
+.set-icon {
+  display: block;
+  width: 1.05em;
+  height: 1.05em;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+.set-icon.rarity-common { background-color: var(--rarity-common); }
+.set-icon.rarity-uncommon { background-color: var(--rarity-uncommon); }
+.set-icon.rarity-rare { background-color: var(--rarity-rare); }
+.set-icon.rarity-mythic { background-color: var(--rarity-mythic); }

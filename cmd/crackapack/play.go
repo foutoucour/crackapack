@@ -37,6 +37,8 @@ const (
 	shutdownTimeout = 5 * time.Second
 
 	scryfallAPI = "https://api.scryfall.com"
+	// scryfallIconHost serves the SVG icon of each set.
+	scryfallIconHost = "https://svgs.scryfall.io"
 	// scryfallUserAgent identifies the app, as the Scryfall API requires.
 	scryfallUserAgent = "crackapack/0 (unofficial fan project; https://github.com/foutoucour/crackapack)"
 	// cardBackURL is the picture of the back of the cards, downloaded once into the image cache, see
@@ -46,6 +48,8 @@ const (
 	imageFetchTimeout = 30 * time.Second
 	// imageCacheSubdir is where the pictures live under the OS user cache directory.
 	imageCacheSubdir = "crackapack/images"
+	// iconCacheSubdir is where the set icons live, under the image cache directory.
+	iconCacheSubdir = "set-icons"
 	// saveSubdir is where the save lives under the OS user config directory.
 	saveSubdir = "crackapack"
 	// saveFile and demoSaveFile are the names of the save. The demo has one of its own, so that
@@ -93,6 +97,8 @@ type playArgs struct {
 	images images.Source
 	// cardBack gives the picture of the back of a card, under images.CardBackID.
 	cardBack images.Source
+	// icons gives the icon of a set by its icon code.
+	icons images.Source
 
 	listener net.Listener
 	stdout   io.Writer
@@ -172,6 +178,8 @@ while it is missing.`,
 			}
 			imageDir := filepath.Join(cacheRoot, imageCacheSubdir)
 			a.cardBack = images.NewCached(newCardBackSource(), imageDir)
+			// The demo sets are made up: no site draws their icons, so the demo shows the stand-in.
+			a.icons = images.Chain()
 			if savePath == "" {
 				configRoot, err := os.UserConfigDir()
 				if err != nil {
@@ -203,6 +211,7 @@ while it is missing.`,
 					a.pricesFS, a.pricesName = os.DirFS(filepath.Dir(pricesPath)), filepath.Base(pricesPath)
 				}
 				a.images = images.NewCached(newScryfallSource(), imageDir)
+				a.icons = images.NewCachedIcons(newScryfallIconSource(), filepath.Join(imageDir, iconCacheSubdir))
 				if a.seed == 0 {
 					a.seed = rand.Uint64()
 				}
@@ -249,7 +258,7 @@ func runPlay(ctx context.Context, a playArgs) error {
 	}
 
 	srv := &http.Server{
-		Handler:           web.NewHandler(game, images.Chain(a.cardBack, a.images), log),
+		Handler:           web.NewHandler(game, images.Chain(a.cardBack, a.images), a.icons, log),
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 	served := make(chan error, 1)
@@ -457,6 +466,17 @@ func newCardBackSource() *images.Fixed {
 		ID:        images.CardBackID,
 		URL:       cardBackURL,
 		UserAgent: scryfallUserAgent,
+	})
+}
+
+// newScryfallIconSource builds the source of the set icons.
+func newScryfallIconSource() *images.ScryfallIcons {
+	return images.NewScryfallIcons(images.ScryfallConfig{
+		Client:    &http.Client{Timeout: imageFetchTimeout},
+		BaseURL:   scryfallIconHost,
+		UserAgent: scryfallUserAgent,
+		Interval:  images.DefaultInterval,
+		Sleep:     time.Sleep,
 	})
 }
 

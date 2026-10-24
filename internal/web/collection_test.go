@@ -79,11 +79,11 @@ func TestCollection_theRarityListIsTheFilterAndMarksTheOneInForce(t *testing.T) 
 			t.Errorf("the filter lacks a link %q:\n%s", want, rare)
 		}
 	}
-	if strings.Count(all, `aria-current="true"`) != 1 || !strings.Contains(all, `aria-current="true">All`) {
-		t.Errorf("with no filter, only All must be marked as the one in force:\n%s", all)
+	if got := panel(all, "Filter by rarity"); strings.Count(got, `aria-current="true"`) != 1 || !strings.Contains(got, `aria-current="true">All rarities`) {
+		t.Errorf("with no filter, only All rarities must be marked as the one in force:\n%s", got)
 	}
-	if strings.Count(rare, `aria-current="true"`) != 1 || !strings.Contains(rare, `aria-current="true">Rare`) {
-		t.Errorf("with rarity=rare, only Rare must be marked:\n%s", rare)
+	if got := panel(rare, "Filter by rarity"); strings.Count(got, `aria-current="true"`) != 1 || !strings.Contains(got, `aria-current="true">Rare`) {
+		t.Errorf("with rarity=rare, only Rare must be marked:\n%s", got)
 	}
 }
 
@@ -158,6 +158,13 @@ func TestCollection_filteringOnCommonHidesTheTimeshiftedSection(t *testing.T) {
 	}
 }
 
+// panel is the part of body that is the list labelled label, up to the end of its nav.
+func panel(body, label string) string {
+	_, rest, _ := strings.Cut(body, `aria-label="`+label+`"`)
+	got, _, _ := strings.Cut(rest, "</nav>")
+	return got
+}
+
 // coloursSet is six commons, one a gold card, one colourless, one a land and two white.
 func coloursSet() domain.SetCatalogue {
 	cat := playtest.TinySet("M", 6, 6)
@@ -180,22 +187,19 @@ func TestCollection_showsTheProgressByColourWithTextLabelsAndLeavesOutTheEmptyGr
 	openPack(t, c, srv.URL, "M")
 	_, full := get(t, c, srv.URL+"/collection")
 
-	for _, want := range []string{
-		`aria-label="Progress by colour"`,
-		`<li>White <strong>0 / 2</strong></li>`, `<li>Green <strong>0 / 1</strong></li>`, `<li>Gold <strong>0 / 1</strong></li>`,
-		`<li>Colourless <strong>0 / 1</strong></li>`, `<li>Land <strong>0 / 1</strong></li>`,
-	} {
-		if !strings.Contains(empty, want) {
-			t.Errorf("the binder lacks %q:\n%s", want, empty)
+	colours := panel(empty, "Filter by colour")
+	for _, want := range []string{"White <strong>0 / 2</strong>", "Green <strong>0 / 1</strong>", "Gold <strong>0 / 1</strong>", "Colourless <strong>0 / 1</strong>", "Land <strong>0 / 1</strong>"} {
+		if !strings.Contains(colours, want) {
+			t.Errorf("the colour list lacks %q:\n%s", want, colours)
 		}
 	}
 	for _, absent := range []string{"Blue", "Black", "Red"} {
-		if strings.Contains(empty, "<li>"+absent+" ") {
-			t.Errorf("the binder lists %s, which no card of the set is", absent)
+		if strings.Contains(colours, absent+" <strong>") {
+			t.Errorf("the colour list shows %s, which no card of the set is", absent)
 		}
 	}
-	if !strings.Contains(full, `<li>White <strong>2 / 2</strong></li>`) {
-		t.Errorf("after a booster of the whole binder White is not 2 / 2:\n%s", full)
+	if got := panel(full, "Filter by colour"); !strings.Contains(got, "White <strong>2 / 2</strong>") {
+		t.Errorf("after a booster of the whole binder White is not 2 / 2:\n%s", got)
 	}
 }
 
@@ -235,5 +239,227 @@ func TestCollection_marksOnlyTheBinderThatPassedTheUnlockThreshold(t *testing.T)
 	}
 	if strings.Contains(other, "Unlock threshold reached") {
 		t.Errorf("the binder of B is marked, and it has not reached the threshold:\n%s", other)
+	}
+}
+
+// mixedSet is coloursSet with its first white card an uncommon, so that rarity and colour cut the
+// binder in different ways: white is one common and one uncommon, and the rest are commons.
+func mixedSet() domain.SetCatalogue {
+	cat := coloursSet()
+	card := cat.Cards["M-00"]
+	card.Rarity = domain.RarityUncommon
+	cat.Cards["M-00"] = card
+	return cat
+}
+
+func TestCollection_filtersByColourAndKeepsTheWholeBindersProgress(t *testing.T) {
+	t.Parallel()
+	srv, c := newServer(t, coloursSet())
+
+	tests := []struct {
+		colour string
+		want   int
+	}{
+		{"W", 2},
+		{"G", 1},
+		{"gold", 1},
+		{"colourless", 1},
+		{"land", 1},
+	}
+	for _, tc := range tests {
+		resp, body := get(t, c, srv.URL+"/collection?colour="+tc.colour)
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("colour=%s: status %d, want 200", tc.colour, resp.StatusCode)
+		}
+		if got := slotsShown(body); got != tc.want {
+			t.Errorf("colour=%s shows %d slots, want %d", tc.colour, got, tc.want)
+		}
+		if !strings.Contains(body, `max="6"`) {
+			t.Errorf("colour=%s: the progress bar must still be the whole binder's (max 6):\n%s", tc.colour, body)
+		}
+	}
+}
+
+func TestCollection_aColourTheBinderDoesNotHaveIsABadRequest(t *testing.T) {
+	t.Parallel()
+	srv, c := newServer(t, coloursSet())
+
+	for _, colour := range []string{"U", "purple", "<script>"} {
+		resp, body := get(t, c, srv.URL+"/collection?colour="+url.QueryEscape(colour))
+
+		if resp.StatusCode != http.StatusBadRequest || !strings.Contains(strings.ToLower(body), "unknown colour") {
+			t.Errorf("colour=%s = %d, want 400 saying unknown colour:\n%s", colour, resp.StatusCode, body)
+		}
+		if strings.Contains(body, "<script>") {
+			t.Errorf("the colour was echoed unescaped:\n%s", body)
+		}
+	}
+}
+
+func TestCollection_aRarityAndAColourTogetherKeepTheCardsOfBoth(t *testing.T) {
+	t.Parallel()
+	srv, c := newServer(t, mixedSet())
+
+	tests := []struct {
+		query string
+		want  int
+	}{
+		{"rarity=common&colour=W", 1},
+		{"rarity=uncommon&colour=W", 1},
+		{"rarity=uncommon&colour=G", 0},
+		{"rarity=common&colour=gold", 1},
+	}
+	for _, tc := range tests {
+		_, body := get(t, c, srv.URL+"/collection?"+tc.query)
+
+		if got := slotsShown(body); got != tc.want {
+			t.Errorf("%s shows %d slots, want %d", tc.query, got, tc.want)
+		}
+	}
+}
+
+func TestCollection_theColourListIsAFilterThatKeepsTheRarityInForce(t *testing.T) {
+	t.Parallel()
+	srv, c := newServer(t, mixedSet())
+
+	_, all := get(t, c, srv.URL+"/collection")
+	_, both := get(t, c, srv.URL+"/collection?rarity=common&colour=W")
+
+	colours := panel(both, "Filter by colour")
+	for _, want := range []string{
+		`href="/collection?rarity=common&amp;set=M"`, // White is in force, so its link clears it, and All colours does too
+		`href="/collection?colour=G&amp;rarity=common&amp;set=M"`,
+		`aria-current="true">White`,
+	} {
+		if !strings.Contains(colours, want) {
+			t.Errorf("the colour list lacks %q:\n%s", want, colours)
+		}
+	}
+	if got := strings.Count(colours, `href="/collection?rarity=common&amp;set=M"`); got != 2 {
+		t.Errorf("%d links clear the colour, want 2 (All colours and White):\n%s", got, colours)
+	}
+	rarities := panel(both, "Filter by rarity")
+	for _, want := range []string{
+		`href="/collection?colour=W&amp;set=M"`, // Common is in force, so its link clears it, and All rarities does too
+		`href="/collection?colour=W&amp;rarity=uncommon&amp;set=M"`,
+		`aria-current="true">Common`,
+	} {
+		if !strings.Contains(rarities, want) {
+			t.Errorf("the rarity list lacks %q:\n%s", want, rarities)
+		}
+	}
+	if got := strings.Count(rarities, `href="/collection?colour=W&amp;set=M"`); got != 2 {
+		t.Errorf("%d links clear the rarity, want 2 (All rarities and Common):\n%s", got, rarities)
+	}
+	if got := panel(all, "Filter by colour"); !strings.Contains(got, `aria-current="true">All colours`) || strings.Count(got, `aria-current="true"`) != 1 {
+		t.Errorf("with no colour in force, only All colours must be marked:\n%s", got)
+	}
+}
+
+// binderList is the list of binders of a collection page, from its nav to the end of it.
+func binderList(body string) string { return panel(body, "Binders") }
+
+func TestCollection_theBinderListShowsTheUnlockedSetsAndFoldsTheLockedOnesAway(t *testing.T) {
+	t.Parallel()
+	srv, c := stagedServer(t)
+
+	_, body := get(t, c, srv.URL+"/collection?set=A")
+
+	list := binderList(body)
+	folded := strings.Index(list, `<details class="locked-binders">`)
+	if folded < 0 {
+		t.Fatalf("the locked sets are not in a section that starts closed:\n%s", list)
+	}
+	if !strings.Contains(list, "Locked sets (2)") {
+		t.Errorf("the closed section does not say how many sets it holds:\n%s", list)
+	}
+	if a := strings.Index(list, `href="/collection?set=A"`); a < 0 || a > folded {
+		t.Errorf("the unlocked set A is not listed above the locked ones:\n%s", list)
+	}
+	for _, code := range []string{"B", "C"} {
+		if at := strings.Index(list, `href="/collection?set=`+code+`"`); at < folded {
+			t.Errorf("the locked set %s is listed outside the closed section:\n%s", code, list)
+		}
+	}
+}
+
+func TestCollection_theClosedSectionOpensWhenTheBinderInViewIsLocked(t *testing.T) {
+	t.Parallel()
+	srv, c := stagedServer(t)
+
+	_, body := get(t, c, srv.URL+"/collection?set=C")
+
+	if list := binderList(body); !strings.Contains(list, `<details class="locked-binders" open>`) {
+		t.Errorf("the binder in view is locked and its set is hidden in a closed section:\n%s", list)
+	}
+}
+
+func TestCollection_aGameWithNoLockedSetHasNoClosedSection(t *testing.T) {
+	t.Parallel()
+	srv, c := newServer(t, playtest.TinySet("A", 1, 1), playtest.TinySet("B", 2, 1))
+
+	_, body := get(t, c, srv.URL+"/collection")
+
+	if list := binderList(body); strings.Contains(list, "locked-binders") {
+		t.Errorf("a section of locked sets is shown when no set is locked:\n%s", list)
+	}
+}
+
+func TestCollection_everyUnlockedSetFillsItsEntryUpToWhatIsHeldAndALockedOneDoesNot(t *testing.T) {
+	t.Parallel()
+	srv, c := stagedServer(t)
+	openPack(t, c, srv.URL, "A")
+
+	_, body := get(t, c, srv.URL+"/collection?set=A")
+
+	list := binderList(body)
+	open, locked, _ := strings.Cut(list, `<details class="locked-binders"`)
+	if !strings.Contains(open, `<progress value="1" max="1" aria-hidden="true"></progress>`) || !strings.Contains(open, "1 / 1") {
+		t.Errorf("the entry of A, which is complete, is not filled:\n%s", open)
+	}
+	if strings.Contains(locked, "<progress") {
+		t.Errorf("an entry of a locked set is filled:\n%s", locked)
+	}
+}
+
+func TestCollection_theBinderListCanBeSearchedAndNamesTheSetInView(t *testing.T) {
+	t.Parallel()
+	srv, c := stagedServer(t)
+
+	_, body := get(t, c, srv.URL+"/collection?set=A")
+
+	list := binderList(body)
+	for _, want := range []string{`<input type="search"`, `aria-label="Search sets"`, `<details class="set-picker" open>`, "<summary>"} {
+		if !strings.Contains(list, want) {
+			t.Errorf("the binder list lacks %q:\n%s", want, list)
+		}
+	}
+	if _, summary, _ := strings.Cut(list, "<summary>"); !strings.Contains(summary[:strings.Index(summary, "</summary>")], "Set A") {
+		t.Errorf("the summary does not name the set in view:\n%s", list)
+	}
+}
+
+func TestCollection_showsThePercentageOfProgressNextToEveryCountOfTheSet(t *testing.T) {
+	t.Parallel()
+	srv, c := newServer(t, playtest.TinySet("P", 4, 1))
+
+	_, before := get(t, c, srv.URL+"/collection")
+	openPack(t, c, srv.URL, "P")
+	_, after := get(t, c, srv.URL+"/collection")
+
+	for _, want := range []string{`<span class="pct">0%</span>`} {
+		if got := strings.Count(before, want); got < 4 {
+			t.Errorf("before a booster, %q shows %d times, want it in the header, the list and the rarity and colour panels:\n%s", want, got, before)
+		}
+	}
+	if strings.Contains(before, `class="pct">25%`) {
+		t.Errorf("a binder with nothing in it shows 25%%:\n%s", before)
+	}
+	list, header := binderList(after), after[strings.Index(after, `class="set-header"`):]
+	for what, body := range map[string]string{"the list of sets": list, "the header": header, "the rarity panel": panel(after, "Filter by rarity")} {
+		if !strings.Contains(body, `class="pct">25%`) {
+			t.Errorf("after a booster of one card out of four, %s lacks 25%%:\n%s", what, body)
+		}
 	}
 }

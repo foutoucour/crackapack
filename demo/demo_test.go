@@ -364,6 +364,21 @@ func TestBuild_servesDSPWithADefaultBooster(t *testing.T) {
 	}
 }
 
+func TestBuild_everyOpenableSetHasAnIconCodeSoTheDemoShowsTheSetIcons(t *testing.T) {
+	t.Parallel()
+	ds := demo.Build()
+
+	for _, code := range []string{"DEM", "DSP", "DEX"} {
+		cat, err := domain.LoadSetCatalogue(ds.Files, code+".json")
+		if err != nil {
+			t.Fatalf("load %s: %v", code, err)
+		}
+		if cat.IconCode != code {
+			t.Errorf("%s IconCode = %q, want %q", code, cat.IconCode, code)
+		}
+	}
+}
+
 // --- helpers ---
 
 func rarityCount(cat domain.SetCatalogue) map[domain.Rarity]int {

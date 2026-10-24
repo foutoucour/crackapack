@@ -53,6 +53,7 @@ type SetCatalogue struct {
 	Code           string
 	Name           string
 	ReleaseDate    string           // ISO date such as 2005-10-07; empty when the source file has none
+	IconCode       string           // the code of the set's icon, MTGJSON's keyruneCode; empty when the source file has none
 	Cards          map[CardID]Card  // keyed by MTGJSON UUID for O(1) lookup
 	Sheets         map[string]Sheet // keyed by sheet name
 	BoosterOptions []BoosterOption

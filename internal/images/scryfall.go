@@ -47,22 +47,28 @@ func (s *Scryfall) Image(ctx context.Context, scryfallID string) (Image, error) 
 		return Image{}, fmt.Errorf("%w: %q", ErrInvalidID, scryfallID)
 	}
 
+	endpoint := s.cfg.BaseURL + "/cards/" + scryfallID + "?" + url.Values{"format": {"image"}, "version": {"normal"}}.Encode()
+	return s.fetch(ctx, endpoint, "image/jpeg,image/png;q=0.9,*/*;q=0.5", "scryfall image "+scryfallID)
+}
+
+// fetch downloads the picture at endpoint, one request at a time and with a pause after it. what
+// names the picture in errors. A 404 is ErrNotFound.
+func (s *Scryfall) fetch(ctx context.Context, endpoint, accept, what string) (Image, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	defer s.cfg.Sleep(s.cfg.Interval)
 
-	endpoint := s.cfg.BaseURL + "/cards/" + scryfallID + "?" + url.Values{"format": {"image"}, "version": {"normal"}}.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return Image{}, fmt.Errorf("scryfall image %s: build request: %w", scryfallID, err)
+		return Image{}, fmt.Errorf("%s: build request: %w", what, err)
 	}
 	req.Header.Set("User-Agent", s.cfg.UserAgent)
-	req.Header.Set("Accept", "image/jpeg,image/png;q=0.9,*/*;q=0.5")
+	req.Header.Set("Accept", accept)
 
-	img, err := download(s.cfg.Client, req, "scryfall image "+scryfallID)
+	img, err := download(s.cfg.Client, req, what)
 	var status *statusError
 	if errors.As(err, &status) && status.code == http.StatusNotFound {
-		return Image{}, fmt.Errorf("scryfall image %s: %w", scryfallID, ErrNotFound)
+		return Image{}, fmt.Errorf("%s: %w", what, ErrNotFound)
 	}
 	return img, err
 }

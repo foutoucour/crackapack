@@ -19,6 +19,7 @@ type exportData struct {
 	Code        string                      `json:"code"`
 	Name        string                      `json:"name"`
 	ReleaseDate string                      `json:"releaseDate,omitempty"`
+	KeyruneCode string                      `json:"keyruneCode,omitempty"`
 	Cards       []exportCard                `json:"cards"`
 	Booster     map[string]exportBoosterDef `json:"booster,omitempty"`
 }
@@ -70,6 +71,7 @@ func CatalogueToJSON(cat domain.SetCatalogue) ([]byte, error) {
 			Code:        cat.Code,
 			Name:        cat.Name,
 			ReleaseDate: cat.ReleaseDate,
+			KeyruneCode: cat.IconCode,
 			Cards:       cards,
 			Booster: map[string]exportBoosterDef{
 				"draft": {

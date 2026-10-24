@@ -83,8 +83,14 @@ func newLoggedServer(t *testing.T, pics images.Source, sets ...domain.SetCatalog
 // serve serves game, with a client that does not follow redirects and the buffer the handler logs to.
 func serve(t *testing.T, game *play.Game, pics images.Source) (*httptest.Server, *http.Client, *bytes.Buffer) {
 	t.Helper()
+	return serveWithIcons(t, game, pics, fakeImages{})
+}
+
+// serveWithIcons is serve with the source of the set icons.
+func serveWithIcons(t *testing.T, game *play.Game, pics, icons images.Source) (*httptest.Server, *http.Client, *bytes.Buffer) {
+	t.Helper()
 	var logs bytes.Buffer
-	srv := httptest.NewServer(web.NewHandler(game, pics, slog.New(slog.NewTextHandler(&logs, nil))))
+	srv := httptest.NewServer(web.NewHandler(game, pics, icons, slog.New(slog.NewTextHandler(&logs, nil))))
 	t.Cleanup(srv.Close)
 	client := srv.Client()
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
@@ -607,7 +613,9 @@ func TestCollection_switchesBetweenBinders(t *testing.T) {
 	if !strings.Contains(first, "<h1>"+rav.Name) || !strings.Contains(second, "<h1>"+tsp.Name) {
 		t.Errorf("the page does not show the binder it was asked for")
 	}
-	if strings.Count(second, `aria-current="page"`) != 1 || !strings.Contains(second, `aria-current="page">`+tsp.Name) {
+	_, marked, _ := strings.Cut(second, `aria-current="page">`)
+	marked, _, _ = strings.Cut(marked, "</a>")
+	if strings.Count(second, `aria-current="page"`) != 1 || !strings.Contains(marked, tsp.Name) {
 		t.Errorf("the current binder is not marked in the switcher:\n%s", second)
 	}
 }

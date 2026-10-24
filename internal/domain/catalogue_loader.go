@@ -19,6 +19,7 @@ type mtgSetData struct {
 	Code        string                   `json:"code"`
 	Name        string                   `json:"name"`
 	ReleaseDate string                   `json:"releaseDate"`
+	KeyruneCode string                   `json:"keyruneCode"`
 	Cards       []mtgCard                `json:"cards"`
 	Booster     map[string]mtgBoosterDef `json:"booster"`
 }
@@ -355,6 +356,7 @@ func LoadSetCatalogue(fsys fs.FS, name string) (SetCatalogue, error) {
 		Code:           d.Code,
 		Name:           d.Name,
 		ReleaseDate:    d.ReleaseDate,
+		IconCode:       d.KeyruneCode,
 		Cards:          cards,
 		Sheets:         sheets,
 		BoosterOptions: opts,
