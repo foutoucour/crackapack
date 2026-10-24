@@ -277,7 +277,7 @@ func TestCounter_aGameWithoutOne(t *testing.T) {
 		"quote":           func() error { _, err := g.CounterQuote(cheap().ID, cheap().Finish); return err },
 		"buy":             func() error { _, err := g.Buy(cheap().ID, cheap().Finish); return err },
 		"sell":            func() error { _, err := g.Sell(cheap().ID, cheap().Finish, 1); return err },
-		"sell duplicates": func() error { _, err := g.SellDuplicates("S"); return err },
+		"sell duplicates": func() error { _, err := g.SellDuplicates("S", nil); return err },
 	}
 	for name, action := range actions {
 		if err := action(); !errors.Is(err, play.ErrNoCounter) {
@@ -320,7 +320,7 @@ func TestSellDuplicates_sellsWhatIsAboveAPlaysetOfEveryCardOfTheSet(t *testing.T
 	}
 	mustOpen(t, g, "T")
 
-	paid, err := g.SellDuplicates("S")
+	paid, err := g.SellDuplicates("S", nil)
 	if err != nil {
 		t.Fatalf("SellDuplicates: %v", err)
 	}
@@ -331,10 +331,10 @@ func TestSellDuplicates_sellsWhatIsAboveAPlaysetOfEveryCardOfTheSet(t *testing.T
 	if held(g, "S", cheap()) != domain.PlaysetSize || held(g, "S", dear()) != domain.PlaysetSize {
 		t.Errorf("held %d and %d, want a playset of each", held(g, "S", cheap()), held(g, "S", dear()))
 	}
-	if _, err := g.SellDuplicates("S"); !errors.Is(err, play.ErrNothingToSell) {
+	if _, err := g.SellDuplicates("S", nil); !errors.Is(err, play.ErrNothingToSell) {
 		t.Errorf("second SellDuplicates error = %v, want ErrNothingToSell", err)
 	}
-	if _, err := g.SellDuplicates("NOPE"); !errors.Is(err, play.ErrUnknownSet) {
+	if _, err := g.SellDuplicates("NOPE", nil); !errors.Is(err, play.ErrUnknownSet) {
 		t.Errorf("SellDuplicates of an unknown set error = %v, want ErrUnknownSet", err)
 	}
 }

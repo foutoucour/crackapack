@@ -36,6 +36,25 @@ type collectionView struct {
 	Market bool
 }
 
+// cardSet is a set of card IDs.
+type cardSet map[domain.CardID]bool
+
+func (c cardSet) has(id domain.CardID) bool { return c[id] }
+
+// shownCards is the cards that the slots and the pools of the page show.
+func (v collectionView) shownCards() cardSet {
+	shown := make(cardSet)
+	for _, s := range v.Slots {
+		shown[s.ID] = true
+	}
+	for _, p := range v.Pools {
+		for _, s := range p.Slots {
+			shown[s.ID] = true
+		}
+	}
+	return shown
+}
+
 // tabView is one entry of the list of binders.
 type tabView struct {
 	SetCode string

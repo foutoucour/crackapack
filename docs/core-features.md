@@ -142,8 +142,12 @@ Starting values, to be calibrated against the real average value of each set.
 
 In the interactive game the energy recharges with the real clock, even while the page is closed,
 and the ten welcome boosters are free and opened first, see
-[ADR-0038](adr/0038-the-games-energy-recharges-by-the-clock.md). The game has no coin fee and no
-coin top-up yet.
+[ADR-0038](adr/0038-the-games-energy-recharges-by-the-clock.md).
+
+The game charges the coin fee when a booster is opened, see
+[ADR-0068](adr/0068-the-game-charges-a-sets-coin-fee-when-a-booster-is-opened.md). A player short
+of energy can ask to pay the rest in coins, with at least one point of real energy left, see
+[ADR-0069](adr/0069-the-player-asks-for-a-coin-top-up-and-the-game-plays-one-price.md).
 
 ## Collection and binders
 
@@ -241,11 +245,12 @@ Counter's rates and the rewards.
 | Flow | Direction for the player | Starting value |
 | --- | --- | --- |
 | Welcome bonus | Source | 200 coins |
-| Daily reward | Source | 100 coins / day |
+| Daily reward | Source | 100 coins / day, for each day the game catches up, see [ADR-0067](adr/0067-the-daily-reward-is-paid-for-each-day-the-game-catches-up.md) |
 | Sales to the Counter | Source | 60% of the reference value |
 | Sales to NPCs on the market | Source | Up to the reference value less the NPC's margin |
 | Quests, milestones, mini-games | Source | See [Retention](retention.md) |
 | Coin top-ups in trades, and purchases from NPCs on the market | Sink | Difference in reference value, or the NPC's asking price |
+| Coin fee on a booster worth more than the energy cap, and coin top-up of its energy | Sink | See [Energy](#energy) |
 | Purchases from the Counter | Sink | 120% of the reference value |
 | Foils from the Counter | Sink | `counter_foil_pct` of the card's reference value, then 120% |
 
@@ -296,7 +301,9 @@ the collection page, with no page of its own:
   has a Buy button too, as a slot with no copy does, since the player may be building a playset. A sale
   that empties the slot, with no copy left in either finish, asks first on a page of its own, so
   that no script is needed. The binder offers Sell duplicates with the copies and the total it
-  pays, and says so when there is nothing above a playset. A slot shows the card's name, its price and
+  pays, and says so when there is nothing above a playset. It offers the duplicates of the cards the
+  page shows, so a filter on rarity, colour or what the player can do narrows the sale as it narrows
+  the page. A slot shows the card's name, its price and
   a Buy button, or why it cannot be bought: the Counter has no copy and when it last had
   one ("last in stock 5 minutes ago"), it never had one ("never seen at the Counter"), or it does
   not trade the card. A locked set's binder only sells. The result of a purchase or a sale shows on
@@ -383,7 +390,7 @@ In the game the player starts trades, as on Reverb or eBay, see
   see [ADR-0063](adr/0063-the-npcs-of-the-game-open-the-sets-the-player-can-open.md), and a new
   game's NPCs have played most of a hold already, see
   [ADR-0064](adr/0064-a-new-games-npcs-have-most-of-a-hold-behind-them.md). They are saved with the
-  game, see [ADR-0061](adr/0061-the-npcs-are-saved-in-the-games-file-in-a-compact-form.md).
+  game, see [ADR-0066](adr/0066-a-save-names-the-cards-of-its-lists-by-a-dictionary.md).
 
 ### Hunted cards
 

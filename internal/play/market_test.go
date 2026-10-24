@@ -3,6 +3,8 @@ package play_test
 import (
 	"errors"
 	"reflect"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -224,7 +226,7 @@ func TestSellDuplicates_keepsTheReservedCopies(t *testing.T) {
 	if err := g.CounterAnswer(slow.ID, 0, []domain.TradeLine{{Key: cheap(), Qty: 5}}); err != nil {
 		t.Fatalf("CounterAnswer: %v", err)
 	}
-	d, err := g.Duplicates("S")
+	d, err := g.Duplicates("S", nil)
 	if err != nil {
 		t.Fatalf("Duplicates: %v", err)
 	}
@@ -232,7 +234,7 @@ func TestSellDuplicates_keepsTheReservedCopies(t *testing.T) {
 	if d.Copies != 3 {
 		t.Errorf("Duplicates = %+v, want 3 copies", d)
 	}
-	if _, err := g.SellDuplicates("S"); err != nil {
+	if _, err := g.SellDuplicates("S", nil); err != nil {
 		t.Fatalf("SellDuplicates: %v", err)
 	}
 	if held(g, "S", cheap()) != 5 || held(g, "S", dear()) != 4 {
@@ -385,6 +387,60 @@ func TestPersist_theCardsOfTheNPCsOfAnOlderSaveLoad(t *testing.T) {
 	}
 }
 
+// A save writes each card ID once, in a dictionary, and the lists of the NPCs and of the Counter's
+// shelf name the cards by their place in it.
+func TestPersist_aSaveNamesTheCardsOfItsListsByADictionary(t *testing.T) {
+	t.Parallel()
+	store := &memStore{}
+	g := counterGame(t, store, playtest.NewClock(), marketRules(), counterSet())
+	mustOpen(t, g, "S")
+	mustSell(t, g, "S-00", 1)
+
+	counter := store.last(t).Counter
+
+	if len(counter.CardIDs) == 0 {
+		t.Fatal("the save has no dictionary of card IDs")
+	}
+	seen := map[domain.CardID]bool{}
+	for _, id := range counter.CardIDs {
+		if seen[id] {
+			t.Errorf("the dictionary lists %q twice", id)
+		}
+		seen[id] = true
+	}
+	lists := counter.Shelved
+	for _, n := range counter.Crowd.NPCs {
+		lists += " " + n.Held + " " + n.Shelf + " " + n.Wishes
+	}
+	if strings.Contains(lists, "S-0") {
+		t.Errorf("the lists name a card by its ID, want its place in the dictionary: %q", lists)
+	}
+}
+
+// A save from before the dictionary writes the card IDs in the lists, and loads.
+func TestPersist_aSaveWithTheIDsInItsListsLoadsAndIsSavedWithADictionary(t *testing.T) {
+	t.Parallel()
+	store := &memStore{}
+	counterGame(t, store, playtest.NewClock(), marketRules(), counterSet())
+	snap := store.last(t)
+	snap.Counter.CardIDs = nil
+	snap.Counter.Shelved = ""
+	for i := range snap.Counter.Crowd.NPCs {
+		npc := &snap.Counter.Crowd.NPCs[i]
+		npc.Held, npc.Shelf, npc.Wishes = "", "", ""
+	}
+	snap.Counter.Crowd.NPCs[fastNPC].Held = "S-00 S-01*=2"
+	loadedStore := &memStore{snap: snap, found: true}
+
+	g := counterGame(t, loadedStore, playtest.NewClock(), marketRules(), counterSet())
+	mustOpen(t, g, "S")
+
+	got := loadedStore.last(t).Counter
+	if !slices.Contains(got.CardIDs, "S-00") || !slices.Contains(got.CardIDs, "S-01") {
+		t.Errorf("dictionary after loading the older save = %v, want S-00 and S-01 in it", got.CardIDs)
+	}
+}
+
 // The NPCs of a game in stages open the sets the player can open, so that the market holds the
 // cards the player looks for: a locked set's cards come to them once it unlocks.
 func TestMarket_theNPCsOpenTheSetsThePlayerCanOpen(t *testing.T) {
@@ -408,10 +464,19 @@ func TestMarket_theNPCsOpenTheSetsThePlayerCanOpen(t *testing.T) {
 	if err := g.Persist(play.Saves{Store: store, Stream: stream}); err != nil {
 		t.Fatalf("Persist: %v", err)
 	}
+	// An entry of a list names its card by its place in the save's dictionary.
 	npcHolds := func(prefix string) bool {
-		for _, n := range store.last(t).Counter.Crowd.NPCs {
-			if strings.Contains(" "+n.Held+" "+n.Shelf, " "+prefix) {
-				return true
+		counter := store.last(t).Counter
+		for _, n := range counter.Crowd.NPCs {
+			for _, entry := range strings.Fields(n.Held + " " + n.Shelf) {
+				place := entry[:strings.IndexAny(entry+"*@=", "*@=")]
+				i, err := strconv.Atoi(place)
+				if err != nil {
+					t.Fatalf("entry %q does not start with a place in the dictionary", entry)
+				}
+				if strings.HasPrefix(string(counter.CardIDs[i]), prefix) {
+					return true
+				}
 			}
 		}
 		return false

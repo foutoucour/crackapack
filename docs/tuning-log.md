@@ -23,6 +23,36 @@ goal band changes. Newest first. Each entry says:
 - how the goals read before and after, on the same scenarios, so the entries compare;
 - what the run does not tell.
 
+## 2026-10-24 – Energy has a price in the game, and a smaller save, no search run
+
+**Trigger:** the game gets the coin fee above the energy cap and the coin top-up, see
+[ADR-0068](adr/0068-the-game-charges-a-sets-coin-fee-when-a-booster-is-opened.md) and
+[ADR-0069](adr/0069-the-player-asks-for-a-coin-top-up-and-the-game-plays-one-price.md), and the daily
+reward, see [ADR-0067](adr/0067-the-daily-reward-is-paid-for-each-day-the-game-catches-up.md).
+`tune/play.yaml` prices energy and turns the top-up on, which needed a switch to be a key that an
+override can set, as a 0 or a 1. The demo's own config prices energy too. `config.defaults()`,
+`tune/base.yaml` and the search are unchanged.
+
+| Key | Before | `tune/play.yaml` | Demo before | Demo now |
+|-----|-------:|-----------------:|------------:|---------:|
+| `energy.coins_per_energy` | 0 | 100 | 0 | 70 |
+| `energy.coin_topup.enabled` | off | on | off | on |
+
+- **A price of 100** is the start the [todo](todo.md) names, the best coins per energy of the tiered sets.
+  On the 107 sets of the scope with `prices.json` it gives 7 sets a fee, from 56 to 1,699 coins. At 70,
+  16 sets pay one, at 150 four, at 200 three.
+- **The demo's 70** puts the cap's energy at 840 coins, between the cash-out value of a DEM booster, about
+  740, and of a DSP booster, about 930. DSP asks a fee and DEM does not.
+- The daily reward is `daily_reward`, 100 by default, unchanged.
+
+**The save is smaller.** A copy of a real save, 12 NPCs, went from 359 KB to 134 KB when the game loaded
+it and saved it again with the card dictionary of
+[ADR-0066](adr/0066-a-save-names-the-cards-of-its-lists-by-a-dictionary.md): 63% less. The NPCs' lists
+were 334 KB of the 359. The table of the 2026-10-23 entry below was measured before the dictionary.
+
+**What it does not show:** what the fee and the top-up do to the pace and to the coin pile. No search
+runs them, and the price was not tuned. The goals of ADR-0041 and ADR-0051 were read without them.
+
 ## 2026-10-23 – A trading crowd and a market for the game, no search run
 
 **Trigger:** the game gets a market, see

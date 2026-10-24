@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — 2026-10-23
+Superseded by [ADR-0066](0066-a-save-names-the-cards-of-its-lists-by-a-dictionary.md)
 
 ## Context
 

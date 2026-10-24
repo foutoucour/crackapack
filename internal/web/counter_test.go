@@ -507,6 +507,64 @@ func TestSellDuplicates_refusals(t *testing.T) {
 	}
 }
 
+// rareDuplicateShop serves a set T of two cards, the second a rare, with six copies of each held:
+// two above a playset of each, one coin apiece.
+func rareDuplicateShop(t *testing.T) counterShop {
+	t.Helper()
+	cat := playtest.TinySet("T", 2, 2)
+	card := cat.Cards["T-01"]
+	card.Rarity = domain.RarityRare
+	cat.Cards["T-01"] = card
+	shop := newShop(t, nil, cat)
+	for range 6 {
+		if _, err := shop.game.Open("T"); err != nil {
+			t.Fatalf("Open: %v", err)
+		}
+		shop.clock.Advance(time.Hour)
+	}
+	return shop
+}
+
+func TestSellDuplicates_aFilteredBinderOffersOnlyTheCardsItShows(t *testing.T) {
+	t.Parallel()
+	shop := rareDuplicateShop(t)
+
+	body := shop.get(t, "/collection?set=T&rarity=rare")
+
+	mustContain(t, "the duplicates section of the rare filter", body, "2 copies above a playset", "◎2", `name="rarity" value="rare"`)
+}
+
+func TestSellDuplicates_aFilteredBinderSellsOnlyTheCardsItShows(t *testing.T) {
+	t.Parallel()
+	shop := rareDuplicateShop(t)
+
+	resp, _ := shop.post(t, "/sell-duplicates", url.Values{"set": {"T"}, "rarity": {"rare"}})
+
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("POST /sell-duplicates = %d, want 303", resp.StatusCode)
+	}
+	if shop.game.Balance() != 202 {
+		t.Errorf("balance %d, want 202: only the two rare duplicates were to be sold", shop.game.Balance())
+	}
+	after := shop.get(t, "/collection?set=T")
+	mustContain(t, "the unfiltered binder after the sale", after, "2 copies above a playset", "◎2")
+}
+
+func TestSellDuplicates_aFilterThatKeepsNoDuplicateRefusesTheSale(t *testing.T) {
+	t.Parallel()
+	shop := rareDuplicateShop(t)
+
+	resp, body := shop.post(t, "/sell-duplicates", url.Values{"set": {"T"}, "rarity": {"mythic"}})
+
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("status %d, want 409", resp.StatusCode)
+	}
+	mustContain(t, "the refusal", body, "no duplicates")
+	if shop.game.Balance() != 200 {
+		t.Errorf("a refused sale moved the balance to %d", shop.game.Balance())
+	}
+}
+
 func TestCounter_aLockedBinderCannotBuyButStillSells(t *testing.T) {
 	t.Parallel()
 	shop := newShop(t, &play.StageRules{Threshold: 1, SetsPerUnlock: 1, Stages: 1, StartSets: 1}, playtest.TinySet("A", 1, 1), playtest.TinySet("B", 2, 1))

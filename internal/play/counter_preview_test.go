@@ -82,7 +82,7 @@ func TestDuplicates_isWhatSellDuplicatesWouldPayAndChangesNothing(t *testing.T) 
 	t.Parallel()
 	store := &playtest.FlakyStore{}
 	g := counterGame(t, store, playtest.NewClock(), counterRules(), counterSet(), playtest.TinySet("T", 1, 1))
-	empty, err := g.Duplicates("S")
+	empty, err := g.Duplicates("S", nil)
 	if err != nil || empty.Copies != 0 || empty.Value != 0 {
 		t.Fatalf("Duplicates of a binder with none = %+v, %v, want zero", empty, err)
 	}
@@ -92,7 +92,7 @@ func TestDuplicates_isWhatSellDuplicatesWouldPayAndChangesNothing(t *testing.T) 
 	mustOpen(t, g, "T")
 	saved := store.Saved()
 
-	got, err := g.Duplicates("S")
+	got, err := g.Duplicates("S", nil)
 	if err != nil {
 		t.Fatalf("Duplicates: %v", err)
 	}
@@ -103,23 +103,48 @@ func TestDuplicates_isWhatSellDuplicatesWouldPayAndChangesNothing(t *testing.T) 
 	if g.Balance() != 200 || store.Saved() != saved {
 		t.Errorf("a preview moved the balance to %d or saved", g.Balance())
 	}
-	paid, err := g.SellDuplicates("S")
+	paid, err := g.SellDuplicates("S", nil)
 	if err != nil || paid != got.Value {
 		t.Errorf("SellDuplicates = %d, %v, want the %d the preview said", paid, err, got.Value)
+	}
+}
+
+func TestDuplicates_onlyCountsAndSellsTheCardsIncludeAccepts(t *testing.T) {
+	t.Parallel()
+	g := counterGame(t, &memStore{}, playtest.NewClock(), counterRules(), counterSet())
+	for range 6 {
+		mustOpen(t, g, "S")
+	}
+	onlyDear := func(id domain.CardID) bool { return id == "S-01" }
+
+	got, err := g.Duplicates("S", onlyDear)
+	if err != nil {
+		t.Fatalf("Duplicates: %v", err)
+	}
+	// Two copies of the one card accepted above the four kept: 2 x 150.
+	if want := (play.Duplicates{Copies: 2, Value: 300}); got != want {
+		t.Errorf("Duplicates = %+v, want %+v", got, want)
+	}
+	paid, err := g.SellDuplicates("S", onlyDear)
+	if err != nil || paid != got.Value {
+		t.Errorf("SellDuplicates = %d, %v, want the %d the preview said", paid, err, got.Value)
+	}
+	if rest, _ := g.Duplicates("S", nil); rest.Copies != 2 {
+		t.Errorf("the duplicates left = %d copies, want the 2 of the card that was not accepted", rest.Copies)
 	}
 }
 
 func TestDuplicates_refusals(t *testing.T) {
 	t.Parallel()
 	g := counterGame(t, &memStore{}, playtest.NewClock(), counterRules(), counterSet())
-	if _, err := g.Duplicates("NOPE"); !errors.Is(err, play.ErrUnknownSet) {
+	if _, err := g.Duplicates("NOPE", nil); !errors.Is(err, play.ErrUnknownSet) {
 		t.Errorf("Duplicates of an unknown set error = %v, want ErrUnknownSet", err)
 	}
 	bare, _, err := newSeededGame(playtest.NewClock(), counterSet())
 	if err != nil {
 		t.Fatalf("NewGame: %v", err)
 	}
-	if _, err := bare.Duplicates("S"); !errors.Is(err, play.ErrNoCounter) {
+	if _, err := bare.Duplicates("S", nil); !errors.Is(err, play.ErrNoCounter) {
 		t.Errorf("Duplicates without a Counter error = %v, want ErrNoCounter", err)
 	}
 }

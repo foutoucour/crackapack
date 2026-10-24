@@ -22,6 +22,9 @@ type CounterRules struct {
 	Prices domain.PriceSnapshot
 	// WelcomeBonus is the coins a new game starts with.
 	WelcomeBonus domain.Coins
+	// DailyReward is the coins the player is paid for each day caught up, see
+	// docs/adr/0067-the-daily-reward-is-paid-for-each-day-the-game-catches-up.md. Zero pays none.
+	DailyReward domain.Coins
 	// Treasury is the coins a Counter with a treasury starts with, and DailyFloat what it gets each
 	// day caught up.
 	Treasury, DailyFloat domain.Coins
@@ -228,8 +231,9 @@ func (e *economy) instant() time.Time {
 	return e.now()
 }
 
-// catchUp plays the whole days gone by since syncedAt, as the simulation steps a day: the float of
-// a treasury, then each tick the Counter's shelf, its supply and the NPCs, in that order. Only the
+// catchUp plays the whole days gone by since syncedAt, as the simulation steps a day: the player's
+// daily reward, the float of a treasury, then each tick the Counter's shelf, its supply and the
+// NPCs, in that order. Only the
 // most recent CatchUpDays are played, and the days before them are skipped. A part of a day is
 // left for later. An error is a catalogue that does not hold a card its boosters draw.
 //
@@ -253,6 +257,9 @@ func (e *economy) catchUp() error {
 		if err := e.advanceMarket(start.Add(gameDay - time.Nanosecond)); err != nil {
 			return err
 		}
+		if err := e.payDailyReward(); err != nil {
+			return fmt.Errorf("play: catch up: %w", err)
+		}
 		if err := domain.FundTreasury(e.journal, e.rules.DailyFloat, "daily float"); err != nil {
 			return fmt.Errorf("play: catch up: %w", err)
 		}
@@ -273,6 +280,14 @@ func (e *economy) catchUp() error {
 	}
 	e.syncedAt = e.syncedAt.Add(time.Duration(days) * gameDay)
 	return e.advanceMarket(e.now())
+}
+
+// payDailyReward pays the player the reward of one day, if the rules give one.
+func (e *economy) payDailyReward() error {
+	if e.rules.DailyReward <= 0 {
+		return nil
+	}
+	return e.journal.Post(domain.Entry{From: domain.AccountDailyReward, To: domain.AccountPlayer, Amount: e.rules.DailyReward, Memo: "daily reward"})
 }
 
 // advanceMarket delivers the market's answers due by at, in a game with a market.

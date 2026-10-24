@@ -12,3 +12,8 @@
 # behind them are in docs/tuning-log.md.
 - {path: npcs.population, value: 12}
 - {path: npcs.surplus_hold_days, value: 7}
+# Energy has a price in coins, see ADR-0068 and ADR-0069: a booster worth more than the cap's energy
+# pays the difference as a fee, and a player short of energy can top it up. The price and what it
+# does to the sets are in docs/tuning-log.md. A 1 turns the top-up on.
+- {path: energy.coins_per_energy, value: 100}
+- {path: energy.coin_topup.enabled, value: 1}

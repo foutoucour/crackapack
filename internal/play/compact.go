@@ -13,13 +13,58 @@ import (
 )
 
 // The cards of the NPCs are most of what a save holds, so a save writes them compactly, see
-// docs/adr/0061-the-npcs-are-saved-in-the-games-file-in-a-compact-form.md. A list of cards is one
-// string of entries separated by spaces. An entry is a card ID, then "*" for a foil, "@" and a tick
-// for the copies of a shelf that arrived on it, and "=" and a count when the count is not 1:
-// "a1b2 c3d4*=2 e5f6@288=3".
+// docs/adr/0066-a-save-names-the-cards-of-its-lists-by-a-dictionary.md. A list of cards is one
+// string of entries separated by spaces. An entry is a card, then "*" for a foil, "@" and a tick for
+// the copies of a shelf that arrived on it, and "=" and a count when the count is not 1:
+// "0 7*=2 12@288=3". A card is its place in the save's dictionary of card IDs, so that an ID is
+// written once however many lists hold it. A save from before the dictionary has none, and writes
+// the ID itself in the entry: "a1b2 c3d4*=2 e5f6@288=3".
 
-// errCompactID is why a card ID cannot be written compactly: a character the entries use.
-var errCompactID = errors.New("a card ID with a space, '=', '@' or '*' cannot be saved compactly")
+// cardDict is the card IDs a save's compact lists name, each once. The place of an ID is its
+// number in the lists.
+type cardDict struct {
+	ids   []domain.CardID
+	index map[domain.CardID]int
+	// inline is true for the dictionary of a save from before the dictionary, which has none: its
+	// entries hold the ID itself.
+	inline bool
+}
+
+// newCardDict is an empty dictionary that a save fills as it writes its lists.
+func newCardDict() *cardDict {
+	return &cardDict{index: make(map[domain.CardID]int)}
+}
+
+// readCardDict is the dictionary of ids, as a save holds it. No ids is a save with no dictionary.
+func readCardDict(ids []domain.CardID) *cardDict {
+	return &cardDict{ids: ids, inline: len(ids) == 0}
+}
+
+// ref is how an entry names id, which it adds to the dictionary the first time.
+func (d *cardDict) ref(id domain.CardID) string {
+	n, ok := d.index[id]
+	if !ok {
+		n = len(d.ids)
+		d.ids = append(d.ids, id)
+		d.index[id] = n
+	}
+	return strconv.Itoa(n)
+}
+
+// id is the card that an entry names by ref.
+func (d *cardDict) id(ref string) (domain.CardID, error) {
+	if d.inline {
+		if ref == "" || strings.ContainsAny(ref, "=@*") {
+			return "", errors.New("no card ID")
+		}
+		return domain.CardID(ref), nil
+	}
+	n, err := strconv.Atoi(ref)
+	if err != nil || n < 0 || n >= len(d.ids) {
+		return "", fmt.Errorf("%q is not a place in the dictionary of %d cards", ref, len(d.ids))
+	}
+	return d.ids[n], nil
+}
 
 // compactEntry is one entry of a compact list.
 type compactEntry struct {
@@ -29,9 +74,9 @@ type compactEntry struct {
 	n     int
 }
 
-func (e compactEntry) String() string {
+func (e compactEntry) write(dict *cardDict) string {
 	var b strings.Builder
-	b.WriteString(string(e.key.ID))
+	b.WriteString(dict.ref(e.key.ID))
 	if e.key.Finish == domain.FinishFoil {
 		b.WriteByte('*')
 	}
@@ -46,20 +91,17 @@ func (e compactEntry) String() string {
 	return b.String()
 }
 
-func joinEntries(entries []compactEntry) (string, error) {
+func joinEntries(entries []compactEntry, dict *cardDict) string {
 	parts := make([]string, len(entries))
 	for i, e := range entries {
-		if e.key.ID == "" || strings.ContainsAny(string(e.key.ID), " =@*") {
-			return "", fmt.Errorf("%w: %q", errCompactID, e.key.ID)
-		}
-		parts[i] = e.String()
+		parts[i] = e.write(dict)
 	}
-	return strings.Join(parts, " "), nil
+	return strings.Join(parts, " ")
 }
 
-// splitEntries reads a compact list. An entry must have a tick when ticks is true and none
-// otherwise, and a count of at least 1.
-func splitEntries(s string, ticks bool) ([]compactEntry, error) {
+// splitEntries reads a compact list, whose cards are named as dict says. An entry must have a tick
+// when ticks is true and none otherwise, and a count of at least 1.
+func splitEntries(s string, ticks bool, dict *cardDict) ([]compactEntry, error) {
 	fields := strings.Fields(s)
 	out := make([]compactEntry, 0, len(fields))
 	for _, f := range fields {
@@ -86,27 +128,28 @@ func splitEntries(s string, ticks bool) ([]compactEntry, error) {
 		if id, foil := strings.CutSuffix(rest, "*"); foil {
 			e.key.Finish, rest = domain.FinishFoil, id
 		}
-		if rest == "" || strings.ContainsAny(rest, "=@*") {
-			return nil, fmt.Errorf("entry %q: no card ID", f)
+		id, err := dict.id(rest)
+		if err != nil {
+			return nil, fmt.Errorf("entry %q: %w", f, err)
 		}
-		e.key.ID = domain.CardID(rest)
+		e.key.ID = id
 		out = append(out, e)
 	}
 	return out, nil
 }
 
 // encodeCounts writes counts by card, in card order.
-func encodeCounts(counts map[domain.CardKey]int) (string, error) {
+func encodeCounts(counts map[domain.CardKey]int, dict *cardDict) string {
 	entries := make([]compactEntry, 0, len(counts))
 	for _, key := range slices.SortedFunc(maps.Keys(counts), compareKeys) {
 		entries = append(entries, compactEntry{key: key, n: counts[key]})
 	}
-	return joinEntries(entries)
+	return joinEntries(entries, dict)
 }
 
 // decodeCounts reads what encodeCounts wrote. A card listed twice is an error.
-func decodeCounts(s string) (map[domain.CardKey]int, error) {
-	entries, err := splitEntries(s, false)
+func decodeCounts(s string, dict *cardDict) (map[domain.CardKey]int, error) {
+	entries, err := splitEntries(s, false, dict)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +165,7 @@ func decodeCounts(s string) (map[domain.CardKey]int, error) {
 
 // encodeShelf writes a shelf by card, then by tick, the copies of a card that arrived on one tick
 // as one entry.
-func encodeShelf(shelf map[domain.CardKey][]int) (string, error) {
+func encodeShelf(shelf map[domain.CardKey][]int, dict *cardDict) string {
 	var entries []compactEntry
 	for _, key := range slices.SortedFunc(maps.Keys(shelf), compareKeys) {
 		for _, tick := range shelf[key] {
@@ -133,12 +176,12 @@ func encodeShelf(shelf map[domain.CardKey][]int) (string, error) {
 			entries = append(entries, compactEntry{key: key, tick: tick, ticks: true, n: 1})
 		}
 	}
-	return joinEntries(entries)
+	return joinEntries(entries, dict)
 }
 
 // decodeShelf reads what encodeShelf wrote. Whether the ticks are in order is the crowd's to check.
-func decodeShelf(s string) (map[domain.CardKey][]int, error) {
-	entries, err := splitEntries(s, true)
+func decodeShelf(s string, dict *cardDict) (map[domain.CardKey][]int, error) {
+	entries, err := splitEntries(s, true, dict)
 	if err != nil {
 		return nil, err
 	}
@@ -152,17 +195,17 @@ func decodeShelf(s string) (map[domain.CardKey][]int, error) {
 }
 
 // encodeWishes writes a wish list in its order, the copies wanted as the count.
-func encodeWishes(wishes []domain.Wish) (string, error) {
+func encodeWishes(wishes []domain.Wish, dict *cardDict) string {
 	entries := make([]compactEntry, len(wishes))
 	for i, w := range wishes {
 		entries[i] = compactEntry{key: domain.CardKey{ID: w.ID, Finish: domain.FinishNonFoil}, n: w.Want}
 	}
-	return joinEntries(entries)
+	return joinEntries(entries, dict)
 }
 
 // decodeWishes reads what encodeWishes wrote.
-func decodeWishes(s string) ([]domain.Wish, error) {
-	entries, err := splitEntries(s, false)
+func decodeWishes(s string, dict *cardDict) ([]domain.Wish, error) {
+	entries, err := splitEntries(s, false, dict)
 	if err != nil {
 		return nil, err
 	}
@@ -177,17 +220,17 @@ func decodeWishes(s string) ([]domain.Wish, error) {
 }
 
 // encodeKeys writes card keys in their order, repeats included.
-func encodeKeys(keys []domain.CardKey) (string, error) {
+func encodeKeys(keys []domain.CardKey, dict *cardDict) string {
 	entries := make([]compactEntry, len(keys))
 	for i, key := range keys {
 		entries[i] = compactEntry{key: key, n: 1}
 	}
-	return joinEntries(entries)
+	return joinEntries(entries, dict)
 }
 
 // decodeKeys reads what encodeKeys wrote.
-func decodeKeys(s string) ([]domain.CardKey, error) {
-	entries, err := splitEntries(s, false)
+func decodeKeys(s string, dict *cardDict) ([]domain.CardKey, error) {
+	entries, err := splitEntries(s, false, dict)
 	if err != nil {
 		return nil, err
 	}

@@ -106,6 +106,10 @@ type CounterSnapshot struct {
 	// Shelf is how a save from before the market lists the copies on a limited shelf, see
 	// domain.ShelfLife. A save now writes Shelved instead.
 	Shelf []ShelfCount `json:"shelf,omitempty"`
+	// CardIDs is the dictionary of the card IDs that the compact lists of the Counter and of the
+	// crowd name by their place in it, see compact.go. A save from before it has none, and its
+	// lists hold the IDs themselves.
+	CardIDs []domain.CardID `json:"card_ids,omitempty"`
 	// Shelved is the copies on a limited shelf with the tick they arrived on, compactly, see
 	// compact.go: with the NPCs' surplus it holds thousands of them.
 	Shelved string `json:"shelved,omitempty"`

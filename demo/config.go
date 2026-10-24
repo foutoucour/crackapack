@@ -19,12 +19,20 @@ const demSeed uint64 = 42
 // half a day later, as the playset hunters, the targeted collectors and the archivist do hours
 // later. Asking around for a common of DEM gets an answer at once and another later, and a listed
 // card draws the speculator's offer at once.
+//
+// Energy costs 70 coins a point, so the cap's 12 energy is worth 840 coins. A DEM booster cashes
+// out at the Counter for about 740 and a DSP booster for about 930, so DSP asks a fee of about 90
+// coins on top of its energy and DEM asks none. A player short of energy can top up with coins.
 const playConfigYAML = `
 unlock:
   start_sets: 1
   stages: 1
   sets_per_unlock: 1
   binder_threshold: 0.25
+energy:
+  coins_per_energy: 70
+  coin_topup:
+    enabled: true
 counter_supply:
   mode: fixed
   boosters_per_day: 5

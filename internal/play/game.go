@@ -30,6 +30,13 @@ type Pack struct {
 	Count int
 	// Cost is the energy a booster of the set costs once no welcome booster is left.
 	Cost int
+	// Fee is the coins a booster of the set costs on top of its energy once no welcome booster is
+	// left, zero for most sets.
+	Fee domain.Coins
+	// TopUp is what opening a booster would cost with coins for the energy the player lacks, nil
+	// when the game offers no top-up, when the energy can pay for the booster, or when the player
+	// has less than the least energy a top-up takes.
+	TopUp *TopUp
 	// Wait is the time until the player can open a booster of the set: 0 while a welcome booster is
 	// left or the energy can pay for one.
 	Wait time.Duration
@@ -122,6 +129,16 @@ func NewGame(sets, pools []domain.SetCatalogue, opener *domain.Opener, rules Rul
 		costs[cat.Code] = cost
 	}
 	rules.Costs = costs
+	if rules.Fees, err = checkFees(rules.Fees, costs); err != nil {
+		return nil, err
+	}
+	if rules.TopUp != nil {
+		topUp := *rules.TopUp
+		if topUp.Price <= 0 || topUp.MinEnergy < 1 {
+			return nil, fmt.Errorf("play: a coin top-up needs a price above zero and at least 1 energy to start from, got %d and %d", topUp.Price, topUp.MinEnergy)
+		}
+		rules.TopUp = &topUp
+	}
 	cards := make(map[domain.CardID]domain.Card)
 	for _, cat := range append(append([]domain.SetCatalogue(nil), sets...), pools...) {
 		for id, card := range cat.Cards {
@@ -164,24 +181,53 @@ func (g *Game) Packs() []Pack {
 	for i, cat := range g.sets {
 		pack := Pack{
 			SetCode: cat.Code, SetName: cat.Name, IconCode: cat.IconCode, Count: g.packs[cat.Code], Cost: g.rules.Costs[cat.Code],
-			Stage: g.stage(cat.Code), Locked: g.locked(cat.Code),
+			Fee: g.rules.Fees[cat.Code], Stage: g.stage(cat.Code), Locked: g.locked(cat.Code),
 		}
 		if pack.Count == 0 && !pack.Locked {
 			pack.Wait = g.waitFor(pack.Cost, now)
+			pack.TopUp = g.topUpOffer(cat.Code)
 		}
 		out[i] = pack
 	}
 	return out
 }
 
+// topUpOffer is what a booster of setCode would cost in coins for the energy that the player lacks,
+// nil when none is needed or allowed. g.mu must be held, and the energy up to date.
+func (g *Game) topUpOffer(setCode string) *TopUp {
+	cost := g.rules.Costs[setCode]
+	have := g.energy.Reserve() + g.energy.Savings()
+	if g.rules.TopUp == nil || have >= cost || have < g.rules.TopUp.MinEnergy {
+		return nil
+	}
+	coins := domain.Coins(cost-have) * g.rules.TopUp.Price
+	return &TopUp{Units: cost - have, Coins: coins, Total: coins + g.rules.Fees[setCode]}
+}
+
 // Open opens one booster of setCode and adds its cards to the collection. A welcome booster of the
-// set is used first and costs nothing; once none is left the booster costs the set's energy. The
-// opening lists the sets that its cards unlocked. It returns ErrUnknownSet, ErrLocked or
-// ErrNotEnoughEnergy, wrapped, when it cannot, and then changes nothing.
+// set is used first and costs nothing; once none is left the booster costs the set's energy, and
+// its fee in coins when it has one. The opening lists the sets that its cards unlocked. It returns
+// ErrUnknownSet, ErrLocked, ErrNotEnoughEnergy or ErrNotEnoughCoins, wrapped, when it cannot, and
+// then changes nothing.
 func (g *Game) Open(setCode string) (Opening, error) {
+	return g.open(setCode, false)
+}
+
+// OpenWithTopUp is Open for a player who pays coins for the energy the booster lacks. The booster
+// takes all the energy the player has, at least the least a top-up takes, and the rest costs the
+// top-up's price a point on top of the booster's fee. A player whose energy pays for the booster
+// pays no top-up. It returns ErrNoTopUp in a game that offers none, and what Open returns.
+func (g *Game) OpenWithTopUp(setCode string) (Opening, error) {
+	return g.open(setCode, true)
+}
+
+func (g *Game) open(setCode string, topUp bool) (Opening, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
+	if topUp && g.rules.TopUp == nil {
+		return Opening{}, fmt.Errorf("open %q: %w", setCode, ErrNoTopUp)
+	}
 	now := g.sync()
 	cat, ok := g.set(setCode)
 	if !ok {
@@ -191,9 +237,12 @@ func (g *Game) Open(setCode string) (Opening, error) {
 		return Opening{}, fmt.Errorf("open %q: %w", setCode, ErrLocked)
 	}
 	welcome := g.packs[setCode] > 0
-	cost := g.rules.Costs[setCode]
-	if have := g.energy.Reserve() + g.energy.Savings(); !welcome && have < cost {
-		return Opening{}, fmt.Errorf("open %q: %w", setCode, &NotEnoughEnergyError{Need: cost, Have: have, Wait: g.waitFor(cost, now)})
+	var bill bill
+	if !welcome {
+		var err error
+		if bill, err = g.billFor(setCode, topUp, now); err != nil {
+			return Opening{}, fmt.Errorf("open %q: %w", setCode, err)
+		}
 	}
 	booster, err := g.opener.Open(domain.BoosterLayoutClassic, cat)
 	if err != nil {
@@ -216,7 +265,7 @@ func (g *Game) Open(setCode string) (Opening, error) {
 	// Pay only now that nothing can fail any more.
 	if welcome {
 		g.packs[setCode]--
-	} else if err := g.energy.Spend(cost); err != nil {
+	} else if err := g.pay(setCode, bill); err != nil {
 		return Opening{}, fmt.Errorf("open %q: %w", setCode, err)
 	}
 	g.collection.AddBooster(booster)

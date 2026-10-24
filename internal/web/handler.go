@@ -142,8 +142,16 @@ func (h *handler) energy(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
+// open opens a booster, and tops its energy up with coins when the form says so with topup set.
 func (h *handler) open(w http.ResponseWriter, r *http.Request) {
-	if _, err := h.game.Open(r.PostFormValue("set")); err != nil {
+	set := r.PostFormValue("set")
+	var err error
+	if r.PostFormValue("topup") == confirmed {
+		_, err = h.game.OpenWithTopUp(set)
+	} else {
+		_, err = h.game.Open(set)
+	}
+	if err != nil {
 		h.playFailed(w, err)
 		return
 	}
@@ -209,7 +217,7 @@ func (h *handler) collection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if quotes != nil {
-		if view.Duplicates, err = h.duplicatesOf(binder.SetCode, filter); err != nil {
+		if view.Duplicates, err = h.duplicatesOf(binder.SetCode, filter, view.shownCards()); err != nil {
 			h.playFailed(w, err)
 			return
 		}
@@ -275,11 +283,23 @@ func (h *handler) playFailed(w http.ResponseWriter, err error) {
 		h.fail(w, http.StatusConflict, "This set is locked: fill a binder of an open set to unlock more.")
 	case errors.Is(err, play.ErrNotEnoughEnergy):
 		var short *play.NotEnoughEnergyError
-		if errors.As(err, &short) {
+		switch {
+		case errors.As(err, &short) && short.TopUp:
+			h.fail(w, http.StatusConflict, fmt.Sprintf("Not enough energy to top up with coins: you need at least %d energy and you have %d. Enough in %s.", short.Need, short.Have, humanDuration(short.Wait)))
+		case errors.As(err, &short):
 			h.fail(w, http.StatusConflict, fmt.Sprintf("Not enough energy: this booster costs %d and you have %d. Enough in %s.", short.Need, short.Have, humanDuration(short.Wait)))
+		default:
+			h.fail(w, http.StatusConflict, "Not enough energy for this booster.")
+		}
+	case errors.Is(err, play.ErrNotEnoughCoins):
+		var short *play.NotEnoughCoinsError
+		if errors.As(err, &short) {
+			h.fail(w, http.StatusConflict, fmt.Sprintf("Not enough coins: this booster costs %s and you have %s. Sell cards to the Counter to earn more.", coinsText(short.Need), coinsText(short.Have)))
 			return
 		}
-		h.fail(w, http.StatusConflict, "Not enough energy for this booster.")
+		h.fail(w, http.StatusConflict, "Not enough coins for this booster.")
+	case errors.Is(err, play.ErrNoTopUp):
+		h.fail(w, http.StatusConflict, "This game does not offer to top up energy with coins.")
 	default:
 		h.log.Error("play", "error", err)
 		h.fail(w, http.StatusInternalServerError, "Something went wrong.")

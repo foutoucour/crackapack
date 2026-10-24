@@ -114,7 +114,7 @@ many parameters at once for a config that meets the goals.
   exist. Choose them, see [Economy: risks and fixes](specs-review.md#economy-risks-and-fixes). The
   leading candidate is the coin top-up in the item below.
   - [x] The game's Counter, the first sink a player meets: a purchase costs 120% and a sale back pays
-    60%, see [The Counter](core-features.md#the-counter). The daily reward is not in the game yet.
+    60%, see [The Counter](core-features.md#the-counter). The daily reward is in the game too.
   - [x] Foils as a sink: `counter_foil_pct` and the `master-collector` policy, see
     [ADR-0027](adr/0027-a-foil-is-a-percentage-of-its-cards-price.md). At 300 the idle pile after 90
     days fell from 260,000-300,000 to 24,000-55,000 coins on two seeds, and to under 3,000 at 500 on five seeds.
@@ -339,10 +339,9 @@ yet.
 - [ ] Offline catch-up in batches with grouped writes. The game replays the missed days in memory, up
   to `catch_up_days`, and saves the crowd compactly in its one JSON file, see
   [ADR-0055](adr/0055-the-counter-catches-up-on-whole-days-up-to-a-configured-cap.md) and
-  [ADR-0061](adr/0061-the-npcs-are-saved-in-the-games-file-in-a-compact-form.md). With the game's 12
-  NPCs the file is 1.6 MB after 30 days and 2.0 MB after 90, see the
-  [tuning log](tuning-log.md), and every save rewrites it. It grows as more sets unlock. A dictionary
-  of the card IDs, written once for the crowd and the Counter's shelf, would cut it by more than half.
+  [ADR-0066](adr/0066-a-save-names-the-cards-of-its-lists-by-a-dictionary.md). With the game's 12
+  NPCs the file was 1.6 MB after 30 days and 2.0 MB after 90 before the card dictionary of that ADR,
+  see the [tuning log](tuning-log.md), and every save rewrites it. It grows as more sets unlock.
 - [ ] NPC names and avatars. The simulation has no use for them.
 
 ### After V1
@@ -370,8 +369,11 @@ The stack is server-rendered `html/template`, see
 - [x] Energy: a gauge in the header, a cost per set that follows the booster's value, a recharge
   by the clock, the free welcome boosters spent first, and a refusal that says how long to wait,
   see [ADR-0038](adr/0038-the-games-energy-recharges-by-the-clock.md). Costs need `--prices`, or
-  every booster costs the middle tier. Left: coins, so the coin fee above the cap and the coin
-  top-up, and the bonuses that add to the savings, such as the chest and the milestones.
+  every booster costs the middle tier. The coin fee above the cap and the coin top-up are in, see
+  [ADR-0068](adr/0068-the-game-charges-a-sets-coin-fee-when-a-booster-is-opened.md) and
+  [ADR-0069](adr/0069-the-player-asks-for-a-coin-top-up-and-the-game-plays-one-price.md). Left: the
+  bonuses that add to the savings, such as the chest and the milestones, and the escalating variants
+  of the top-up.
 - [x] The collection: one binder per set at `/collection`, every card but the basic lands in
   collector number order with the empty slots greyed, progress overall and by rarity, complete
   playsets, the copies held by finish, filters on rarity and colour, a click to see a card big, and the
@@ -395,8 +397,10 @@ The stack is server-rendered `html/template`, see
 - [x] Coins and the Counter in `play.Game`: the welcome bonus, selling any copy or everything above
   a playset of a binder, buying a card in stock, quotes that never show the stock and tell when a
   card was last in stock, and a stock that the supply and the NPCs refill on the days caught up,
-  saved with the game, see [The Counter](core-features.md#the-counter). Left: the daily reward, the
-  coin top-up and the coin fee above the energy cap, and a `--config` for `play`.
+  saved with the game, see [The Counter](core-features.md#the-counter). The daily reward is paid for
+  each day caught up, see
+  [ADR-0067](adr/0067-the-daily-reward-is-paid-for-each-day-the-game-catches-up.md). Left: the
+  Counter's own coin fee above the energy cap, and a `--config` for `play`.
 - [x] The Counter in the binders: the coins in the header, on a held card a Sell button with its
   price, a quantity and a confirmation page when the sale empties the slot, a Sell duplicates button
   that shows what it pays, and on an empty slot the price with a Buy button, or when the Counter has

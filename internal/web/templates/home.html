@@ -19,14 +19,16 @@
         <p class="count">{{.Count}} {{if eq .Count 1}}booster{{else}}boosters{{end}}</p>
         <p class="hint">Welcome gift: free.</p>
         {{else}}
+        {{if .Fee}}<p class="hint">{{coins .Fee}} fee on top of the energy.</p>{{end}}
         <p class="hint wait" data-pack-wait{{if not .Wait}} hidden{{end}}>{{if .Wait}}Ready in {{duration .Wait}}{{end}}</p>
         {{end}}
       </div>
-      {{$price := "free"}}{{if not .Count}}{{$price = printf "%d energy" .Cost}}{{end}}
+      {{$price := "free"}}{{if not .Count}}{{$price = printf "%d energy" .Cost}}{{if .Fee}}{{$price = printf "%s and %s" $price (coins .Fee)}}{{end}}{{end}}
       <form method="post" action="/open">
         <input type="hidden" name="set" value="{{.SetCode}}">
-        <button type="submit" class="primary" data-pack-open aria-label="Open a {{.SetName}} booster, {{$price}}"{{if .Wait}} disabled{{end}}>{{template "icon" .Icon}}Open · {{if .Count}}free{{else}}{{template "energy-icon"}}{{.Cost}}{{end}}</button>
+        <button type="submit" class="primary" data-pack-open aria-label="Open a {{.SetName}} booster, {{$price}}"{{if .Wait}} disabled{{end}}>{{template "icon" .Icon}}Open · {{if .Count}}free{{else}}{{template "energy-icon"}}{{.Cost}}{{if .Fee}} + {{coins .Fee}}{{end}}{{end}}</button>
       </form>
+      {{template "topUpForm" .}}
     </li>
     {{end}}
   </ul>

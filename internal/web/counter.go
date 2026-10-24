@@ -134,11 +134,17 @@ func (h *handler) confirmSale(w http.ResponseWriter, ref cardRef, qty int) {
 	})
 }
 
-// sellDuplicates sells the copies above a playset of a binder, for the total the binder page showed.
+// sellDuplicates sells the copies above a playset of the cards that the binder shows under its
+// filters, for the total the binder page showed.
 func (h *handler) sellDuplicates(w http.ResponseWriter, r *http.Request) {
 	set, filter := r.PostFormValue("set"), binderFilterOf(r)
 	back := binderHref(set, filter, "")
-	paid, err := h.game.SellDuplicates(set)
+	shown, err := h.shownCards(set, filter)
+	if err != nil {
+		h.counterFailed(w, err, cardRef{Set: set, Filter: filter})
+		return
+	}
+	paid, err := h.game.SellDuplicates(set, shown.has)
 	if errors.Is(err, play.ErrNothingToSell) {
 		h.refuse(w, http.StatusConflict, "You have no duplicates above a playset in this binder.", back)
 		return
@@ -151,10 +157,33 @@ func (h *handler) sellDuplicates(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, back, http.StatusSeeOther)
 }
 
-// duplicatesOf is what the binder of set offers to sell in bulk. A binder with a duplicate that
-// the Counter does not trade offers nothing, since the Counter would refuse the lot.
-func (h *handler) duplicatesOf(set string, filter binderFilter) (duplicatesView, error) {
-	d, err := h.game.Duplicates(set)
+// shownCards is the cards of the binder of set that its page shows under filter.
+func (h *handler) shownCards(set string, filter binderFilter) (cardSet, error) {
+	market, err := h.marketIndex()
+	if err != nil {
+		return nil, err
+	}
+	binder, err := h.game.Binder(set)
+	if err != nil {
+		return nil, err
+	}
+	var quotes counterQuoter
+	if h.game.HasCounter() {
+		quotes = h.game
+	}
+	// The hunts only mark empty slots, so they change none of the cards the page shows.
+	view, err := newCollectionView(binder, h.game.Binders(), filter, quotes, market, nil)
+	if err != nil {
+		return nil, err
+	}
+	return view.shownCards(), nil
+}
+
+// duplicatesOf is what the binder of set offers to sell in bulk, among the cards shown. A binder
+// with a duplicate that the Counter does not trade offers nothing, since the Counter would refuse
+// the lot.
+func (h *handler) duplicatesOf(set string, filter binderFilter, shown cardSet) (duplicatesView, error) {
+	d, err := h.game.Duplicates(set, shown.has)
 	switch {
 	case errors.Is(err, play.ErrNotTraded):
 		return duplicatesView{}, nil

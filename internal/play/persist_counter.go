@@ -32,28 +32,29 @@ func (g *Game) snapshotCounter() (*CounterSnapshot, error) {
 			}
 		}
 	}
-	var err error
-	if snap.Shelved, err = encodeShelf(shelf); err != nil {
-		return nil, fmt.Errorf("counter: shelf: %w", err)
-	}
+	dict := newCardDict()
+	snap.Shelved = encodeShelf(shelf, dict)
 	for _, key := range slices.SortedFunc(maps.Keys(state.LastInStock), compareKeys) {
 		snap.LastInStock = append(snap.LastInStock, LastInStock{ID: key.ID, Finish: key.Finish, At: state.LastInStock[key]})
 	}
 	if e.supply != nil {
 		s := e.supply.State()
 		snap.Supply = &SupplySnapshot{Credit: s.Credit, Reserve: s.Energy.Reserve, Savings: s.Energy.Savings, SavingsTick: s.Energy.SavingsTick, Next: s.Next}
+		var err error
 		if snap.Supply.Rand, err = streamSnapshot(e.supplyStream); err != nil {
 			return nil, err
 		}
 	}
 	if e.crowd != nil {
-		if snap.Crowd, err = snapshotCrowd(e); err != nil {
+		var err error
+		if snap.Crowd, err = snapshotCrowd(e, dict); err != nil {
 			return nil, err
 		}
 	}
 	if e.market != nil {
 		snap.Market = snapshotMarket(e.market)
 	}
+	snap.CardIDs = dict.ids
 	return snap, nil
 }
 
@@ -90,7 +91,8 @@ func (g *Game) restoreCounter(snap CounterSnapshot, collection *domain.Collectio
 	if err := e.journal.Restore(snap.Balances); err != nil {
 		return nil, fmt.Errorf("counter: %w", err)
 	}
-	state, err := counterState(snap)
+	dict := readCardDict(snap.CardIDs)
+	state, err := counterState(snap, dict)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +102,7 @@ func (g *Game) restoreCounter(snap CounterSnapshot, collection *domain.Collectio
 	if err := restoreSupply(e, snap.Supply); err != nil {
 		return nil, err
 	}
-	reset, err := restoreCrowd(e, snap.Crowd)
+	reset, err := restoreCrowd(e, snap.Crowd, dict)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +135,7 @@ func restoreSupply(e *economy, snap *SupplySnapshot) error {
 }
 
 // counterState is the domain's form of the Counter part of snap.
-func counterState(snap CounterSnapshot) (domain.CounterState, error) {
+func counterState(snap CounterSnapshot, dict *cardDict) (domain.CounterState, error) {
 	stock, err := cardMap(snap.Stock)
 	if err != nil {
 		return domain.CounterState{}, fmt.Errorf("counter: stock: %w", err)
@@ -151,7 +153,7 @@ func counterState(snap CounterSnapshot) (domain.CounterState, error) {
 		key := domain.CardKey{ID: c.ID, Finish: c.Finish}
 		s.Shelf[key] = append(s.Shelf[key], domain.ShelfBatch{Tick: c.Tick, Qty: c.Quantity})
 	}
-	shelved, err := decodeShelf(snap.Shelved)
+	shelved, err := decodeShelf(snap.Shelved, dict)
 	if err != nil {
 		return domain.CounterState{}, fmt.Errorf("counter: shelf: %w", err)
 	}
