@@ -29,18 +29,21 @@ const (
 type handler struct {
 	game   *play.Game
 	images images.Source
-	log    *slog.Logger
-	pages  map[string]*template.Template
+	// icons is the catalogue directory, which holds the icon of a set as "<CODE>.svg".
+	icons fs.FS
+	log   *slog.Logger
+	pages map[string]*template.Template
 	// notices tells the result of a purchase or a sale on the page it redirects to.
 	notices noticeBox
 }
 
-// NewHandler returns the web client of game. Card pictures come from pics, and are served from
-// this origin so that the page makes no request to another site. Unexpected failures are written
+// NewHandler returns the web client of game. Card pictures come from pics and set icons from the
+// catalogue directory icons, and both are served from this origin so that the page makes no request
+// to another site. Unexpected failures are written
 // to log and shown to the player as a plain "something went wrong". It panics when an embedded
 // template does not parse, which is a programming error that the tests catch.
-func NewHandler(game *play.Game, pics images.Source, log *slog.Logger) http.Handler {
-	h := &handler{game: game, images: pics, log: log, pages: make(map[string]*template.Template)}
+func NewHandler(game *play.Game, pics images.Source, icons fs.FS, log *slog.Logger) http.Handler {
+	h := &handler{game: game, images: pics, icons: icons, log: log, pages: make(map[string]*template.Template)}
 	// The header shows the energy on every page, so the layout asks for it through a function
 	// instead of every page's view carrying it.
 	funcs := template.FuncMap{
@@ -54,6 +57,8 @@ func NewHandler(game *play.Game, pics images.Source, log *slog.Logger) http.Hand
 		"saveFailed": func() bool { return h.game.SaveError() != nil },
 		// The header links to the market in a game that has one, with the answers waiting.
 		"marketNav": h.marketNav,
+		// A tile shows the icon of its set when the catalogue directory has one.
+		"hasIcon": h.hasSetIcon,
 	}
 	// Each page is parsed together with the layout, since pages define the same blocks.
 	for _, name := range []string{"home", "pack", "collection", "confirm", "error", "market", "market_counter"} {
@@ -83,6 +88,7 @@ func NewHandler(game *play.Game, pics images.Source, log *slog.Logger) http.Hand
 	mux.HandleFunc("GET /counter-offer", h.counterForm)
 	mux.HandleFunc("POST /counter-offer", h.counterAnswer)
 	mux.HandleFunc("GET /card-image/{id}", h.cardImage)
+	mux.HandleFunc("GET /set-icon/{code}", h.setIcon)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
 

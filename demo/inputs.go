@@ -11,7 +11,8 @@ import (
 )
 
 // Dataset holds the demo inputs produced by Build.
-// Files is an fs.FS containing DEM.json, DSP.json, DEX.json, DST.json, and prices.json.
+// Files is an fs.FS containing DEM.json, DSP.json, DEX.json, DST.json, prices.json and the icons
+// DEM.svg, DSP.svg and DEX.svg.
 // These files are generated in-memory; no data is committed to the repository. DSP.json holds its
 // booster as "default", like the MTGJSON sets before Mirage.
 type Dataset struct {
@@ -74,6 +75,8 @@ func Build() Dataset {
 	// MTGJSON serves the sets before Mirage with a "default" booster and no "draft" one. DSP
 	// is served that way, so the demo exercises the loader's fallback.
 	mapFS["DSP.json"].Data = bytes.Replace(mapFS["DSP.json"].Data, []byte(`"draft"`), []byte(`"default"`), 1)
+
+	addSetIcons(mapFS, cats...)
 
 	return Dataset{
 		Files:              mapFS,

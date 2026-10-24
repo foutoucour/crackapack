@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -21,7 +22,12 @@ const (
 
 // get opens the MTGJSON file called name. The caller closes the returned body.
 func (a app) get(ctx context.Context, name string) (io.ReadCloser, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.baseURL+"/"+name, nil)
+	return a.fetch(ctx, a.baseURL+"/"+name, name)
+}
+
+// fetch opens url, which holds the file called name. The caller closes the returned body.
+func (a app) fetch(ctx context.Context, url, name string) (io.ReadCloser, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("build request for %s: %w", name, err)
 	}
@@ -42,6 +48,21 @@ func (a app) download(ctx context.Context, name, path string) error {
 	if err != nil {
 		return err
 	}
+	return saveBody(body, path)
+}
+
+// downloadIcon copies the Scryfall icon of the set called code to path.
+func (a app) downloadIcon(ctx context.Context, code, path string) error {
+	name := strings.ToLower(code) + ".svg"
+	body, err := a.fetch(ctx, a.iconBaseURL+"/"+name, name)
+	if err != nil {
+		return err
+	}
+	return saveBody(body, path)
+}
+
+// saveBody copies body to path and closes it.
+func saveBody(body io.ReadCloser, path string) error {
 	defer func() { _ = body.Close() }() // read-only: close error is not actionable
 
 	return writeFileAtomic(path, func(w io.Writer) error {

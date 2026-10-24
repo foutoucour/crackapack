@@ -23,7 +23,9 @@ import (
 
 const (
 	mtgjsonBaseURL = "https://mtgjson.com/api/v5"
-	pricesFile     = "AllPricesToday.json.gz"
+	// scryfallIconBaseURL holds one <code>.svg per set, in lower case.
+	scryfallIconBaseURL = "https://svgs.scryfall.io/sets"
+	pricesFile          = "AllPricesToday.json.gz"
 
 	// downloadTimeout covers the whole transfer; the gzipped price file is the largest at a few MB.
 	downloadTimeout = 5 * time.Minute
@@ -36,11 +38,12 @@ func main() {
 	defer stop()
 
 	a := app{
-		client:  &http.Client{Timeout: downloadTimeout},
-		baseURL: mtgjsonBaseURL,
-		stdout:  os.Stdout,
-		stderr:  os.Stderr,
-		pools:   borrowedPools(),
+		client:      &http.Client{Timeout: downloadTimeout},
+		baseURL:     mtgjsonBaseURL,
+		iconBaseURL: scryfallIconBaseURL,
+		stdout:      os.Stdout,
+		stderr:      os.Stderr,
+		pools:       borrowedPools(),
 	}
 	if err := a.run(ctx, os.Args[1:]); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -55,9 +58,11 @@ func main() {
 type app struct {
 	client  *http.Client
 	baseURL string
-	stdout  io.Writer
-	stderr  io.Writer
-	pools   []borrowedPool
+	// iconBaseURL is where the icons of the sets are downloaded from.
+	iconBaseURL string
+	stdout      io.Writer
+	stderr      io.Writer
+	pools       []borrowedPool
 }
 
 // run parses args, downloads the requested sets and merges their prices into the price snapshot.
@@ -105,6 +110,12 @@ func (a app) run(ctx context.Context, args []string) error {
 			wanted[id] = struct{}{}
 		}
 		fmt.Fprintf(a.stdout, "%s: %d cards -> %s\n", code, len(uuids), path)
+
+		// The icon is decoration: a set without one is played without, so a miss only warns.
+		iconPath := filepath.Join(*catalogueDir, code+".svg")
+		if err := a.downloadIcon(ctx, code, iconPath); err != nil {
+			fmt.Fprintf(a.stderr, "%s: no icon: %v\n", code, err)
+		}
 	}
 
 	for _, pool := range a.pools {

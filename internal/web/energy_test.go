@@ -106,8 +106,14 @@ func TestHome_aTileSaysItIsAFreeGiftThenWhatABoosterCosts(t *testing.T) {
 	if !strings.Contains(welcome, "10 boosters") || !strings.Contains(welcome, "Welcome gift") {
 		t.Errorf("a tile with welcome boosters must count them and say they are a free gift:\n%s", welcome)
 	}
-	if !strings.Contains(paid, "Open a booster (5 energy)") || strings.Contains(paid, " disabled") {
-		t.Errorf("once they are gone the button must say its price, and be enabled while the energy is there:\n%s", paid)
+	if !regexp.MustCompile(`>Open · <svg class="energy-icon"[^>]*>.*</svg>5</button>`).MatchString(strings.ReplaceAll(paid, "\n", "")) || strings.Contains(paid, " disabled") {
+		t.Errorf("once they are gone the button must say its price with the energy icon, and be enabled while the energy is there:\n%s", paid)
+	}
+	if !strings.Contains(paid, `aria-label="Open a `) || !strings.Contains(paid, ", 5 energy\"") {
+		t.Errorf("the icon says nothing to a screen reader, so the button's name must spell the price out:\n%s", paid)
+	}
+	if !strings.Contains(welcome, ">Open · free</button>") {
+		t.Errorf("while welcome boosters are left the button must say it is free:\n%s", welcome)
 	}
 	if strings.Contains(paid, "Welcome gift") {
 		t.Errorf("the free-gift line is still there with no welcome booster left:\n%s", paid)

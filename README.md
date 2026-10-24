@@ -47,7 +47,9 @@ open at the start, and a binder filled to 90% unlocks three more. Add
 `--sets RAV,TSP --supplementary TSB` to play a few sets, all open. The prices set what a booster
 costs in energy, and without them every booster costs the same. The card
 pictures are then downloaded from Scryfall the first time a card shows, and kept in your user cache
-directory, see [ADR-0035](docs/adr/0035-card-pictures-are-served-from-a-local-cache.md).
+directory, see [ADR-0035](docs/adr/0035-card-pictures-are-served-from-a-local-cache.md). `fetchdata`
+also downloads each set's icon next to its catalogue as `<CODE>.svg`; the home page shows it behind the
+set's tile, and a set without one has a plain tile.
 
 Your game is saved in a JSON file, which the command prints on startup: `crackapack/save.json` in
 your user config directory, `save-demo.json` for the demo, or the path of `--save`. Delete the file,

@@ -65,7 +65,7 @@ func newMTGJSON(t *testing.T, files map[string][]byte) (*httptest.Server, *atomi
 
 func runTool(t *testing.T, srv *httptest.Server, args ...string) error {
 	t.Helper()
-	a := app{client: srv.Client(), baseURL: srv.URL, stdout: io.Discard, stderr: io.Discard}
+	a := app{client: srv.Client(), baseURL: srv.URL, iconBaseURL: srv.URL + "/icons", stdout: io.Discard, stderr: io.Discard}
 	return a.run(context.Background(), args)
 }
 
@@ -241,5 +241,59 @@ func TestRunKeepsAnUnreadablePriceSnapshotUntouched(t *testing.T) {
 	}
 	if string(got) != corrupt {
 		t.Errorf("snapshot = %q, want it left as %q", got, corrupt)
+	}
+}
+
+func TestRunWritesTheIconOfEachSetNextToItsCatalogue(t *testing.T) {
+	srv, _ := newMTGJSON(t, map[string][]byte{
+		"/RAV.json":               []byte(ravSet),
+		"/TSP.json":               []byte(tspSet),
+		"/AllPricesToday.json.gz": gzipped(t, allPrices),
+		"/icons/rav.svg":          []byte(`<svg id="rav"/>`),
+		"/icons/tsp.svg":          []byte(`<svg id="tsp"/>`),
+	})
+	dir := t.TempDir()
+
+	if err := runTool(t, srv, "--sets", "RAV,TSP", "--catalogue-dir", dir, "--prices", filepath.Join(dir, "p.json")); err != nil {
+		t.Fatal(err)
+	}
+
+	for code, want := range map[string]string{"RAV": `<svg id="rav"/>`, "TSP": `<svg id="tsp"/>`} {
+		got, err := os.ReadFile(filepath.Join(dir, code+".svg"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != want {
+			t.Errorf("%s.svg = %q, want %q", code, got, want)
+		}
+	}
+}
+
+func TestRunWarnsAndGoesOnWhenASetHasNoIcon(t *testing.T) {
+	srv, _ := newMTGJSON(t, map[string][]byte{
+		"/RAV.json":               []byte(ravSet),
+		"/TSP.json":               []byte(tspSet),
+		"/AllPricesToday.json.gz": gzipped(t, allPrices),
+		"/icons/tsp.svg":          []byte(`<svg id="tsp"/>`),
+	})
+	dir := t.TempDir()
+	var stderr bytes.Buffer
+	a := app{client: srv.Client(), baseURL: srv.URL, iconBaseURL: srv.URL + "/icons", stdout: io.Discard, stderr: &stderr}
+
+	if err := a.run(context.Background(), []string{"--sets", "RAV,TSP", "--catalogue-dir", dir, "--prices", filepath.Join(dir, "p.json")}); err != nil {
+		t.Fatalf("run failed on a missing icon: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, "RAV.svg")); !os.IsNotExist(err) {
+		t.Errorf("RAV.svg exists although the icon is missing upstream: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "TSP.svg")); err != nil {
+		t.Errorf("TSP.svg missing: %v", err)
+	}
+	if !strings.Contains(stderr.String(), "RAV") {
+		t.Errorf("stderr = %q, want a warning that names RAV", stderr.String())
+	}
+	if _, err := os.Stat(filepath.Join(dir, "p.json")); err != nil {
+		t.Errorf("price snapshot missing after a missing icon: %v", err)
 	}
 }

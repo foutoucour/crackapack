@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/foutoucour/crackapack/internal/domain"
 	"github.com/foutoucour/crackapack/internal/domain/domaintest"
@@ -67,6 +69,12 @@ func newServer(t *testing.T, sets ...domain.SetCatalogue) (*httptest.Server, *ht
 // newLoggedServer is newServer plus the buffer the handler writes its log to.
 func newLoggedServer(t *testing.T, pics images.Source, sets ...domain.SetCatalogue) (*httptest.Server, *http.Client, *bytes.Buffer) {
 	t.Helper()
+	return serve(t, newGame(t, sets...), pics)
+}
+
+// newGame is a fresh game on sets.
+func newGame(t *testing.T, sets ...domain.SetCatalogue) *play.Game {
+	t.Helper()
 	opener := domain.NewOpener(
 		map[domain.BoosterLayout]domain.BoosterGenerator{
 			domain.BoosterLayoutClassic: domain.NewClassicGenerator(),
@@ -77,14 +85,20 @@ func newLoggedServer(t *testing.T, pics images.Source, sets ...domain.SetCatalog
 	if err != nil {
 		t.Fatalf("NewGame: %v", err)
 	}
-	return serve(t, game, pics)
+	return game
 }
 
 // serve serves game, with a client that does not follow redirects and the buffer the handler logs to.
 func serve(t *testing.T, game *play.Game, pics images.Source) (*httptest.Server, *http.Client, *bytes.Buffer) {
 	t.Helper()
+	return serveWithIcons(t, game, pics, fstest.MapFS{})
+}
+
+// serveWithIcons is serve over a catalogue directory that holds icons.
+func serveWithIcons(t *testing.T, game *play.Game, pics images.Source, icons fs.FS) (*httptest.Server, *http.Client, *bytes.Buffer) {
+	t.Helper()
 	var logs bytes.Buffer
-	srv := httptest.NewServer(web.NewHandler(game, pics, slog.New(slog.NewTextHandler(&logs, nil))))
+	srv := httptest.NewServer(web.NewHandler(game, pics, icons, slog.New(slog.NewTextHandler(&logs, nil))))
 	t.Cleanup(srv.Close)
 	client := srv.Client()
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }

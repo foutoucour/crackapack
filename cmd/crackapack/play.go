@@ -249,7 +249,7 @@ func runPlay(ctx context.Context, a playArgs) error {
 	}
 
 	srv := &http.Server{
-		Handler:           web.NewHandler(game, images.Chain(a.cardBack, a.images), log),
+		Handler:           web.NewHandler(game, images.Chain(a.cardBack, a.images), a.catFS, log),
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 	served := make(chan error, 1)

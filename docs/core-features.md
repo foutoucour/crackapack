@@ -42,6 +42,9 @@ Law 25 or terms of service.
 - **Code licence:** to be chosen.
 - **Images:** downloaded from Scryfall into a local cache and shown as they are (no cropping,
   watermark or filter), except that the white corners outside the card's rounded border are masked.
+- **Set icons:** `fetchdata` downloads each set's icon from Scryfall next to its catalogue file, as
+  `<CODE>.svg`, and the game serves it from the catalogue directory. A set whose icon is missing
+  upstream is shown without one.
 - **Scryfall rate limit:** 50 to 100 ms between requests. Requests are made one image at a time.
 - **Offline:** the network is required for the first sync and for catalogue updates. The game runs
   without a connection afterwards.
