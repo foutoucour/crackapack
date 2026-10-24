@@ -99,6 +99,13 @@ func TestQuestObserve(t *testing.T) {
 			wantProgress: 350,
 		},
 		{
+			name:         "daily quests finished count toward a weekly one",
+			quest:        domain.Quest{Action: domain.QuestCompleteDailies, Target: 5, Progress: 3},
+			events:       domain.QuestEvents{DailiesDone: 2, CoinsWon: 900},
+			wantProgress: 5,
+			wantReached:  true,
+		},
+		{
 			name:         "coins won add up",
 			quest:        domain.Quest{Action: domain.QuestWinCoins, Target: 500, Progress: 100},
 			events:       domain.QuestEvents{CoinsSpent: 900, CoinsWon: 400},
@@ -151,7 +158,7 @@ func TestQuestNamesRoundTrip(t *testing.T) {
 	t.Parallel()
 	for _, a := range []domain.QuestAction{
 		domain.QuestOpenBoosters, domain.QuestSellCards, domain.QuestBuyCards,
-		domain.QuestWinTrade, domain.QuestSpendCoins, domain.QuestWinCoins,
+		domain.QuestWinTrade, domain.QuestSpendCoins, domain.QuestWinCoins, domain.QuestCompleteDailies,
 	} {
 		got, err := domain.ParseQuestAction(a.String())
 		if err != nil || got != a {

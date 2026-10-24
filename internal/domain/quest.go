@@ -14,8 +14,8 @@ const (
 // QuestAction is what a quest asks the player to do.
 type QuestAction int
 
-// The actions a quest asks for. The first three count what the player did, the last three the coins
-// that moved.
+// The actions a quest asks for. The first three count what the player did, the next three the coins
+// that moved, and the last the daily quests finished.
 const (
 	// QuestOpenBoosters asks for Target boosters of the quest's set.
 	QuestOpenBoosters QuestAction = iota + 1
@@ -29,6 +29,8 @@ const (
 	QuestSpendCoins
 	// QuestWinCoins asks for Target coins won.
 	QuestWinCoins
+	// QuestCompleteDailies asks for Target daily quests finished, and is a weekly quest's.
+	QuestCompleteDailies
 )
 
 // QuestRewardKind is what a finished quest gives the player.
@@ -57,6 +59,7 @@ func questActionNames() map[QuestAction]string {
 	return map[QuestAction]string{
 		QuestOpenBoosters: "open_boosters", QuestSellCards: "sell_cards", QuestBuyCards: "buy_cards",
 		QuestWinTrade: "win_trade", QuestSpendCoins: "spend_coins", QuestWinCoins: "win_coins",
+		QuestCompleteDailies: "complete_dailies",
 	}
 }
 
@@ -152,6 +155,8 @@ type QuestEvents struct {
 	CoinsSpent, CoinsWon Coins
 	// Deals are the coins that each deal on the market paid the player.
 	Deals []Coins
+	// DailiesDone is the daily quests finished.
+	DailiesDone int
 }
 
 // Quest is one quest: an action to do and the reward it gives the moment it is done.
@@ -186,6 +191,8 @@ func (q *Quest) Observe(ev QuestEvents) {
 		q.add(int64(ev.CoinsSpent))
 	case QuestWinCoins:
 		q.add(int64(ev.CoinsWon))
+	case QuestCompleteDailies:
+		q.add(int64(ev.DailiesDone))
 	}
 }
 
