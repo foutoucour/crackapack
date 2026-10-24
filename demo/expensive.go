@@ -35,6 +35,7 @@ func newDEXCatalogue() domain.SetCatalogue {
 	return domain.SetCatalogue{
 		Code:        "DEX",
 		Name:        "Demo Expensive Set",
+		IconCode:    "DEX",
 		ReleaseDate: "1993-08-05", // the date of the first real set, the dearest of them all
 		Cards:       cards,
 		Sheets: map[string]domain.Sheet{

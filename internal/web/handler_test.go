@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
@@ -17,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"testing/fstest"
 
 	"github.com/foutoucour/crackapack/internal/domain"
 	"github.com/foutoucour/crackapack/internal/domain/domaintest"
@@ -69,12 +67,6 @@ func newServer(t *testing.T, sets ...domain.SetCatalogue) (*httptest.Server, *ht
 // newLoggedServer is newServer plus the buffer the handler writes its log to.
 func newLoggedServer(t *testing.T, pics images.Source, sets ...domain.SetCatalogue) (*httptest.Server, *http.Client, *bytes.Buffer) {
 	t.Helper()
-	return serve(t, newGame(t, sets...), pics)
-}
-
-// newGame is a fresh game on sets.
-func newGame(t *testing.T, sets ...domain.SetCatalogue) *play.Game {
-	t.Helper()
 	opener := domain.NewOpener(
 		map[domain.BoosterLayout]domain.BoosterGenerator{
 			domain.BoosterLayoutClassic: domain.NewClassicGenerator(),
@@ -85,17 +77,17 @@ func newGame(t *testing.T, sets ...domain.SetCatalogue) *play.Game {
 	if err != nil {
 		t.Fatalf("NewGame: %v", err)
 	}
-	return game
+	return serve(t, game, pics)
 }
 
 // serve serves game, with a client that does not follow redirects and the buffer the handler logs to.
 func serve(t *testing.T, game *play.Game, pics images.Source) (*httptest.Server, *http.Client, *bytes.Buffer) {
 	t.Helper()
-	return serveWithIcons(t, game, pics, fstest.MapFS{})
+	return serveWithIcons(t, game, pics, fakeImages{})
 }
 
-// serveWithIcons is serve over a catalogue directory that holds icons.
-func serveWithIcons(t *testing.T, game *play.Game, pics images.Source, icons fs.FS) (*httptest.Server, *http.Client, *bytes.Buffer) {
+// serveWithIcons is serve with the source of the set icons.
+func serveWithIcons(t *testing.T, game *play.Game, pics, icons images.Source) (*httptest.Server, *http.Client, *bytes.Buffer) {
 	t.Helper()
 	var logs bytes.Buffer
 	srv := httptest.NewServer(web.NewHandler(game, pics, icons, slog.New(slog.NewTextHandler(&logs, nil))))
@@ -621,7 +613,9 @@ func TestCollection_switchesBetweenBinders(t *testing.T) {
 	if !strings.Contains(first, "<h1>"+rav.Name) || !strings.Contains(second, "<h1>"+tsp.Name) {
 		t.Errorf("the page does not show the binder it was asked for")
 	}
-	if strings.Count(second, `aria-current="page"`) != 1 || !strings.Contains(second, `aria-current="page">`+tsp.Name) {
+	_, marked, _ := strings.Cut(second, `aria-current="page">`)
+	marked, _, _ = strings.Cut(marked, "</a>")
+	if strings.Count(second, `aria-current="page"`) != 1 || !strings.Contains(marked, tsp.Name) {
 		t.Errorf("the current binder is not marked in the switcher:\n%s", second)
 	}
 }

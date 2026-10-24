@@ -15,7 +15,7 @@ game is playable over several days in the browser, with `crackapack play`:
   game is closed. The game is saved after every action, so a restart picks it up where it was.
 - It plays every set in scope, unlocked in stages as your binders fill.
 - You browse your collection, one binder per set, with the progress overall, by rarity and by
-  colour, and the collection stats on top.
+  colour, both usable as filters, and the collection stats on top.
 - The game has coins and a Counter that stocks itself each day. You trade at it from the binders: a
   held card sells for its price, a missing one is bought when the Counter has a copy, and the
   duplicates above a playset sell in one click.
@@ -46,10 +46,9 @@ the directory in scope, from Mirage on, in [stages](docs/core-features.md#stages
 open at the start, and a binder filled to 90% unlocks three more. Add
 `--sets RAV,TSP --supplementary TSB` to play a few sets, all open. The prices set what a booster
 costs in energy, and without them every booster costs the same. The card
-pictures are then downloaded from Scryfall the first time a card shows, and kept in your user cache
-directory, see [ADR-0035](docs/adr/0035-card-pictures-are-served-from-a-local-cache.md). `fetchdata`
-also downloads each set's icon next to its catalogue as `<CODE>.svg`; the home page shows it behind the
-set's tile, and a set without one has a plain tile.
+pictures and the set icons are then downloaded from Scryfall the first time they show, and kept in
+your user cache directory, see [ADR-0035](docs/adr/0035-card-pictures-are-served-from-a-local-cache.md)
+and [ADR-0065](docs/adr/0065-a-set-icon-is-a-scryfall-svg-drawn-as-a-mask-in-the-colour-of-a-rarity.md).
 
 Your game is saved in a JSON file, which the command prints on startup: `crackapack/save.json` in
 your user config directory, `save-demo.json` for the demo, or the path of `--save`. Delete the file,

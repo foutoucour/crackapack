@@ -10,7 +10,7 @@
   <ul class="packs">
     {{range .Open}}
     <li class="pack-tile">
-      {{if hasIcon .SetCode}}<img class="pack-icon" src="/set-icon/{{.SetCode}}" alt="" loading="lazy">{{end}}
+      {{if .Icon.Code}}<span class="pack-watermark {{.Icon.Class}}" aria-hidden="true"></span>{{end}}
       <div class="pack-info">
         {{if $.Staged}}<h3>{{.SetName}}</h3>{{else}}<h2>{{.SetName}}</h2>{{end}}
         {{if .Count}}
@@ -23,7 +23,7 @@
       {{$price := "free"}}{{if not .Count}}{{$price = printf "%d energy" .Cost}}{{end}}
       <form method="post" action="/open">
         <input type="hidden" name="set" value="{{.SetCode}}">
-        <button type="submit" class="primary" aria-label="Open a {{.SetName}} booster, {{$price}}"{{if .Wait}} disabled{{end}}>Open · {{if .Count}}free{{else}}{{template "energy-icon"}}{{.Cost}}{{end}}</button>
+        <button type="submit" class="primary" aria-label="Open a {{.SetName}} booster, {{$price}}"{{if .Wait}} disabled{{end}}>{{template "icon" .Icon}}Open · {{if .Count}}free{{else}}{{template "energy-icon"}}{{.Cost}}{{end}}</button>
       </form>
     </li>
     {{end}}

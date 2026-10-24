@@ -17,15 +17,26 @@ type homeView struct {
 // ones as a short list, so that a hundred sets stay a page one can scan.
 type stageView struct {
 	Number int
-	Open   []play.Pack
+	Open   []tileView
 	Locked []play.Pack
+}
+
+// tileView is a set the player can open, with its icon in the colour of the rarest card held.
+type tileView struct {
+	play.Pack
+	Icon iconView
 }
 
 // Size is the number of sets in the stage.
 func (s stageView) Size() int { return len(s.Open) + len(s.Locked) }
 
 // newHomeView groups packs by stage, keeping their order. A game without stages has one group.
-func newHomeView(packs []play.Pack) homeView {
+// binders tell the rarest card held of each set, which colours its icon.
+func newHomeView(packs []play.Pack, binders []play.BinderSummary) homeView {
+	rarest := make(map[string]string, len(binders))
+	for _, b := range binders {
+		rarest[b.SetCode] = rarestHeld(b.Progress)
+	}
 	var view homeView
 	for _, p := range packs {
 		if n := len(view.Stages); n == 0 || view.Stages[n-1].Number != p.Stage {
@@ -35,7 +46,7 @@ func newHomeView(packs []play.Pack) homeView {
 		if p.Locked {
 			stage.Locked = append(stage.Locked, p)
 		} else {
-			stage.Open = append(stage.Open, p)
+			stage.Open = append(stage.Open, tileView{Pack: p, Icon: newIconView(p.IconCode, rarest[p.SetCode])})
 		}
 		view.Staged = view.Staged || p.Stage > 0
 	}
@@ -74,6 +85,8 @@ type cardView struct {
 	ImageID string
 	Foil    bool
 	New     bool
+	// Icon is the icon of the card's set in the colour of its rarity.
+	Icon iconView
 }
 
 func newPackView(opening play.Opening, packs []play.Pack) packView {
@@ -91,6 +104,7 @@ func newPackView(opening play.Opening, packs []play.Pack) packView {
 			ImageID: c.Card.ScryfallID,
 			Foil:    c.Finish == domain.FinishFoil,
 			New:     c.New,
+			Icon:    newIconView(opening.IconCode, string(c.Card.Rarity)),
 		}
 	}
 	return view

@@ -311,7 +311,7 @@ func (g *Game) restoreOpening(s OpeningSnapshot) *Opening {
 	if !ok {
 		return nil
 	}
-	opening := Opening{SetCode: cat.Code, SetName: cat.Name, Cards: make([]RevealedCard, len(s.Cards))}
+	opening := Opening{SetCode: cat.Code, SetName: cat.Name, IconCode: cat.IconCode, Cards: make([]RevealedCard, len(s.Cards))}
 	for i, c := range s.Cards {
 		card, ok := g.cards[c.ID]
 		if !ok {

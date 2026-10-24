@@ -160,9 +160,9 @@ func TestRunPlay_theDemoCollectionShowsTheStats(t *testing.T) {
 	page := getBody(t, base+"/collection?set="+first)
 
 	for _, want := range []string{
-		"Cards held", "Binders complete", "<dt>Sets unlocked</dt><dd>2 / 2</dd>", "Unlock threshold reached", `aria-label="Progress by colour"`,
-		"<li>White ", "<li>Blue ", "<li>Black ", "<li>Red ", "<li>Green ", "<li>Gold ", "<li>Colourless ", "<li>Land ",
-		`aria-label="Filter by rarity"`, "Mythic ",
+		"Cards held", "Binders complete", "<dt>Sets unlocked</dt><dd>2 / 2</dd>", "Unlock threshold reached", `aria-label="Filter by colour"`,
+		"White <strong>", "Blue <strong>", "Black <strong>", "Red <strong>", "Green <strong>", "Gold <strong>", "Colourless <strong>", "Land <strong>",
+		`aria-label="Filter by rarity"`, "Mythic <strong>",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the demo collection page lacks %q:\n%s", want, page)

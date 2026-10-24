@@ -29,21 +29,29 @@ const (
 type handler struct {
 	game   *play.Game
 	images images.Source
-	// icons is the catalogue directory, which holds the icon of a set as "<CODE>.svg".
-	icons fs.FS
-	log   *slog.Logger
-	pages map[string]*template.Template
+	// icons gives the picture of a set icon, under the icon code.
+	icons images.Source
+	// iconFallback stands in for an icon that cannot be had; iconCSS is the stylesheet that masks
+	// each set's elements with its icon.
+	iconFallback []byte
+	iconCSS      string
+	log          *slog.Logger
+	pages        map[string]*template.Template
 	// notices tells the result of a purchase or a sale on the page it redirects to.
 	notices noticeBox
 }
 
-// NewHandler returns the web client of game. Card pictures come from pics and set icons from the
-// catalogue directory icons, and both are served from this origin so that the page makes no request
-// to another site. Unexpected failures are written
+// NewHandler returns the web client of game. Card pictures come from pics and set icons from icons,
+// and both are served from this origin so that the page makes no request to another site. Unexpected failures are written
 // to log and shown to the player as a plain "something went wrong". It panics when an embedded
 // template does not parse, which is a programming error that the tests catch.
-func NewHandler(game *play.Game, pics images.Source, icons fs.FS, log *slog.Logger) http.Handler {
+func NewHandler(game *play.Game, pics, icons images.Source, log *slog.Logger) http.Handler {
 	h := &handler{game: game, images: pics, icons: icons, log: log, pages: make(map[string]*template.Template)}
+	fallback, err := assets.ReadFile("static/set-icon-fallback.svg")
+	if err != nil {
+		panic("web: embedded fallback icon: " + err.Error())
+	}
+	h.iconFallback, h.iconCSS = fallback, setIconStylesheet(game.Packs())
 	// The header shows the energy on every page, so the layout asks for it through a function
 	// instead of every page's view carrying it.
 	funcs := template.FuncMap{
@@ -53,12 +61,11 @@ func NewHandler(game *play.Game, pics images.Source, icons fs.FS, log *slog.Logg
 		"hasCounter": h.game.HasCounter,
 		"balance":    h.game.Balance,
 		"coins":      coinsText,
+		"percent":    percentOf,
 		// A save that failed is told on every page until one goes through.
 		"saveFailed": func() bool { return h.game.SaveError() != nil },
 		// The header links to the market in a game that has one, with the answers waiting.
 		"marketNav": h.marketNav,
-		// A tile shows the icon of its set when the catalogue directory has one.
-		"hasIcon": h.hasSetIcon,
 	}
 	// Each page is parsed together with the layout, since pages define the same blocks.
 	for _, name := range []string{"home", "pack", "collection", "confirm", "error", "market", "market_counter"} {
@@ -89,6 +96,7 @@ func NewHandler(game *play.Game, pics images.Source, icons fs.FS, log *slog.Logg
 	mux.HandleFunc("POST /counter-offer", h.counterAnswer)
 	mux.HandleFunc("GET /card-image/{id}", h.cardImage)
 	mux.HandleFunc("GET /set-icon/{code}", h.setIcon)
+	mux.HandleFunc("GET /set-icons.css", h.setIconsCSS)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
 
@@ -108,7 +116,7 @@ func securityHeaders(next http.Handler) http.Handler {
 }
 
 func (h *handler) home(w http.ResponseWriter, _ *http.Request) {
-	h.render(w, http.StatusOK, "home", newHomeView(h.game.Packs()))
+	h.render(w, http.StatusOK, "home", newHomeView(h.game.Packs(), h.game.Binders()))
 }
 
 func (h *handler) open(w http.ResponseWriter, r *http.Request) {
@@ -131,7 +139,8 @@ func (h *handler) pack(w http.ResponseWriter, r *http.Request) {
 }
 
 // collection shows one set's binder, the first set's unless ?set= names another, and only the cards
-// of one rarity when ?rarity= names one that the binder has.
+// of one rarity when ?rarity= names one that the binder has, and of one colour group when ?colour=
+// names one.
 func (h *handler) collection(w http.ResponseWriter, r *http.Request) {
 	// The market first: it catches the game up, and what it delivers changes the binders.
 	market, err := h.marketIndex()
@@ -149,22 +158,26 @@ func (h *handler) collection(w http.ResponseWriter, r *http.Request) {
 		h.playFailed(w, err)
 		return
 	}
-	rarity := r.URL.Query().Get("rarity")
-	if rarity != "" && binder.Progress.ByRarity[domain.Rarity(rarity)].Total == 0 {
+	filter := binderFilterOf(r)
+	if filter.Rarity != "" && binder.Progress.ByRarity[domain.Rarity(filter.Rarity)].Total == 0 {
 		h.fail(w, http.StatusBadRequest, "Unknown rarity: pick one of the filters above the binder.")
+		return
+	}
+	if filter.Colour != "" && binder.Progress.ByColour[domain.ColourGroup(filter.Colour)].Total == 0 {
+		h.fail(w, http.StatusBadRequest, "Unknown colour: pick one of the filters above the binder.")
 		return
 	}
 	var quotes counterQuoter
 	if h.game.HasCounter() {
 		quotes = h.game
 	}
-	view, err := newCollectionView(binder, binders, rarity, quotes, market)
+	view, err := newCollectionView(binder, binders, filter, quotes, market)
 	if err != nil {
 		h.playFailed(w, err)
 		return
 	}
 	if quotes != nil {
-		if view.Duplicates, err = h.duplicatesOf(binder.SetCode, rarity); err != nil {
+		if view.Duplicates, err = h.duplicatesOf(binder.SetCode, filter); err != nil {
 			h.playFailed(w, err)
 			return
 		}
@@ -191,6 +204,34 @@ func (h *handler) cardImage(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", imageCacheControl)
 		_, _ = w.Write(img.Data)
 	}
+}
+
+// setIcon serves the icon of a set. A set whose icon cannot be had gets a plain stand-in, which the
+// browser does not keep, so that the real icon shows as soon as it can be downloaded.
+func (h *handler) setIcon(w http.ResponseWriter, r *http.Request) {
+	code := r.PathValue("code")
+	if !images.ValidIconCode(code) {
+		http.Error(w, "not a set icon code", http.StatusBadRequest)
+		return
+	}
+	img, err := h.icons.Image(r.Context(), code)
+	if err == nil {
+		w.Header().Set("Content-Type", img.ContentType)
+		w.Header().Set("Cache-Control", imageCacheControl)
+		_, _ = w.Write(img.Data)
+		return
+	}
+	if !errors.Is(err, images.ErrNotFound) {
+		h.log.Error("set icon", "error", err)
+	}
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Cache-Control", "no-cache")
+	_, _ = w.Write(h.iconFallback)
+}
+
+func (h *handler) setIconsCSS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	_, _ = w.Write([]byte(h.iconCSS))
 }
 
 // playFailed answers a failure of the game with the status that says what went wrong.

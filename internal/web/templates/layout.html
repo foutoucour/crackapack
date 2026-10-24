@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{template "title" .}} · crackapack</title>
   <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/set-icons.css">
   <script src="/static/js-flag.js"></script>
 </head>
 <body>
@@ -42,14 +43,18 @@
     <p>crackapack is unofficial Fan Content permitted under the
       <a href="https://company.wizards.com/en/legal/fancontentpolicy">Fan Content Policy</a>.
       Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of
-      the Coast. ©Wizards of the Coast LLC. Card pictures come from
+      the Coast. ©Wizards of the Coast LLC. Card pictures and set icons come from
       <a href="https://scryfall.com/">Scryfall</a>.</p>
   </footer>
 </body>
 </html>{{end}}
 
+{{define "icon"}}{{if .Code}}<span class="set-icon-chip rarity-{{.Rarity}}" aria-hidden="true"><span class="set-icon {{.Class}} rarity-{{.Rarity}}"></span></span>{{end}}{{end}}
+
 {{define "unlocked"}}
 <p class="unlock" role="status">Unlocked: {{range $i, $s := .}}{{if $i}}, {{end}}{{$s.Name}}{{end}}. <a href="/">Open them from your boosters</a>.</p>
 {{end}}
 
-{{define "cardFields"}}<input type="hidden" name="set" value="{{.Set}}"><input type="hidden" name="card" value="{{.ID}}"><input type="hidden" name="finish" value="{{.Finish}}">{{if .Filter}}<input type="hidden" name="rarity" value="{{.Filter}}">{{end}}{{end}}
+{{define "cardFields"}}<input type="hidden" name="set" value="{{.Set}}"><input type="hidden" name="card" value="{{.ID}}"><input type="hidden" name="finish" value="{{.Finish}}">{{template "filterFields" .Filter}}{{end}}
+
+{{define "filterFields"}}{{with .Rarity}}<input type="hidden" name="rarity" value="{{.}}">{{end}}{{with .Colour}}<input type="hidden" name="colour" value="{{.}}">{{end}}{{end}}

@@ -1,4 +1,4 @@
-{{define "backFields"}}{{if .Market}}<input type="hidden" name="from" value="market">{{else}}<input type="hidden" name="set" value="{{.Set}}"><input type="hidden" name="card" value="{{.Card}}">{{if .Filter}}<input type="hidden" name="rarity" value="{{.Filter}}">{{end}}{{end}}{{end}}
+{{define "backFields"}}{{if .Market}}<input type="hidden" name="from" value="market">{{else}}<input type="hidden" name="set" value="{{.Set}}"><input type="hidden" name="card" value="{{.Card}}">{{template "filterFields" .Filter}}{{end}}{{end}}
 
 {{define "answers"}}
 {{if .}}

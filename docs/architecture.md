@@ -60,7 +60,9 @@ trade: requests, listings and answers due at instants the caller gives, on the E
 rule and atomic transfer, see [The market](core-features.md#the-market).
 
 `internal/images` fetches card pictures from Scryfall, one at a time, and keeps them in the image
-cache, see [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md).
+cache, see [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md). It does the same for
+the icon of each set, see
+[ADR-0065](adr/0065-a-set-icon-is-a-scryfall-svg-drawn-as-a-mask-in-the-colour-of-a-rarity.md).
 
 `internal/play` is the player's interactive session: the boosters the player holds, the energy that
 opening them costs, which recharges from an injected clock, the collection they fill, and the stages

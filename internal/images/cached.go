@@ -11,23 +11,35 @@ import (
 
 const cacheDirPerm = 0o755
 
+// supportedTypes are the picture types the cache stores, in the order it looks for them.
+func supportedTypes() []string {
+	return []string{"image/jpeg", "image/png", "image/svg+xml"}
+}
+
 // Cached is a Source that keeps each picture it gets from src in a directory, so that a card is
 // downloaded once and the game then works offline. It is safe for concurrent use.
 type Cached struct {
 	src Source
 	dir string
+	// valid says whether a key is safe for a URL and a file name; a bad one never reaches src.
+	valid func(string) bool
 	// mu serialises the misses, so that concurrent requests for one card download it once.
 	mu sync.Mutex
 }
 
 // NewCached returns a Cached that stores pictures in dir, created on the first miss.
 func NewCached(src Source, dir string) *Cached {
-	return &Cached{src: src, dir: dir}
+	return &Cached{src: src, dir: dir, valid: ValidID}
+}
+
+// NewCachedIcons returns a Cached for set icons, whose keys are icon codes, see [ValidIconCode].
+func NewCachedIcons(src Source, dir string) *Cached {
+	return &Cached{src: src, dir: dir, valid: ValidIconCode}
 }
 
 // Image implements Source. A failure of src is returned and not cached, so the next call retries.
 func (c *Cached) Image(ctx context.Context, scryfallID string) (Image, error) {
-	if !ValidID(scryfallID) {
+	if !c.valid(scryfallID) {
 		return Image{}, fmt.Errorf("%w: %q", ErrInvalidID, scryfallID)
 	}
 	if img, ok := c.read(scryfallID); ok {
@@ -51,7 +63,7 @@ func (c *Cached) Image(ctx context.Context, scryfallID string) (Image, error) {
 }
 
 func (c *Cached) read(id string) (Image, bool) {
-	for _, contentType := range []string{"image/jpeg", "image/png"} {
+	for _, contentType := range supportedTypes() {
 		ext, _ := extensionFor(contentType)
 		data, err := os.ReadFile(filepath.Join(c.dir, id+ext))
 		if err == nil {
@@ -94,6 +106,8 @@ func extensionFor(contentType string) (string, bool) {
 		return ".jpg", true
 	case "image/png":
 		return ".png", true
+	case "image/svg+xml":
+		return ".svg", true
 	default:
 		return "", false
 	}

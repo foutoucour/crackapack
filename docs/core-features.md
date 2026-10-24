@@ -42,9 +42,8 @@ Law 25 or terms of service.
 - **Code licence:** to be chosen.
 - **Images:** downloaded from Scryfall into a local cache and shown as they are (no cropping,
   watermark or filter), except that the white corners outside the card's rounded border are masked.
-- **Set icons:** `fetchdata` downloads each set's icon from Scryfall next to its catalogue file, as
-  `<CODE>.svg`, and the game serves it from the catalogue directory. A set whose icon is missing
-  upstream is shown without one.
+- **Set icons:** the SVG of each set, downloaded from Scryfall into the same cache and drawn in the
+  colour of a rarity, see [ADR-0065](adr/0065-a-set-icon-is-a-scryfall-svg-drawn-as-a-mask-in-the-colour-of-a-rarity.md).
 - **Scryfall rate limit:** 50 to 100 ms between requests. Requests are made one image at a time.
 - **Offline:** the network is required for the first sync and for catalogue updates. The game runs
   without a connection afterwards.
@@ -150,7 +149,7 @@ The collection is the player's goal: one binder per set, filled card by card. Ca
 printing: the same card in two sets counts as two cards.
 
 - **Set binder:** all cards of the set except basic lands, in collector number order, empty slots
-  greyed out. The collection page filters it by rarity.
+  greyed out. The collection page filters it by rarity and by colour, and the two filters combine.
 - **Cards from another list:** the cards that a set's boosters draw from another catalogue count in
   its binder, in a section of their own. Time Spiral's binder holds the 121 timeshifted cards that
   boosters can draw, and leaves out the one that no booster holds, since nobody could complete the
@@ -166,6 +165,22 @@ printing: the same card in two sets counts as two cards.
   colourless. A non-basic land is a land whatever its colours. So a split card counts by its a half
   only: Fire // Ice is red, not gold. A group the set has no card in is left out, as a rarity is. The
   count is of the cards the boosters can draw, as for the binder.
+- **Filters:** the rarity list and the colour list are panels of links, one row per rarity or colour
+  with a bar of what the player holds. A row filters the binder, and the row in force clears its
+  filter when clicked again. The bars always show the whole binder, so a filter never changes the
+  progress.
+- **Finding a set:** the sets that can be opened are listed beside the binder, each entry filled up
+  to the player's progress in it, with a search box above. Locked sets are folded into a closed
+  section, which opens by itself when the binder in view is locked. On a narrow screen the list
+  folds into the name of the set in view. With 107 sets, a row of buttons would push the binder off
+  the screen.
+- **Card tools:** a click on a card, or on an empty slot, shows its name and a row of icon buttons
+  over it, one slot at a time, and a click elsewhere or Escape puts them away. Nothing depends on
+  hovering, so the page works on a phone. View opens the card big, Sell and Buy go to the Counter,
+  and Trade asks the NPCs around or lists the card on the market. A sale of several copies asks the
+  quantity, and a listing asks the price, in a panel that takes the card. A request or a listing
+  that is under way stays under its card, since its answers wait for the player. A binder card
+  carries no set icon.
 - **Overview:** at the top of the collection page, the cards held out of the cards of the unlocked
   sets, the binders complete (every card held) and the sets unlocked out of all of them. Locked sets
   do not count in the cards, since they cannot be played yet.
