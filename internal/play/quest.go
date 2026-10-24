@@ -221,6 +221,8 @@ func (g *Game) questEvents() domain.QuestEvents {
 	}
 	for _, e := range entries[b.counted:] {
 		switch {
+		case e.To == domain.AccountPlayer && isGift(e.From):
+			// Coins paid for being there are not coins won by playing.
 		case e.To == domain.AccountPlayer:
 			events.CoinsWon += e.Amount
 			if e.From == domain.AccountMarketSale {
@@ -232,6 +234,12 @@ func (g *Game) questEvents() domain.QuestEvents {
 	}
 	b.counted, b.baseline = len(entries), now
 	return events
+}
+
+// isGift reports whether a ledger account pays the player for being there and not for playing: the
+// welcome bonus and the daily reward.
+func isGift(from domain.Account) bool {
+	return from == domain.AccountWelcomeBonus || from == domain.AccountDailyReward
 }
 
 // rebase makes the collection and the ledger as they stand the ones that the next count compares
