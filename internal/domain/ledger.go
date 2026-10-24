@@ -177,6 +177,24 @@ func (j *Journal) Entries() []Entry {
 	return out
 }
 
+// Len returns the number of entries posted to the journal.
+func (j *Journal) Len() int {
+	return len(j.entries)
+}
+
+// EntriesSince returns a copy of the entries from position from on, in the order they were posted,
+// so that a reader that counted the first from entries gets only the new ones without copying the
+// whole history. A position past the end gives none, and one before the start gives all of them.
+func (j *Journal) EntriesSince(from int) []Entry {
+	from = min(max(from, 0), len(j.entries))
+	out := make([]Entry, len(j.entries)-from)
+	copy(out, j.entries[from:])
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 // Restore sets the balances of an empty journal to balances, which a save took from Balance. The
 // entries that led to them are not kept: a restored journal starts a new history. It returns an
 // error, and changes nothing, when the journal has entries already, when the balances do not sum

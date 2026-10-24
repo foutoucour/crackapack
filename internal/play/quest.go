@@ -215,11 +215,11 @@ func (g *Game) questEvents() domain.QuestEvents {
 			events.Sold = append(events.Sold, domain.QuestCards{Card: g.cards[key.ID], Qty: lost})
 		}
 	}
-	entries := g.economy.journal.Entries()
-	if b.counted > len(entries) {
+	journal := g.economy.journal
+	if b.counted > journal.Len() {
 		b.counted = 0
 	}
-	for _, e := range entries[b.counted:] {
+	for _, e := range journal.EntriesSince(b.counted) {
 		switch {
 		case e.To == domain.AccountPlayer && isGift(e.From):
 			// Coins paid for being there are not coins won by playing.
@@ -232,7 +232,7 @@ func (g *Game) questEvents() domain.QuestEvents {
 			events.CoinsSpent += e.Amount
 		}
 	}
-	b.counted, b.baseline = len(entries), now
+	b.counted, b.baseline = journal.Len(), now
 	return events
 }
 
@@ -246,7 +246,7 @@ func isGift(from domain.Account) bool {
 // with: what changed so far counts for nothing.
 func (b *questBoard) rebase(g *Game) {
 	b.baseline = g.collection.Snapshot()
-	b.counted = len(g.economy.journal.Entries())
+	b.counted = g.economy.journal.Len()
 }
 
 // questOpened counts a booster opened of setCode, whose cards are in the collection already, and
