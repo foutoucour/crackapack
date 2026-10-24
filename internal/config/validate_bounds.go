@@ -35,6 +35,10 @@ const (
 	maxUnlockSets = 1_000
 	// maxCatchUpDays bounds the days a game catches up on: a year of them still starts in seconds.
 	maxCatchUpDays = 365
+	// maxQuestCount bounds the quests on a board: far more than a page shows.
+	maxQuestCount = 100
+	// maxQuestWeight bounds the odds of a quest template.
+	maxQuestWeight = 1_000
 )
 
 // validateBounds checks every key that has an upper bound and returns an error naming the first one
@@ -68,6 +72,8 @@ func validateBounds(cfg Config) error {
 		{"unlock.stages", int64(cfg.Unlock.Stages), maxUnlockSets},
 		{"unlock.start_sets", int64(cfg.Unlock.StartSets), maxUnlockSets},
 		{"catch_up_days", int64(cfg.CatchUpDays), maxCatchUpDays},
+		{"quests.daily_count", int64(cfg.Quests.DailyCount), maxQuestCount},
+		{"quests.weekly_count", int64(cfg.Quests.WeeklyCount), maxQuestCount},
 	}
 	for i, entry := range cfg.Energy.CostTable {
 		checks = append(checks, struct {
@@ -75,6 +81,19 @@ func validateBounds(cfg Config) error {
 			value int64
 			max   int64
 		}{fmt.Sprintf("energy.cost_table[%d].cost", i), int64(entry.Cost), maxEnergyCost})
+	}
+	for i, t := range cfg.Quests.Templates {
+		for _, entry := range []struct {
+			key   string
+			value int64
+			max   int64
+		}{
+			{fmt.Sprintf("quests.templates[%d].target", i), t.Target, maxCoins},
+			{fmt.Sprintf("quests.templates[%d].max_value", i), t.MaxValue, maxCoins},
+			{fmt.Sprintf("quests.templates[%d].weight", i), int64(t.Weight), maxQuestWeight},
+		} {
+			checks = append(checks, entry)
+		}
 	}
 	// Trait parameter upper bounds: archetypes in name order, params in sorted order.
 	for _, aname := range slices.Sorted(maps.Keys(cfg.NPCs.Archetypes)) {

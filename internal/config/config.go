@@ -467,6 +467,9 @@ type Config struct {
 	// on when it is played again, the most recent ones (default 30). The days before them are
 	// skipped, so that a long time away does not hold up the start, see play.Game.
 	CatchUpDays int `yaml:"catch_up_days"`
+
+	// Quests is how the game's daily and weekly quests are drawn, see docs/core-features.md#quests.
+	Quests QuestsConfig `yaml:"quests"`
 }
 
 // CounterParams returns the parameters of the Counter that the config describes, for the
@@ -570,6 +573,7 @@ func defaults() Config {
 		SweepRates:     []domain.CoinRate{10, 25, 50, 100, 250, 500},
 		Unlock:         UnlockConfig{BinderThreshold: 0.9, SetsPerUnlock: 3, Stages: 4, StartSets: 5},
 		CatchUpDays:    30,
+		Quests:         defaultQuests(),
 	}
 }
 
@@ -659,5 +663,8 @@ func validate(cfg Config) error {
 	if err := ValidateSweepRates(cfg.SweepRates); err != nil {
 		return err
 	}
-	return validateUnlock(cfg.Unlock)
+	if err := validateUnlock(cfg.Unlock); err != nil {
+		return err
+	}
+	return validateQuests(cfg.Quests)
 }
