@@ -270,6 +270,18 @@ func (g *Game) Reserved(id domain.CardID, finish domain.Finish) int {
 	return g.reserved(domain.CardKey{ID: id, Finish: finish})
 }
 
+// OnNPCShelf reports whether an NPC that trades holds the card id in finish, which is whether
+// AskAround would find one. It is false in a game without a market. It answers for the market as
+// it stands: call Market first to catch it up.
+func (g *Game) OnNPCShelf(id domain.CardID, finish domain.Finish) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.economy == nil || g.economy.market == nil {
+		return false
+	}
+	return g.economy.market.HasHolder(domain.CardKey{ID: id, Finish: finish})
+}
+
 // marketAction runs act on the market, caught up, and saves the game when it went through. g.mu is
 // taken.
 func (g *Game) marketAction(what string, act func(*domain.Market) error) error {

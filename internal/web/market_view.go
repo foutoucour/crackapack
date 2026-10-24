@@ -89,14 +89,17 @@ type marketIndex struct {
 	listings map[domain.CardKey]play.Listing
 	// reserved is the copies of a card the market holds.
 	reserved func(domain.CardID, domain.Finish) int
+	// onShelf tells whether an NPC that trades has a card.
+	onShelf func(domain.CardID, domain.Finish) bool
 }
 
-func newMarketIndex(v play.MarketView, reserved func(domain.CardID, domain.Finish) int) *marketIndex {
+func newMarketIndex(v play.MarketView, reserved func(domain.CardID, domain.Finish) int, onShelf func(domain.CardID, domain.Finish) bool) *marketIndex {
 	idx := &marketIndex{
 		now:      v.Now,
 		requests: make(map[domain.CardKey]play.Request, len(v.Requests)),
 		listings: make(map[domain.CardKey]play.Listing, len(v.Listings)),
 		reserved: reserved,
+		onShelf:  onShelf,
 	}
 	for _, r := range v.Requests {
 		idx.requests[domain.CardKey{ID: r.Card.ID, Finish: r.Finish}] = r
@@ -107,11 +110,13 @@ func newMarketIndex(v play.MarketView, reserved func(domain.CardID, domain.Finis
 	return idx
 }
 
-// huntView is the market's side of an empty slot: the request the player made for its card, or the
-// button to make one.
+// huntView is the market's side of a slot the player can still fill: the request the player made
+// for its card, or the button to make one.
 type huntView struct {
 	cardRef
 	Request *requestView
+	// OnShelf is true when an NPC that trades has the card, so that asking around finds someone.
+	OnShelf bool
 }
 
 // marketSaleView is the market's side of one finish of a held card: the listing, or the form to
@@ -126,9 +131,9 @@ type marketSaleView struct {
 	Price domain.Coins
 }
 
-// hunt fills the market's side of an empty slot of the card of ref.
+// hunt fills the market's side of the slot of the card of ref.
 func (idx *marketIndex) hunt(ref cardRef) *huntView {
-	hunt := &huntView{cardRef: ref}
+	hunt := &huntView{cardRef: ref, OnShelf: idx.onShelf(ref.ID, ref.finish())}
 	if r, ok := idx.requests[domain.CardKey{ID: ref.ID, Finish: ref.finish()}]; ok {
 		view := idx.requestView(r, ref, backView{Set: ref.Set, Card: ref.ID, Filter: ref.Filter})
 		hunt.Request = &view
@@ -344,7 +349,7 @@ type marketView struct {
 }
 
 func newMarketView(v play.MarketView) marketView {
-	idx := newMarketIndex(v, nil)
+	idx := newMarketIndex(v, nil, nil)
 	back := backView{Market: true}
 	var view marketView
 	for _, r := range v.Requests {

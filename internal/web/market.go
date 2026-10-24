@@ -107,7 +107,7 @@ func (h *handler) marketIndex() (*marketIndex, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newMarketIndex(v, h.game.Reserved), nil
+	return newMarketIndex(v, h.game.Reserved, h.game.OnNPCShelf), nil
 }
 
 // askAround asks the NPCs that have a card what they want for it, and comes back to the slot.

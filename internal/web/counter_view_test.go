@@ -82,6 +82,7 @@ func TestShelfApply(t *testing.T) {
 				{cardRef: cardRef{Set: "S", ID: "a", Finish: "nonfoil"}, Copies: 2, Price: 60, Traded: true},
 				{cardRef: cardRef{Set: "S", ID: "a", Finish: "foil"}, Foil: true, Copies: 1, Price: 300, Traded: true},
 			},
+			buy: buyView{cardRef: cardRef{Set: "S", ID: "a", Finish: "nonfoil"}, Price: 120, Buyable: true},
 		},
 		{
 			name: "a card the Counter pays nothing for is not for sale",
@@ -89,11 +90,20 @@ func TestShelfApply(t *testing.T) {
 			sales: []saleView{
 				{cardRef: cardRef{Set: "S", ID: "z", Finish: "nonfoil"}, Copies: 1},
 			},
+			buy: buyView{cardRef: cardRef{Set: "S", ID: "z", Finish: "nonfoil"}, Note: "Not traded"},
 		},
 		{
 			name: "an empty slot of a card in stock is bought",
 			card: play.BinderCard{Card: card("a", both...)},
 			buy:  buyView{cardRef: cardRef{Set: "S", ID: "a", Finish: "nonfoil"}, Price: 120, Buyable: true},
+		},
+		{
+			name: "a held card in stock can be bought again, for a playset",
+			card: play.BinderCard{Card: card("a", both...), Regular: 1},
+			sales: []saleView{
+				{cardRef: cardRef{Set: "S", ID: "a", Finish: "nonfoil"}, Copies: 1, Price: 60, Traded: true},
+			},
+			buy: buyView{cardRef: cardRef{Set: "S", ID: "a", Finish: "nonfoil"}, Price: 120, Buyable: true},
 		},
 		{
 			name: "an empty slot of a card that only comes foil is bought foil",
@@ -119,6 +129,14 @@ func TestShelfApply(t *testing.T) {
 			name:   "an empty slot of a locked set offers nothing",
 			locked: true,
 			card:   play.BinderCard{Card: card("a", both...)},
+		},
+		{
+			name:   "a held card of a locked set is sold but not bought",
+			locked: true,
+			card:   play.BinderCard{Card: card("a", both...), Regular: 1},
+			sales: []saleView{
+				{cardRef: cardRef{Set: "S", ID: "a", Finish: "nonfoil"}, Copies: 1, Price: 60, Traded: true},
+			},
 		},
 		{
 			name:      "a game without a Counter offers nothing",

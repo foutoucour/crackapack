@@ -294,6 +294,12 @@ progress { width: min(100%, 24rem); height: 1rem; accent-color: var(--accent); }
 .filter-panel progress.bar-gold { --bar: var(--gold); }
 .filter-panel progress.bar-colourless { --bar: var(--colourless); }
 .filter-panel progress.bar-land { --bar: var(--land); }
+/* The show filter is a row of pills over the binder, since it is a choice of what to do next, not a
+   progress. */
+.show-bar ul { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: var(--gap) 0 0; padding: 0; list-style: none; }
+.show-bar a { display: inline-flex; gap: 0.4rem; align-items: baseline; padding: 0.35rem 0.85rem; border: 2px solid transparent; border-radius: 999px; background: var(--surface); color: var(--text); font-size: 0.9rem; text-decoration: none; }
+.show-bar a:hover { border-color: var(--text-muted); }
+.show-bar a[aria-current="true"] { border-color: var(--accent); font-weight: 600; }
 .unlock-mark { margin: 0; padding: 0.15rem 0.6rem; border: 1px solid var(--accent); border-radius: 999px; color: var(--accent); font-size: 0.9rem; }
 h2 { margin: 1.5rem 0 0; }
 
@@ -305,9 +311,9 @@ h2 { margin: 1.5rem 0 0; }
 .slot.empty { display: flex; align-items: flex-end; justify-content: center; aspect-ratio: 488 / 680; padding: 0.5rem; border: 2px dashed #3a4052; border-radius: 0.6rem; color: #8a90a0; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* The tools of a slot, over its card, show when the card is picked: the name on top, and a row of
-   buttons at the bottom. They are icons, so each carries its words for a screen reader. Without the
-   script nothing can be picked, and the tools show under the card as plain forms. */
+/* The tools of a slot show with its card big, in the viewer, which opens when the slot is clicked:
+   the name on top, and a row of buttons. They are icons, so each carries its words for a screen
+   reader. Without the script nothing can be clicked, and the tools show under the card as plain forms. */
 .binder .entry { display: flex; flex-direction: column; gap: 0.4rem; scroll-margin-top: 4rem; }
 .slot.empty { position: relative; }
 .pick { position: absolute; inset: 0; width: 100%; padding: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
@@ -334,18 +340,15 @@ html:not(.js) .pick { display: none; }
 .tool-panel input[type="number"] { width: 4.5rem; padding: 0.25rem; font: inherit; }
 .tool-panel form button { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
 .tools-name { font-size: 0.8rem; font-weight: 700; overflow-wrap: anywhere; }
-/* With the script the tools are laid over the card. A panel that opens takes the whole card. */
-.js .tools { position: absolute; inset: 0; display: none; justify-content: space-between; border-radius: inherit; pointer-events: none; }
-.js .entry.selected .tools { display: flex; }
-.js .tools-name { padding: 0.5rem 0.5rem 1.2rem; background: linear-gradient(rgb(14 16 22 / 95%), transparent); }
-.js .tool-row { padding: 1.5rem 0.2rem 0.4rem; background: linear-gradient(transparent, rgb(14 16 22 / 95%)); }
-.js .tool, .js .tool-panel form, .js .tool-note { pointer-events: auto; }
-.js .tools:has(.tool-panel[open]) .tools-name { visibility: hidden; }
-.js .tool-panel[open] { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 0.5rem; border-radius: inherit; background: rgb(14 16 22 / 94%); pointer-events: auto; }
-.js .tool-panel[open] > summary { position: absolute; top: 0.4rem; right: 0.4rem; }
-.js .entry.selected .card, .js .entry.selected .slot.empty { border-color: var(--accent); border-style: solid; }
-.js .entry.selected .card.has-image .face { top: 26%; }
-.js .entry.selected .card:not(.has-image) .face .name { visibility: hidden; }
+.js .binder .tools { display: none; }
+.viewer .tools { width: min(90vw, 28rem); margin: var(--gap) auto 0; align-items: center; }
+.viewer .tools-name { font-size: 1rem; }
+.viewer .tool-row { gap: 0.5rem; }
+.viewer .tool-panel[open] { padding: 0.5rem; border-radius: 0.5rem; background: var(--surface); }
+.viewer .slot.empty { width: min(90vw, 28rem, calc(68vh * 488 / 680)); background: var(--surface); }
+/* With its tools under it, the card gives up some height so that the dialog fits the window. */
+.viewer:has(.tools) { max-height: 96vh; overflow-y: auto; }
+.viewer:has(.tools) .card, .viewer:has(.tools) .slot.empty { width: min(90vw, 28rem, calc(52vh * 488 / 680)); }
 .shelf-note { color: var(--text-muted); }
 .coins { display: flex; align-items: center; gap: 0.4rem; color: var(--text-muted); font-size: 0.9rem; }
 .coins strong { color: var(--accent); }

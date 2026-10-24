@@ -48,6 +48,31 @@ func TestMarketAskAround_holdersAnswerAfterTheirDelay(t *testing.T) {
 	}
 }
 
+// HasHolder tells whether asking around for a card would find an NPC, without asking.
+func TestMarketHasHolder_followsTheShelvesOfTheNPCsThatTrade(t *testing.T) {
+	t.Parallel()
+	fx := newMarketFixture(t)
+	card := fx.keys[0]
+	if fx.market.HasHolder(card) {
+		t.Fatal("HasHolder of a card no NPC holds = true")
+	}
+
+	fx.crowd.ShelveForTest(slowNPC, card, 1)
+	if !fx.market.HasHolder(card) {
+		t.Error("HasHolder of a card an NPC holds = false")
+	}
+	if fx.market.HasHolder(fx.keys[1]) {
+		t.Error("HasHolder of another card = true")
+	}
+
+	if err := fx.crowd.UnshelveForTest(slowNPC, card, 1); err != nil {
+		t.Fatal(err)
+	}
+	if fx.market.HasHolder(card) {
+		t.Error("HasHolder after the NPC let the card go = true")
+	}
+}
+
 // An NPC that no longer holds the card when its answer is due does not answer.
 func TestMarketAskAround_anNPCThatSoldTheCardMeanwhileDoesNotAnswer(t *testing.T) {
 	t.Parallel()

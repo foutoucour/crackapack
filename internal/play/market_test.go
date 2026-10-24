@@ -532,6 +532,31 @@ func TestSpare_aGameWithoutAMarketHasNone(t *testing.T) {
 	}
 }
 
+func TestOnNPCShelf_saysWhetherAskingAroundWouldFindAnNPC(t *testing.T) {
+	t.Parallel()
+	market := counterGame(t, &memStore{}, playtest.NewClock(), marketRules(), counterSet())
+	bare := counterGame(t, &memStore{}, playtest.NewClock(), counterRules(), counterSet())
+
+	tests := []struct {
+		name string
+		game *play.Game
+		card domain.CardKey
+		want bool
+	}{
+		{name: "a card the NPCs hold", game: market, card: cheap(), want: true},
+		{name: "a card the game does not know", game: market, card: domain.CardKey{ID: "nope", Finish: domain.FinishNonFoil}},
+		{name: "a game without a market", game: bare, card: cheap()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := tt.game.OnNPCShelf(tt.card.ID, tt.card.Finish); got != tt.want {
+				t.Errorf("OnNPCShelf(%v) = %v, want %v", tt.card, got, tt.want)
+			}
+		})
+	}
+}
+
 // A deal that completes a binder while the player is away unlocks sets the moment the game shows it,
 // and the unlock is saved: a restart shows the same sets unlocked.
 func TestMarket_anUnlockByADealWhileAwayIsSaved(t *testing.T) {

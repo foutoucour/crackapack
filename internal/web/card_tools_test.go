@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// toolsOf is the part of a slot that is its tools: the name and the buttons that appear over the
-// card when it is picked.
+// toolsOf is the part of a slot that is its tools: the name and the buttons that the card shows when
+// it is opened big.
 func toolsOf(t *testing.T, entry string) string {
 	t.Helper()
 	_, tools, found := strings.Cut(entry, `<div class="tools"`)
@@ -17,7 +17,7 @@ func toolsOf(t *testing.T, entry string) string {
 	return tools
 }
 
-func TestCollection_everySlotHasAToggleThatShowsItsToolsAndItsName(t *testing.T) {
+func TestCollection_everySlotHasAButtonThatOpensItBigWithItsTools(t *testing.T) {
 	t.Parallel()
 	shop := newCounterShop(t)
 
@@ -27,12 +27,12 @@ func TestCollection_everySlotHasAToggleThatShowsItsToolsAndItsName(t *testing.T)
 
 	for what, entry := range map[string]string{"an empty slot": empty, "a held card": held} {
 		mustContain(t, what, entry,
-			`<button type="button" class="pick" aria-expanded="false" aria-controls="tools-S-00">`,
-			`id="tools-S-00"`, `<p class="tools-name">S-00</p>`)
+			`<button type="button" class="pick" aria-haspopup="dialog"><span class="sr-only">Open S-00</span></button>`,
+			`<p class="tools-name">S-00</p>`)
+		mustNotContain(t, what, entry, `tool-view`, `aria-expanded`, `class="view"`)
 	}
-	mustContain(t, "a held card", toolsOf(t, held), `class="tool tool-view"`)
-	mustNotContain(t, "an empty slot, which has no picture to enlarge", empty, `tool-view`)
-	mustNotContain(t, "the binder, where a click no longer opens the card big", empty+held, `class="view"`)
+	mustContain(t, "a held card", held, `<span class="tag count">×1</span>`)
+	mustNotContain(t, "the face of a held card, which only says how many copies are held", held, `Sell</`, `Buy</`)
 }
 
 func TestCollection_theBuyAndSellButtonsAreIconsInTheToolsOfTheCard(t *testing.T) {
@@ -46,7 +46,8 @@ func TestCollection_theBuyAndSellButtonsAreIconsInTheToolsOfTheCard(t *testing.T
 	mustContain(t, "the tools of an empty slot", empty, `action="/buy"`, `class="tool buy"`, `<span class="tool-price">120</span>`, `<span class="sr-only">Buy S-00 for ◎120</span>`)
 	mustNotContain(t, "the tools of an empty slot", empty, `action="/sell"`)
 	mustContain(t, "the tools of a held card", held, `action="/sell"`, `class="tool sell"`, `<span class="tool-price">60</span>`, `name="qty" value="1"`)
-	mustNotContain(t, "the tools of a held card", held, `action="/buy"`, `<details`)
+	mustContain(t, "the tools of a held card, which can be bought again for a playset", held, `action="/buy"`, `class="tool buy"`, `<span class="sr-only">Buy S-00 for ◎120</span>`)
+	mustNotContain(t, "the tools of a held card", held, `<details`)
 }
 
 func TestCollection_aCardTheCounterWillNotSellStillSaysWhyInItsTools(t *testing.T) {

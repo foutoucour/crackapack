@@ -24,7 +24,9 @@ export function dropBrokenPictures(container) {
 }
 
 // createViewer adds a dialog that shows one card big, and returns it. show(card, from) opens a copy
-// of card, and when the dialog closes, focus goes back to from.
+// of card, and when the dialog closes, focus goes back to from. Options: tools is an element whose
+// copy goes under the card, with its buttons and forms working, and label names the dialog when
+// describe(card) cannot, as for an empty slot.
 export function createViewer() {
   const dialog = document.createElement('dialog');
   dialog.className = 'viewer';
@@ -34,7 +36,10 @@ export function createViewer() {
   closeButton.textContent = 'Close';
 
   let openedFrom = null;
-  dialog.addEventListener('click', () => dialog.close());
+  // A click closes the dialog, but not one on the tools, which are there to be used.
+  dialog.addEventListener('click', (e) => {
+    if (!e.target.closest('.tools')) dialog.close();
+  });
   dialog.addEventListener('close', () => {
     dialog.replaceChildren();
     // Not every browser focuses a button on click, so say where focus goes back to.
@@ -43,13 +48,15 @@ export function createViewer() {
   document.body.append(dialog);
 
   return {
-    show(card, from) {
+    show(card, from, { tools, label } = {}) {
       openedFrom = from;
       const copy = card.cloneNode(true);
       // The buttons of the card are for the page, not for the dialog.
       copy.querySelectorAll('.view, .pick, .tools').forEach((control) => control.remove());
-      dialog.setAttribute('aria-label', describe(card));
-      dialog.replaceChildren(copy, closeButton);
+      dialog.setAttribute('aria-label', label ?? describe(card));
+      dialog.replaceChildren(copy);
+      if (tools) dialog.append(tools.cloneNode(true));
+      dialog.append(closeButton);
       dialog.showModal();
       closeButton.focus();
     },
