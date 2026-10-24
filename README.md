@@ -38,9 +38,11 @@ files or network required. The demo cards are drawn as placeholders:
 go run ./cmd/crackapack play --demo
 ```
 
-Then open the address it prints. The demo lets you try the market in a minute: on an empty slot of the
+It opens the game in your browser, and prints the address too. Pass `--no-browser` to keep it from
+opening one. The demo lets you try the market in a minute: on an empty slot of the
 binder press Ask around, one NPC answers at once and others later, and after opening a booster you can
-list its rare from the binder and get an offer at once. With real catalogues from `fetchdata`, pass
+list its rare from the binder and get an offer at once. Press Hunt on an empty slot to have the NPCs
+offer its card each day and to be told when the Counter has a copy. With real catalogues from `fetchdata`, pass
 `--catalogue-dir ./catalogues --prices ./prices.json` instead of `--demo`. That plays every set of
 the directory in scope, from Mirage on, in [stages](docs/core-features.md#stages): a few sets are
 open at the start, and a binder filled to 90% unlocks three more. Add

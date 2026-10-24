@@ -100,6 +100,10 @@ type playArgs struct {
 	// icons gives the icon of a set by its icon code.
 	icons images.Source
 
+	// openBrowser shows the game at a URL in the player's browser once the server listens. Nil
+	// opens nothing, as in the tests; a failure is logged and does not stop the game.
+	openBrowser func(url string) error
+
 	listener net.Listener
 	stdout   io.Writer
 	stderr   io.Writer
@@ -110,6 +114,7 @@ type playArgs struct {
 func newPlayCmd(stdout, stderr io.Writer) *cobra.Command {
 	var (
 		demoData   bool
+		noBrowser  bool
 		catDir     string
 		setsRaw    string
 		suppRaw    string
@@ -122,7 +127,8 @@ func newPlayCmd(stdout, stderr io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "play",
 		Short: "serve the web client on localhost to open boosters",
-		Long: `Serve the web client on localhost. You start with ten boosters to open.
+		Long: `Serve the web client on localhost, and open it in your browser unless --no-browser says
+otherwise. You start with ten boosters to open.
 
 Pass --demo to play on the built-in synthetic sets, with a fixed seed, so no files or network are
 needed. Otherwise pass --catalogue-dir; --seed 0 picks a random seed and prints it.
@@ -172,6 +178,9 @@ while it is missing.`,
 			}
 			// The one place the real clock is read: the rest of the game is given it.
 			a := playArgs{seed: seed, stdout: stdout, stderr: stderr, cfg: cfg, now: time.Now} //nolint:forbidigo // composition root
+			if !noBrowser {
+				a.openBrowser = systemBrowser
+			}
 			cacheRoot, err := os.UserCacheDir()
 			if err != nil {
 				return fmt.Errorf("crackapack play: image cache directory: %w", err)
@@ -241,6 +250,7 @@ while it is missing.`,
 	f.StringVar(&setsRaw, "sets", allSets, "comma-separated openable set codes, e.g. RAV,TSP, or all for every set in scope, in stages")
 	f.StringVar(&suppRaw, "supplementary", "", "comma-separated card-pool-only codes, e.g. TSB (optional, ignored with --sets all)")
 	f.StringVar(&pricesPath, "prices", "", "JSON price snapshot file; sets what a booster costs in energy (optional, ignored with --demo)")
+	f.BoolVar(&noBrowser, "no-browser", false, "do not open the game in your browser when the server starts")
 	f.StringVar(&addr, "addr", defaultPlayAddr, "address to listen on; keep it on localhost")
 	f.Uint64Var(&seed, "seed", 0, "seed of the boosters of a new game; 0 is the demo seed with --demo and a random one otherwise")
 	f.StringVar(&savePath, "save", "", "file the game is saved in (default: crackapack/save.json in the user config directory, save-demo.json with --demo)")
@@ -263,7 +273,13 @@ func runPlay(ctx context.Context, a playArgs) error {
 	}
 	served := make(chan error, 1)
 	go func() { served <- srv.Serve(a.listener) }()
-	fmt.Fprintf(a.stdout, "crackapack: open http://%s in your browser (seed %d), Ctrl-C to stop\n", a.listener.Addr(), stream.Seed())
+	url := "http://" + a.listener.Addr().String()
+	fmt.Fprintf(a.stdout, "crackapack: open %s in your browser (seed %d), Ctrl-C to stop\n", url, stream.Seed())
+	if a.openBrowser != nil {
+		if err := a.openBrowser(url); err != nil {
+			log.Warn("open the browser", "url", url, "error", err)
+		}
+	}
 
 	select {
 	case err := <-served:

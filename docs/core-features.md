@@ -204,7 +204,8 @@ printing: the same card in two sets counts as two cards.
   sale keeps 4 copies by default, adjustable from 1 to 4.
 - **Card page:** image, rarity, price, how many I own, which NPCs have it as a duplicate, price
   history once several snapshots exist.
-- **Wish list:** 20 cards max, feeds alerts and the search for trades.
+- **Wish list:** 20 cards max, feeds alerts and the search for trades. The game's form of it is
+  [hunted cards](#hunted-cards).
 - **Showcase:** a few chosen cards, visible on the profile.
 - **Custom binders:** a free theme (one colour, one artist, one creature type).
 
@@ -383,6 +384,21 @@ In the game the player starts trades, as on Reverb or eBay, see
   game's NPCs have played most of a hold already, see
   [ADR-0064](adr/0064-a-new-games-npcs-have-most-of-a-hold-behind-them.md). They are saved with the
   game, see [ADR-0061](adr/0061-the-npcs-are-saved-in-the-games-file-in-a-compact-form.md).
+
+### Hunted cards
+
+The player hunts the card of an empty slot instead of asking around for it by hand. The game keeps
+the hunt in the save, up to 20 cards.
+
+- **Hunting:** the Hunt button of an empty slot, or Stop hunting on a hunted one. A card the player
+  holds, or of a locked set, cannot be hunted. The hunt ends by itself once the player holds the card.
+- **Offers:** the NPCs that hold the card answer as they do to any request, and the hunt asks again
+  each day once the answers are over, see
+  [ADR-0066](adr/0066-a-hunted-card-asks-the-npcs-again-each-day.md). The offers are accepted,
+  declined or countered on the Market page.
+- **The Counter:** the `/hunted` page says whether the Counter has a copy and its price, never how
+  many. The header's Hunted link counts the copies that came since the page was last shown, see
+  [ADR-0067](adr/0067-the-counter-tells-a-hunter-that-a-copy-came-never-how-many.md).
 
 ## NPCs and simulation
 

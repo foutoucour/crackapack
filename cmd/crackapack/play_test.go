@@ -103,6 +103,42 @@ func demoListArgs(t *testing.T) playArgs {
 	return a
 }
 
+func TestRunPlay_opensTheBrowserOnTheAddressItServes(t *testing.T) {
+	t.Parallel()
+	opened := make(chan string, 1)
+	a := demoPlayArgs(t)
+	a.openBrowser = func(url string) error { opened <- url; return nil }
+
+	base := servePlay(t, a)
+
+	select {
+	case got := <-opened:
+		if got != base {
+			t.Errorf("the browser was sent to %q, want %q", got, base)
+		}
+	case <-time.After(serveTimeout):
+		t.Fatal("the browser was not opened")
+	}
+}
+
+func TestRunPlay_keepsServingWhenTheBrowserCannotBeOpened(t *testing.T) {
+	t.Parallel()
+	called := make(chan struct{}, 1)
+	a := demoPlayArgs(t)
+	a.openBrowser = func(string) error { called <- struct{}{}; return io.ErrClosedPipe }
+
+	base := servePlay(t, a)
+
+	<-called
+	resp, err := http.Get(base + "/healthz")
+	if err != nil {
+		t.Fatalf("GET /healthz: %v", err)
+	}
+	if body := readAll(t, resp); body != "ok" {
+		t.Errorf("healthz = %q after a browser that would not open, want ok", body)
+	}
+}
+
 func TestRunPlay_servesTheCardBackBesideTheCardPictures(t *testing.T) {
 	t.Parallel()
 	base := servePlay(t, demoPlayArgs(t))

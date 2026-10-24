@@ -5,6 +5,7 @@ package web
 
 import (
 	"embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -67,10 +68,18 @@ func NewHandler(game *play.Game, pics, icons images.Source, log *slog.Logger) ht
 		"saveFailed": func() bool { return h.game.SaveError() != nil },
 		// The header links to the market in a game that has one, with the answers waiting.
 		"marketNav": h.marketNav,
+		// So is the one to the hunted cards, with the copies that came to the Counter.
+		"huntedNav": h.huntedNav,
 	}
 	// Each page is parsed together with the layout, since pages define the same blocks.
-	for _, name := range []string{"home", "pack", "collection", "confirm", "error", "market", "market_counter"} {
-		h.pages[name] = template.Must(template.New(name).Funcs(funcs).ParseFS(assets, "templates/layout.html", "templates/market_parts.html", "templates/"+name+".html"))
+	// The header marks the link of the section a page belongs to; a page with no section marks none.
+	sections := map[string]string{
+		"home": "/", "pack": "/", "collection": "/collection", "confirm": "/collection",
+		"market": marketPath, "market_counter": marketPath, "hunted": huntedPath, "error": "",
+	}
+	for name, section := range sections {
+		pageFuncs := template.FuncMap{"section": func() string { return section }}
+		h.pages[name] = template.Must(template.New(name).Funcs(funcs).Funcs(pageFuncs).ParseFS(assets, "templates/layout.html", "templates/market_parts.html", "templates/"+name+".html"))
 	}
 
 	static, err := fs.Sub(assets, "static")
@@ -87,6 +96,9 @@ func NewHandler(game *play.Game, pics, icons images.Source, log *slog.Logger) ht
 	mux.HandleFunc("POST /sell", h.sell)
 	mux.HandleFunc("POST /sell-duplicates", h.sellDuplicates)
 	mux.HandleFunc("GET /market", h.market)
+	mux.HandleFunc("GET /hunted", h.hunted)
+	mux.HandleFunc("POST /hunt", h.hunt)
+	mux.HandleFunc("POST /unhunt", h.unhunt)
 	mux.HandleFunc("POST /ask-around", h.askAround)
 	mux.HandleFunc("POST /withdraw", h.withdraw)
 	mux.HandleFunc("POST /list", h.list)
@@ -95,6 +107,7 @@ func NewHandler(game *play.Game, pics, icons images.Source, log *slog.Logger) ht
 	mux.HandleFunc("POST /decline", h.decline)
 	mux.HandleFunc("GET /counter-offer", h.counterForm)
 	mux.HandleFunc("POST /counter-offer", h.counterAnswer)
+	mux.HandleFunc("GET /energy", h.energy)
 	mux.HandleFunc("GET /card-image/{id}", h.cardImage)
 	mux.HandleFunc("GET /set-icon/{code}", h.setIcon)
 	mux.HandleFunc("GET /set-icons.css", h.setIconsCSS)
@@ -118,6 +131,15 @@ func securityHeaders(next http.Handler) http.Handler {
 
 func (h *handler) home(w http.ResponseWriter, _ *http.Request) {
 	h.render(w, http.StatusOK, "home", newHomeView(h.game.Packs(), h.game.Binders()))
+}
+
+// energy answers the gauge of the header, which a script reads to keep it live between page loads.
+func (h *handler) energy(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	if err := json.NewEncoder(w).Encode(newEnergyView(h.game.Energy()).reading(h.game.Packs())); err != nil {
+		h.log.Error("encode energy", "error", err)
+	}
 }
 
 func (h *handler) open(w http.ResponseWriter, r *http.Request) {
@@ -169,14 +191,19 @@ func (h *handler) collection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var quotes counterQuoter
+	var hunted []play.Hunted
 	if h.game.HasCounter() {
 		quotes = h.game
+		if hunted, err = h.game.Hunted(); err != nil {
+			h.playFailed(w, err)
+			return
+		}
 	}
 	if !offers(filter.Show, quotes != nil, market != nil) {
 		h.fail(w, http.StatusBadRequest, "Unknown filter: pick one of the filters above the binder.")
 		return
 	}
-	view, err := newCollectionView(binder, binders, filter, quotes, market)
+	view, err := newCollectionView(binder, binders, filter, quotes, market, huntedKeys(hunted))
 	if err != nil {
 		h.playFailed(w, err)
 		return

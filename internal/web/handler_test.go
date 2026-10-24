@@ -613,9 +613,11 @@ func TestCollection_switchesBetweenBinders(t *testing.T) {
 	if !strings.Contains(first, "<h1>"+rav.Name) || !strings.Contains(second, "<h1>"+tsp.Name) {
 		t.Errorf("the page does not show the binder it was asked for")
 	}
-	_, marked, _ := strings.Cut(second, `aria-current="page">`)
+	_, switcher, _ := strings.Cut(second, `<nav class="binders"`)
+	switcher, _, _ = strings.Cut(switcher, "</nav>")
+	_, marked, _ := strings.Cut(switcher, `aria-current="page">`)
 	marked, _, _ = strings.Cut(marked, "</a>")
-	if strings.Count(second, `aria-current="page"`) != 1 || !strings.Contains(marked, tsp.Name) {
+	if strings.Count(switcher, `aria-current="page"`) != 1 || !strings.Contains(marked, tsp.Name) {
 		t.Errorf("the current binder is not marked in the switcher:\n%s", second)
 	}
 }

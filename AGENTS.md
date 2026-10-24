@@ -38,7 +38,7 @@ accepted ADR needs a new ADR first, one that supersedes the old one.
 - `go run ./cmd/crackapack compare [--days-csv delta.csv] <a.json> <b.json>` — compare two simulation results
 - `go run ./cmd/crackapack tune --space space.yaml --goals goals.yaml --catalogue-dir ./catalogues --prices prices.json --out ./tune-out` — search the config space for a config that meets the goals
 - `go run ./cmd/crackapack demo` — run a sweep on the built-in synthetic demo dataset
-- `go run ./cmd/crackapack play --demo` — serve the web client on `127.0.0.1:8080` with the demo sets
+- `go run ./cmd/crackapack play --demo` — serve the web client on `127.0.0.1:8080` with the demo sets, and open it in the browser (`--no-browser` to skip)
 - `go run ./cmd/crackapack demo --tune` — run a small config search on the built-in synthetic demo dataset
 
 Every pull request runs lint, tests, the tidy check and `govulncheck` through

@@ -7,30 +7,34 @@
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/set-icons.css">
   <script src="/static/js-flag.js"></script>
+  <script type="module" src="/static/energy.js"></script>
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="/">crackapack</a>
-    <nav class="site-nav" aria-label="Main">
-      <a href="/">Boosters</a>
-      <a href="/collection">Collection</a>
-      {{with marketNav}}<a href="/market">Market{{if .Waiting}} <span class="badge">{{.Waiting}}<span class="sr-only"> {{.Label}}</span></span>{{end}}</a>{{end}}
-    </nav>
-    {{with energy}}
-    <div class="energy" role="status">
-      <span class="energy-label">Energy</span>
-      <meter value="{{.Reserve}}" min="0" max="{{.ReserveCap}}" aria-label="Energy"></meter>
-      <strong>{{.Reserve}} / {{.ReserveCap}}</strong>
-      {{if .Savings}}<span class="energy-note">+{{.Savings}} saved</span>{{end}}
-      {{if .NextIn}}<span class="energy-note">+1 in {{duration .NextIn}}</span>{{end}}
+    <div class="site-header-inner">
+      <a class="brand" href="/">crackapack</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/"{{if eq section "/"}} aria-current="page"{{end}}>Boosters</a>
+        <a href="/collection"{{if eq section "/collection"}} aria-current="page"{{end}}>Collection</a>
+        {{with huntedNav}}<a href="/hunted"{{if eq section "/hunted"}} aria-current="page"{{end}}>Hunted{{if .New}} <span class="badge">{{.New}}<span class="sr-only"> new at the Counter</span></span>{{end}}</a>{{end}}
+        {{with marketNav}}<a href="/market"{{if eq section "/market"}} aria-current="page"{{end}}>Market{{if .Waiting}} <span class="badge">{{.Waiting}}<span class="sr-only"> {{.Label}}</span></span>{{end}}</a>{{end}}
+      </nav>
+      {{with energy}}
+      <div class="energy" role="status" aria-live="off" data-energy>
+        <span class="energy-label">Energy</span>
+        <meter value="{{.Reserve}}" min="0" max="{{.ReserveCap}}" aria-label="Energy" data-energy-meter></meter>
+        <strong data-energy-text>{{.Reserve}} / {{.ReserveCap}}</strong>
+        <span class="energy-note" data-energy-saved{{if not .Savings}} hidden{{end}}>{{if .Savings}}+{{.Savings}} saved{{end}}</span>
+        <span class="energy-note" data-energy-next{{if not .NextIn}} hidden{{end}}>{{if .NextIn}}+1 in {{duration .NextIn}}{{end}}</span>
+      </div>
+      {{end}}
+      {{if hasCounter}}
+      <div class="coins" role="status">
+        <span class="coins-label" aria-hidden="true">{{coinSymbol}}</span><span class="sr-only">Coins</span>
+        <strong>{{balance}}</strong>
+      </div>
+      {{end}}
     </div>
-    {{end}}
-    {{if hasCounter}}
-    <div class="coins" role="status">
-      <span class="coins-label" aria-hidden="true">{{coinSymbol}}</span><span class="sr-only">Coins</span>
-      <strong>{{balance}}</strong>
-    </div>
-    {{end}}
   </header>
   {{if saveFailed}}
   <p class="notice" role="alert">Your progress could not be saved, so closing the game now would lose

@@ -83,6 +83,9 @@ type Game struct {
 	economy        *economy
 	carriedCounter *CounterSnapshot
 
+	// hunts are the cards the player hunts, oldest first, see Hunt.
+	hunts []*hunt
+
 	// saves is where the game is kept between runs, see Persist, and saveErr why the latest save failed.
 	saves   Saves
 	saveErr error

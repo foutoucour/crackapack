@@ -1,29 +1,31 @@
 {{define "title"}}Your boosters{{end}}
 {{define "energy-icon"}}<svg class="energy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13.5 2 5 13.5h6L10 22l9-12h-6.5z" fill="currentColor"/></svg>{{end}}
 {{define "content"}}
-<h1>Your boosters</h1>
-<p class="lead">Pick a set and crack a booster open.{{if .Staged}} Fill a binder to unlock sets of the next stage.{{end}}</p>
+<div class="page-head">
+  <h1>Your boosters</h1>
+  <p class="lead">Pick a set and crack a booster open.{{if .Staged}} Fill a binder to unlock sets of the next stage.{{end}}</p>
+</div>
 {{range .Stages}}
 <section class="stage">
   {{if $.Staged}}<h2>Stage {{.Number}} <span class="stage-count">{{len .Open}} of {{.Size}} open</span></h2>{{end}}
   {{if .Open}}
   <ul class="packs">
     {{range .Open}}
-    <li class="pack-tile">
+    <li class="pack-tile" data-pack="{{.SetCode}}">
       {{if .Icon.Code}}<span class="pack-watermark {{.Icon.Class}}" aria-hidden="true"></span>{{end}}
       <div class="pack-info">
         {{if $.Staged}}<h3>{{.SetName}}</h3>{{else}}<h2>{{.SetName}}</h2>{{end}}
         {{if .Count}}
         <p class="count">{{.Count}} {{if eq .Count 1}}booster{{else}}boosters{{end}}</p>
         <p class="hint">Welcome gift: free.</p>
-        {{else if .Wait}}
-        <p class="hint wait">Ready in {{duration .Wait}}</p>
+        {{else}}
+        <p class="hint wait" data-pack-wait{{if not .Wait}} hidden{{end}}>{{if .Wait}}Ready in {{duration .Wait}}{{end}}</p>
         {{end}}
       </div>
       {{$price := "free"}}{{if not .Count}}{{$price = printf "%d energy" .Cost}}{{end}}
       <form method="post" action="/open">
         <input type="hidden" name="set" value="{{.SetCode}}">
-        <button type="submit" class="primary" aria-label="Open a {{.SetName}} booster, {{$price}}"{{if .Wait}} disabled{{end}}>{{template "icon" .Icon}}Open · {{if .Count}}free{{else}}{{template "energy-icon"}}{{.Cost}}{{end}}</button>
+        <button type="submit" class="primary" data-pack-open aria-label="Open a {{.SetName}} booster, {{$price}}"{{if .Wait}} disabled{{end}}>{{template "icon" .Icon}}Open · {{if .Count}}free{{else}}{{template "energy-icon"}}{{.Cost}}{{end}}</button>
       </form>
     </li>
     {{end}}

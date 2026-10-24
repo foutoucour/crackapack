@@ -111,6 +111,8 @@ type slotView struct {
 	// empty in a game without a market, and Hunt in a locked binder.
 	Hunt  *huntView
 	Lists []marketSaleView
+	// Hunted is the hunt of an empty slot, in a game with a Counter and in an unlocked binder.
+	Hunted *huntedMark
 }
 
 // Held reports whether the player holds a copy of the card, in either finish.
@@ -124,7 +126,7 @@ func binderRarities() []domain.Rarity {
 // newCollectionView builds the page of binder. filter keeps only the slots it names, while the
 // progress stays the whole binder's. The slots show the prices of quotes, which
 // is nil in a game without a Counter, and the controls of market, nil in a game without one.
-func newCollectionView(binder play.Binder, binders []play.BinderSummary, filter binderFilter, quotes counterQuoter, market *marketIndex) (collectionView, error) {
+func newCollectionView(binder play.Binder, binders []play.BinderSummary, filter binderFilter, quotes counterQuoter, market *marketIndex, hunted map[domain.CardKey]bool) (collectionView, error) {
 	view := collectionView{
 		Counter:       quotes != nil,
 		Market:        market != nil,
@@ -153,7 +155,7 @@ func newCollectionView(binder play.Binder, binders []play.BinderSummary, filter 
 		}
 	}
 
-	shelf := shelf{set: binder.SetCode, filter: filter, quotes: quotes, locked: view.Locked, market: market}
+	shelf := shelf{set: binder.SetCode, filter: filter, quotes: quotes, locked: view.Locked, market: market, hunted: hunted}
 	var err error
 	if view.Slots, err = newSlotViews(binder.Slots, binder.IconCode, shelf); err != nil {
 		return collectionView{}, err
