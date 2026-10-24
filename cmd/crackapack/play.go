@@ -160,6 +160,11 @@ cards. Each answers at the pace of its personality, some at once and some the ne
 the game is closed. Ask around from an empty slot of a binder, list a card from a held one, and
 answer on the Market page, which the header links to with the answers waiting.
 
+The Quests page lists the daily quests, which renew at midnight UTC, and the weekly ones, which renew on
+Monday. A quest names what to do, such as open two boosters of a set, and what it gives, such as a
+card to win or a set to unlock, and the reward comes the moment you have done it. Follow the quests
+you want and ignore the rest.
+
 Card pictures are downloaded from Scryfall the first time a card shows, one at a time, and kept
 in the user cache directory. A card whose picture cannot be downloaded shows as text. The back of
 the cards is downloaded once too, also with --demo, and an in-house drawing stands in for it

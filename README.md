@@ -24,8 +24,11 @@ game is playable over several days in the browser, with `crackapack play`:
   offers. You accept, counter once or decline, on the binder or on the Market page, and the header
   counts the answers waiting. Each NPC answers at the pace of its personality, some at once and some
   the next day.
+- The game has daily and weekly quests, on the Quests page. A quest asks for an action, such as
+  opening boosters of a set or selling red cards, and names its reward, such as a card to win or a
+  set to unlock, which lands the moment you have done it. See [Quests](docs/core-features.md#quests).
 
-Not built yet: quests, rewards and milestones, with milestones as named groups of cards such as the
+Not built yet: milestones and their rewards, with milestones as named groups of cards such as the
 Urzatron, the coin top-up for energy, catalogue sync, packaging, and a simulation of the market's
 effect on the economy. See the [TODO](docs/todo.md).
 

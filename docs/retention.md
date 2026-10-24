@@ -6,9 +6,8 @@ The player comes back several times a day because energy recharges and the NPCs 
 because quests, mini-games and the daily reward renew at midnight UTC.
 
 1. **Short session (every 1 h 40):** I open my boosters, sell my duplicates, check my trade offers.
-2. **Daily session:** I collect my 100 coins, play the mini-games, finish my 3 quests and open the
-   chest.
-3. **Week:** featured set, weekly challenge.
+2. **Daily session:** I collect my 100 coins, play the mini-games and follow the quests I chose.
+3. **Week:** featured set, weekly quest.
 4. **Long term:** I complete binders, playsets, master sets and badges.
 
 - **Free, forever:** no mechanic is paid for.
@@ -17,23 +16,17 @@ because quests, mini-games and the daily reward renew at midnight UTC.
 - **Return after an absence:** a summary of what the NPCs did meanwhile, such as trade offers
   received.
 
-## Daily quests and chest
+## Quests
 
-Three quests a day, simple and tied to boosters and trades. Finishing all three opens a chest worth
-+2 energy.
+Quests are a reason to come back every day: each asks for something that costs energy or coins, and
+gives a card, a booster or an unlock. How they work is in [Quests](core-features.md#quests).
 
-| Example quest | Reward |
-| --- | --- |
-| Spend 5 energy on boosters | 60 coins |
-| Discover 10 new cards in your boosters | 70 coins |
-| Get 2 rares or better | 90 coins |
-| Sell 10 duplicates to the Counter | 50 coins |
-| Complete a trade with an NPC | 70 coins |
-
-- 3 quests drawn from the catalogue, renewed at midnight UTC.
-- The reward is claimed with a click, not automatic: it is a moment of satisfaction.
-- **Weekly challenge:** a longer, better-rewarded quest (e.g. "complete the commons playset of
-  Guildpact").
+- Three daily quests and one weekly quest, renewed at midnight UTC and on Monday.
+- No claim and no chest: the reward lands the moment the action is done, so the player knows what a
+  quest is worth before paying for it, see
+  [ADR-0070](adr/0070-a-quest-names-its-action-and-its-reward-and-pays-at-once.md).
+- The player follows the quests that serve the binder they are filling and ignores the others.
+  Nothing carries over, so a skipped day costs nothing.
 
 ## Collection goals and badges
 
