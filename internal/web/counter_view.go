@@ -151,12 +151,13 @@ func plural(n int, unit string) string {
 	return fmt.Sprintf("%d %ss", n, unit)
 }
 
-// coinsText says an amount of coins: "1 coin", "60 coins".
+// coinSymbol stands for the currency the way $ does for dollars. It is a text character so that it
+// works in the pages and in the messages built here alike, where an SVG could not go.
+const coinSymbol = "◎"
+
+// coinsText says an amount of coins, symbol first: "◎1", "◎60".
 func coinsText(c domain.Coins) string {
-	if c == 1 {
-		return "1 coin"
-	}
-	return fmt.Sprintf("%d coins", c)
+	return fmt.Sprintf("%s%d", coinSymbol, c)
 }
 
 // duplicatesView is the bulk sale of a binder's duplicates.

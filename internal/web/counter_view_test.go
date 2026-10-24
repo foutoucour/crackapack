@@ -34,7 +34,7 @@ func TestHumanAgo(t *testing.T) {
 
 func TestCoinsText(t *testing.T) {
 	t.Parallel()
-	for coins, want := range map[domain.Coins]string{0: "0 coins", 1: "1 coin", 60: "60 coins"} {
+	for coins, want := range map[domain.Coins]string{0: "◎0", 1: "◎1", 60: "◎60", 1200: "◎1200"} {
 		if got := coinsText(coins); got != want {
 			t.Errorf("coinsText(%d) = %q, want %q", coins, got, want)
 		}

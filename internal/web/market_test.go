@@ -145,7 +145,7 @@ func TestAskAround_theSlotShowsThePendingStateAndTheAnswersAsTheyArrive(t *testi
 	got := slot(t, body, cheapCard)
 	mustContain(t, "the slot after asking", got,
 		"2 NPCs asked, 1 still to answer",
-		"NPC 1 (a fast)", "asks 100 coins",
+		"NPC 1 (a fast)", "asks ◎100",
 		`action="/accept"`, `action="/decline"`, "/counter-offer?", `action="/withdraw"`)
 	mustNotContain(t, "the slot after asking", got, `action="/ask-around"`, "NPC 2")
 	mustContain(t, "the answer's buttons for a screen reader", got,
@@ -155,7 +155,7 @@ func TestAskAround_theSlotShowsThePendingStateAndTheAnswersAsTheyArrive(t *testi
 
 	shop.clock.Advance(slowDelay)
 	got = slot(t, shop.get(t, "/collection?set=S"), cheapCard)
-	mustContain(t, "the slot a few hours later", got, "2 NPCs asked, all have answered", "NPC 1 (a fast)", "NPC 2 (b slow)", "asks 110 coins", "Lapses in")
+	mustContain(t, "the slot a few hours later", got, "2 NPCs asked, all have answered", "NPC 1 (a fast)", "NPC 2 (b slow)", "asks ◎110", "Lapses in")
 	mustNotContain(t, "the slot a few hours later", got, "still to answer")
 }
 
@@ -276,7 +276,7 @@ func TestAccept_anAskingPriceBuysTheCardAndComesBackToItsSlot(t *testing.T) {
 		t.Errorf("balance %d, want 100: 200 less the asking price", shop.game.Balance())
 	}
 	body := shop.get(t, "/collection?set=S")
-	mustContain(t, "the binder after the deal", body, "Bought S-00 from NPC 1 (a fast) for 100 coins.", "<strong>100</strong>")
+	mustContain(t, "the binder after the deal", body, "Bought S-00 from NPC 1 (a fast) for ◎100.", "<strong>100</strong>")
 	got := slot(t, body, cheapCard)
 	mustContain(t, "the bought card", got, `action="/sell"`, `action="/list"`)
 	mustNotContain(t, "the bought card", got, "asked", `action="/accept"`)
@@ -392,7 +392,7 @@ func TestCounterOffer_theFormOfAnAskingPriceTakesCoinsAndTheSpareCards(t *testin
 	_, body := get(t, shop.c, shop.srv.URL+"/counter-offer?answer="+strconv.Itoa(int(answer.ID))+"&set=S&card=S-02")
 
 	mustContain(t, "the counter form", body,
-		"Counter NPC 1 (a fast)", "S-02", "asks 100 coins",
+		"Counter NPC 1 (a fast)", "S-02", "asks ◎100",
 		`action="/counter-offer"`, `name="answer" value="`+strconv.Itoa(int(answer.ID))+`"`, `name="coins"`,
 		`name="give:S-00:nonfoil"`, `name="give:S-01:nonfoil"`, `max="2"`, "Send the counter",
 		`href="/collection?set=S#c-S-02"`)
@@ -455,7 +455,7 @@ func TestCounterOffer_aCounterWaitsForTheNPCAndIsSettledAfterItsDelay(t *testing
 	body := shop.get(t, "/collection?set=S")
 	mustContain(t, "the binder after countering", body, "Countered the answer of NPC 2 (b slow) for S-00")
 	got := slot(t, body, cheapCard)
-	mustContain(t, "the countered answer", got, "You countered with 110 coins", "NPC 2 replies in 6 h")
+	mustContain(t, "the countered answer", got, "You countered with ◎110", "NPC 2 replies in 6 h")
 	if slow := strings.Count(got, "/counter-offer?"); slow != 1 {
 		t.Errorf("the slot offers to counter %d answers, want only the fast NPC's", slow)
 	}
@@ -564,9 +564,9 @@ func TestList_listsTheCardAndTheSlotShowsItListedWithItsOffers(t *testing.T) {
 
 	redirectsTo(t, "POST /list", resp, "/collection?set=S#c-S-00")
 	body := shop.get(t, "/collection?set=S")
-	mustContain(t, "the binder after listing", body, "Listed S-00 for 100 coins.")
+	mustContain(t, "the binder after listing", body, "Listed S-00 for ◎100.")
 	got := slot(t, body, cheapCard)
-	mustContain(t, "the listed card", got, "Listed at 100 coins", "No offers yet", `action="/unlist"`)
+	mustContain(t, "the listed card", got, "Listed at ◎100", "No offers yet", `action="/unlist"`)
 	mustNotContain(t, "the listed card", got, `action="/list"`)
 	if shop.game.Reserved(cheapCard, domain.FinishNonFoil) != 1 {
 		t.Error("the listing holds no copy")
@@ -574,7 +574,7 @@ func TestList_listsTheCardAndTheSlotShowsItListedWithItsOffers(t *testing.T) {
 
 	shop.clock.Advance(time.Hour)
 	got = slot(t, shop.get(t, "/collection?set=S"), cheapCard)
-	mustContain(t, "the listed card with an offer", got, "NPC 3 (c spec)", "offers 83 coins", `action="/accept"`, `action="/decline"`, "/counter-offer?")
+	mustContain(t, "the listed card with an offer", got, "NPC 3 (c spec)", "offers ◎83", `action="/accept"`, `action="/decline"`, "/counter-offer?")
 	mustNotContain(t, "the listed card with an offer", got, "No offers yet")
 }
 
@@ -593,7 +593,7 @@ func TestAccept_anOfferSellsTheListedCard(t *testing.T) {
 		t.Errorf("balance %d, want 283", shop.game.Balance())
 	}
 	body := shop.get(t, "/collection?set=S")
-	mustContain(t, "the binder after the sale", body, "Sold S-00 to NPC 3 (c spec) for 83 coins.")
+	mustContain(t, "the binder after the sale", body, "Sold S-00 to NPC 3 (c spec) for ◎83.")
 	mustContain(t, "the slot after the sale", slot(t, body, cheapCard), `action="/list"`)
 }
 
@@ -627,14 +627,14 @@ func TestCounterOffer_anOfferIsCounteredWithCoinsOnly(t *testing.T) {
 	offer := shop.answerFrom(t, specNPC)
 
 	_, body := get(t, shop.c, shop.srv.URL+"/counter-offer?answer="+strconv.Itoa(int(offer.ID))+"&set=S&card=S-00")
-	mustContain(t, "the counter form of an offer", body, "Counter NPC 3 (c spec)", "offers 83 coins", `name="coins"`, "Coins you ask for")
+	mustContain(t, "the counter form of an offer", body, "Counter NPC 3 (c spec)", "offers ◎83", `name="coins"`, "Coins you ask for")
 	mustNotContain(t, "the counter form of an offer", body, `name="give:`)
 
 	form := answerForm(offer)
 	form.Set("coins", "90")
 	resp, _ := shop.post(t, "/counter-offer", form)
 	redirectsTo(t, "POST /counter-offer", resp, "/collection?set=S#c-S-00")
-	mustContain(t, "the slot after the counter", slot(t, shop.get(t, "/collection?set=S"), cheapCard), "You countered with 90 coins", "NPC 3 replies in 1 h")
+	mustContain(t, "the slot after the counter", slot(t, shop.get(t, "/collection?set=S"), cheapCard), "You countered with ◎90", "NPC 3 replies in 1 h")
 }
 
 func TestCounterOffer_aCardsOnlyCounterOnAnOfferIsRefusedAsCoinsOnly(t *testing.T) {
@@ -768,11 +768,11 @@ func TestMarketPage_listsEveryRequestListingAndAnswerNewestFirst(t *testing.T) {
 
 	body := shop.get(t, "/market")
 
-	mustContain(t, "the market", body, "S-02", "S-01", "S-00", "2 NPCs asked, 1 still to answer", "Listed at 100 coins", "Listed at 5 coins", `action="/accept"`, `action="/unlist"`, `action="/withdraw"`, `name="from" value="market"`)
+	mustContain(t, "the market", body, "S-02", "S-01", "S-00", "2 NPCs asked, 1 still to answer", "Listed at ◎100", "Listed at ◎5", `action="/accept"`, `action="/unlist"`, `action="/withdraw"`, `name="from" value="market"`)
 	if dear, never := strings.Index(body, "Asking around for S-01"), strings.Index(body, "Asking around for S-02"); dear < 0 || never < 0 || dear > never {
 		t.Errorf("the request made last is at %d, the first at %d: want the newest first", dear, never)
 	}
-	if later, earlier := strings.Index(body, "Listed at 5 coins"), strings.Index(body, "Listed at 100 coins"); later > earlier {
+	if later, earlier := strings.Index(body, "Listed at ◎5"), strings.Index(body, "Listed at ◎100"); later > earlier {
 		t.Error("the listing made last does not come first")
 	}
 }
@@ -788,7 +788,7 @@ func TestMarketPage_actionsComeBackToTheMarketAndShowTheResult(t *testing.T) {
 
 	redirectsTo(t, "POST /accept from the market", resp, "/market")
 	body := shop.get(t, "/market")
-	mustContain(t, "the market after the deal", body, "Bought S-00 from NPC 1 (a fast) for 100 coins.", "Recent results", "less than a minute ago")
+	mustContain(t, "the market after the deal", body, "Bought S-00 from NPC 1 (a fast) for ◎100.", "Recent results", "less than a minute ago")
 	mustNotContain(t, "the market after the deal", body, "No deal yet")
 
 	if resp, body := shop.post(t, "/accept", form); resp.StatusCode != http.StatusNotFound || !strings.Contains(body, `href="/market"`) || !strings.Contains(body, "Back to the market") {
@@ -817,7 +817,7 @@ func TestMarketPage_everyWayAnAnswerEndsIsTold(t *testing.T) {
 
 	body := shop.get(t, "/market")
 
-	mustContain(t, "the results", body, "Sold S-00 to NPC 3 (c spec) for 83 coins.", "NPC 2 (b slow) refused your counter of 1 coin for S-01.", "The price of NPC 1 (a fast) for S-01 lapsed")
+	mustContain(t, "the results", body, "Sold S-00 to NPC 3 (c spec) for ◎83.", "NPC 2 (b slow) refused your counter of ◎1 for S-01.", "The price of NPC 1 (a fast) for S-01 lapsed")
 }
 
 func TestMarketPage_namesAreEscaped(t *testing.T) {

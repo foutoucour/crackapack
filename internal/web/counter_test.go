@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	cheapCard   = "S-00" // $1: the Counter asks 120 coins and pays 60, one copy in stock.
+	cheapCard   = "S-00" // $1: the Counter asks ◎120 and pays 60, one copy in stock.
 	dearCard    = "S-01" // $2.50: asks 300 and pays 150, one copy in stock.
 	neverCard   = "S-02" // an uncommon: no copy is stocked at the start, and none ever was.
 	unpricedKey = "S-03" // worth nothing: the Counter does not trade it.
@@ -197,9 +197,9 @@ func TestCollection_everyStateOfAnEmptySlotAndOfAHeldCard(t *testing.T) {
 		want []string
 		not  []string
 	}{
-		{name: "held", card: cheapCard, want: []string{`action="/sell"`, "60 coins"}, not: []string{`action="/buy"`, "stock"}},
+		{name: "held", card: cheapCard, want: []string{`action="/sell"`, "◎60"}, not: []string{`action="/buy"`, "stock"}},
 		{name: "not traded", card: unpricedKey, want: []string{"Not traded"}, not: []string{`action="/buy"`, `action="/sell"`}},
-		{name: "out of stock", card: neverCard, want: []string{"last in stock 1 day ago", "120 coins"}, not: []string{`action="/buy"`, "never seen"}},
+		{name: "out of stock", card: neverCard, want: []string{"last in stock 1 day ago", "◎120"}, not: []string{`action="/buy"`, "never seen"}},
 	}
 	for _, tt := range tests {
 		got := slot(t, body, tt.card)
@@ -215,7 +215,7 @@ func TestCollection_aCardInStockHasAPriceAndABuyButtonAndNeverACount(t *testing.
 	body := shop.get(t, "/collection?set=S")
 
 	got := slot(t, body, cheapCard)
-	mustContain(t, "an empty slot in stock", got, `action="/buy"`, `name="card" value="S-00"`, `name="finish" value="nonfoil"`, "120 coins", ">Buy")
+	mustContain(t, "an empty slot in stock", got, `action="/buy"`, `name="card" value="S-00"`, `name="finish" value="nonfoil"`, "◎120", ">Buy")
 	mustNotContain(t, "an empty slot in stock", got, "last in stock", "never seen")
 	if numbers := regexp.MustCompile(`(?i)\d+ (cop(y|ies)|left|in stock|available)`); numbers.MatchString(body) {
 		t.Errorf("the page tells a stock: %q", numbers.FindString(body))
@@ -228,7 +228,7 @@ func TestCollection_aCardNeverInStockSaysSo(t *testing.T) {
 
 	got := slot(t, shop.get(t, "/collection?set=S"), neverCard)
 
-	mustContain(t, "a never-seen slot", got, "never seen at the Counter", "120 coins")
+	mustContain(t, "a never-seen slot", got, "never seen at the Counter", "◎120")
 	mustNotContain(t, "a never-seen slot", got, `action="/buy"`, "last in stock")
 }
 
@@ -268,7 +268,7 @@ func TestBuy_takesTheCoinsAddsTheCardAndComesBackToItsPlaceInTheBinder(t *testin
 		t.Errorf("balance %d, want 80", shop.game.Balance())
 	}
 	body := shop.get(t, "/collection?set=S")
-	mustContain(t, "the binder after a purchase", body, "Bought S-00", "for 120 coins", "<strong>80</strong>")
+	mustContain(t, "the binder after a purchase", body, "Bought S-00", "for ◎120", "<strong>80</strong>")
 	mustContain(t, "the bought card", slot(t, body, cheapCard), `action="/sell"`)
 	if again := shop.get(t, "/collection?set=S"); strings.Contains(again, "Bought") {
 		t.Error("the notice of the purchase is shown twice")
@@ -355,7 +355,7 @@ func TestSell_oneOfSeveralCopiesPaysAndComesBackToItsPlace(t *testing.T) {
 	if shop.game.Balance() != 260 {
 		t.Errorf("balance %d, want 260", shop.game.Balance())
 	}
-	mustContain(t, "the binder after a sale", shop.get(t, "/collection?set=S"), "Sold 1 ", "S-00", "for 60 coins")
+	mustContain(t, "the binder after a sale", shop.get(t, "/collection?set=S"), "Sold 1 ", "S-00", "for ◎60")
 }
 
 func TestSell_theLastCopyAsksBeforeSellingAndCancellingChangesNothing(t *testing.T) {
@@ -368,7 +368,7 @@ func TestSell_theLastCopyAsksBeforeSellingAndCancellingChangesNothing(t *testing
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST /sell of the last copy = %d, want the confirmation page (200)", resp.StatusCode)
 	}
-	mustContain(t, "the confirmation", body, "last copy", "S-00", "60 coins", `name="confirm" value="yes"`, `action="/sell"`, `href="/collection?set=S#c-S-00"`, "Keep")
+	mustContain(t, "the confirmation", body, "last copy", "S-00", "◎60", `name="confirm" value="yes"`, `action="/sell"`, `href="/collection?set=S#c-S-00"`, "Keep")
 	if shop.game.Balance() != 200 {
 		t.Errorf("asking sold the card: balance %d, want 200", shop.game.Balance())
 	}
@@ -390,7 +390,7 @@ func TestSell_allTheCopiesAsksToo(t *testing.T) {
 
 	_, body := shop.post(t, "/sell", sellForm(dearCard, "3"))
 
-	mustContain(t, "the confirmation", body, "all 3 copies", "450 coins")
+	mustContain(t, "the confirmation", body, "all 3 copies", "◎450")
 }
 
 func TestSell_refusalsShowAMessageAndChangeNothing(t *testing.T) {
@@ -453,7 +453,7 @@ func TestSellDuplicates_pricesAndSellsTheSurplus(t *testing.T) {
 	body := shop.get(t, "/collection?set=T")
 
 	// T-00 and T-01 are worth the fallback of one coin: 2 copies of each above four.
-	mustContain(t, "the duplicates section", body, "4 copies above a playset", "4 coins", `action="/sell-duplicates"`, `name="set" value="T"`)
+	mustContain(t, "the duplicates section", body, "4 copies above a playset", "◎4", `action="/sell-duplicates"`, `name="set" value="T"`)
 	resp, _ := shop.post(t, "/sell-duplicates", url.Values{"set": {"T"}})
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/collection?set=T" {
 		t.Fatalf("POST /sell-duplicates = %d to %q, want 303 to the binder", resp.StatusCode, resp.Header.Get("Location"))
@@ -462,7 +462,7 @@ func TestSellDuplicates_pricesAndSellsTheSurplus(t *testing.T) {
 		t.Errorf("balance %d, want 204", shop.game.Balance())
 	}
 	after := shop.get(t, "/collection?set=T")
-	mustContain(t, "the binder after the sale", after, "Sold your duplicates for 4 coins")
+	mustContain(t, "the binder after the sale", after, "Sold your duplicates for ◎4")
 	mustNotContain(t, "the binder after the sale", after, `action="/sell-duplicates"`)
 	mustContain(t, "the binder after the sale", after, "no duplicates")
 }
