@@ -35,6 +35,9 @@ type Rules struct {
 	// docs/adr/0069-the-player-asks-for-a-coin-top-up-and-the-game-plays-one-price.md. Nil offers
 	// none.
 	TopUp *TopUpRules
+	// Milestones is what completing a part of a binder pays, see [MilestoneRules]. Nil gives the
+	// game no milestones.
+	Milestones *MilestoneRules
 }
 
 // TopUpRules is how the player pays coins for missing energy: the booster takes the energy the

@@ -74,8 +74,8 @@ many parameters at once for a config that meets the goals.
   - [x] Offer expiry: 3 days by default, `trades.offer_expiry_days`.
   - [x] Trade history, and "which NPCs have this card as a duplicate". NPCs hold their surplus on a
     shelf to have duplicates, see [ADR-0011](adr/0011-npcs-hold-surplus-on-a-shelf.md).
-  - [ ] A trade that removes the last copy of a card can cost a milestone, which depends on the
-    milestone item below. Not built: no hook exists for it yet.
+  - [x] A trade that would remove a copy that a milestone locks is refused, see
+    [Milestones](core-features.md#milestones). The simulation's Exchange does not know the lock.
   - [x] Simulated player policies that trade, `trader`, and one that hunts for exploits by chaining
     trades across NPCs, `exploiter`. A test shows that no trade gains value.
 - [x] **Exploiter cost cliff.** The `exploiter` with trades takes minutes when sessions and NPCs are
@@ -101,16 +101,27 @@ many parameters at once for a config that meets the goals.
     [ADR-0071](adr/0071-quests-count-the-change-of-the-collection-and-of-the-ledger.md) and
     [ADR-0072](adr/0072-a-weekly-quest-can-unlock-a-set-of-the-earliest-stage-with-one-locked.md).
   - [ ] Simulate them, see [Tune the quests](#tuning-system-and-metrics).
-  - [ ] The chest worth +2 energy of the first design was dropped: a reward lands when the action is
-    done. `Energy` has no way to add a bonus yet, which the milestones will need.
-- [ ] **Collection milestones and rewards**, see
-  [Collection goals and badges](retention.md#collection-goals-and-badges).
-  - [ ] Rewards in coins and energy for commons, uncommons, rares, the binder, the timeshifted
-    cards and the playsets. Several values are marked "to calibrate".
-  - [ ] Reversible rewards: giving away the last copy that completed a milestone takes the reward
-    back.
-  - [ ] Ledger source accounts for these rewards. The existing metrics only report the days to
-    reach a milestone.
+  - [x] The chest worth +2 energy of the first design was dropped: a reward lands when the action is
+    done. The bonus that adds energy came with the milestones, see `Energy.Grant`.
+- [ ] **Collection milestones and rewards**, see [Milestones](core-features.md#milestones).
+  - [x] Milestones for every rarity from common to mythic, every colour group and the whole set. A
+    rarity or a colour pays energy, as a share of the energy bar, into the savings. The whole set
+    unlocks sets, on top of the unlock of the threshold, see
+    [ADR-0073](adr/0073-a-milestone-locks-one-copy-of-each-of-its-cards.md),
+    [ADR-0074](adr/0074-a-milestone-pays-energy-as-a-share-of-the-reserve-cap-into-the-savings.md)
+    and [ADR-0075](adr/0075-a-whole-binder-unlocks-sets-as-the-threshold-does.md).
+  - [x] A milestone locks one copy of each of its cards for good, so a reward is paid once and a
+    card cannot be sold to earn it again. A trade or a sale of the locked copy is refused.
+  - [x] The next page tells each milestone earned, and the collection lists the goals of a binder.
+  - [ ] Milestones for named groups of cards, such as the planeswalkers of a set or the Urzatron, with
+    the reward of the rares. They need the card's types in the catalogue: the loader reads them and
+    keeps only `IsLand` and `IsBasicLand`. Each is a hand-picked group, and most sets have none.
+  - [ ] A second round of milestones for playsets. The first round locks one copy of each card, so a
+    playset needs its own rule for which copies it locks.
+  - [ ] Simulate the milestones. The energy they pay is a faucet that no run models, see
+    [A run with faucets and sinks](#tuning-system-and-metrics), and the pace goal was tuned without it.
+  - [ ] The "Almost complete" section and the themed badges of
+    [Retention](retention.md#collection-goals-and-badges).
 - [ ] **Welcome boosters.** The welcome bonus is 200 coins and 10 boosters, see
   [Installation and saves](core-features.md#installation-and-saves). The play session grants the
   boosters, see the GUI section below. The simulation engine still grants only the coins.
@@ -397,8 +408,8 @@ The stack is server-rendered `html/template`, see
   every booster costs the middle tier. The coin fee above the cap and the coin top-up are in, see
   [ADR-0068](adr/0068-the-game-charges-a-sets-coin-fee-when-a-booster-is-opened.md) and
   [ADR-0069](adr/0069-the-player-asks-for-a-coin-top-up-and-the-game-plays-one-price.md). Left: the
-  bonuses that add to the savings, such as the milestones, and the escalating variants
-  of the top-up.
+  bonuses that add to the savings, such as the milestones, are in too, see `Energy.Grant`. Left: the
+  escalating variants of the top-up.
 - [x] The collection: one binder per set at `/collection`, every card but the basic lands in
   collector number order with the empty slots greyed, progress overall and by rarity, complete
   playsets, the copies held by finish, filters on rarity and colour, a click to see a card big, and the

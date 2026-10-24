@@ -43,6 +43,7 @@ func TestLoad_upperBounds(t *testing.T) {
 		{key: "unlock.stages", yaml: "unlock: {stages: %d}\n", bound: 1_000},
 		{key: "unlock.start_sets", yaml: "unlock: {start_sets: %d}\n", bound: 1_000},
 		{key: "catch_up_days", yaml: "catch_up_days: %d\n", bound: 365},
+		{key: "milestones.mythic_pct", yaml: "milestones: {mythic_pct: %d}\n", bound: 10_000},
 	}
 	for _, tc := range tests {
 		t.Run(tc.key, func(t *testing.T) {

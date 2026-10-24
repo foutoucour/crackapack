@@ -178,14 +178,22 @@ func (g *Game) unlockEarned() []UnlockedSet {
 			continue
 		}
 		s.triggered[cat.Code] = true
-		for _, code := range s.draw() {
-			s.unlocked[code] = true
-			unlockedCat, _ := g.set(code)
-			out = append(out, UnlockedSet{Code: code, Name: unlockedCat.Name})
-		}
+		out = append(out, g.unlockDrawn()...)
 	}
 	if len(out) > 0 {
 		g.openCrowdSets(g.economy)
+	}
+	return out
+}
+
+// unlockDrawn opens the sets that one unlock draws, and returns them in the order they were drawn.
+// The caller tells the crowd of them, see openCrowdSets. g.mu must be held, and the game staged.
+func (g *Game) unlockDrawn() []UnlockedSet {
+	var out []UnlockedSet
+	for _, code := range g.staging.draw() {
+		g.staging.unlocked[code] = true
+		unlockedCat, _ := g.set(code)
+		out = append(out, UnlockedSet{Code: code, Name: unlockedCat.Name})
 	}
 	return out
 }

@@ -382,6 +382,7 @@ func marketError(err error) error {
 		{domain.ErrAlreadyAsked, ErrAlreadyAsked},
 		{domain.ErrAlreadyListed, ErrAlreadyListed},
 		{domain.ErrReserved, ErrReserved},
+		{domain.ErrLockedCopy, ErrCopyLocked},
 		{domain.ErrPlayerLacksCard, ErrNotHeld},
 		{domain.ErrInvalidPrice, ErrInvalidPrice},
 		{domain.ErrCoinsOnly, ErrCoinsOnly},

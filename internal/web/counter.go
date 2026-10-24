@@ -216,6 +216,8 @@ func (h *handler) counterFailed(w http.ResponseWriter, err error, ref cardRef) {
 		h.refuse(w, http.StatusConflict, "You do not hold that many copies of this card.", back)
 	case errors.Is(err, play.ErrReserved):
 		h.refuseReserved(w, back)
+	case errors.Is(err, play.ErrCopyLocked):
+		h.refuse(w, http.StatusConflict, lockedCopyMessage, back)
 	case errors.Is(err, play.ErrCounterBroke):
 		h.refuse(w, http.StatusConflict, "The Counter cannot pay for these cards right now.", back)
 	default:

@@ -96,6 +96,12 @@ type Game struct {
 	// quests is the daily and weekly quests, nil in a game without them, see OpenQuests.
 	quests *questBoard
 
+	// milestones is what the player has earned of the binders, nil in a game without milestones, see
+	// [Rules.Milestones].
+	milestones *milestoneBook
+	// carriedMilestones is then the milestones of the save, kept as they were.
+	carriedMilestones *MilestonesSnapshot
+
 	// saves is where the game is kept between runs, see Persist, and saveErr why the latest save failed.
 	saves   Saves
 	saveErr error
@@ -142,6 +148,12 @@ func NewGame(sets, pools []domain.SetCatalogue, opener *domain.Opener, rules Rul
 		}
 		rules.TopUp = &topUp
 	}
+	var milestones *milestoneBook
+	if rules.Milestones != nil {
+		if milestones, err = newMilestoneBook(*rules.Milestones); err != nil {
+			return nil, err
+		}
+	}
 	cards := make(map[domain.CardID]domain.Card)
 	for _, cat := range append(append([]domain.SetCatalogue(nil), sets...), pools...) {
 		for id, card := range cat.Cards {
@@ -167,6 +179,7 @@ func NewGame(sets, pools []domain.SetCatalogue, opener *domain.Opener, rules Rul
 		opener:     opener,
 		collection: domain.NewCollection(),
 		packs:      welcomePacks(codes),
+		milestones: milestones,
 		rules:      rules,
 		energy:     energy,
 		now:        now,

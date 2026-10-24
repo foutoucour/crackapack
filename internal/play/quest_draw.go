@@ -255,7 +255,7 @@ func (g *Game) spareCopies() map[domain.CardKey]int {
 	}
 	spare := make(map[domain.CardKey]int, len(surplus))
 	for _, s := range surplus {
-		if free := min(s.Quantity, g.collection.Quantity(s.Key)-g.reserved(s.Key)); free > 0 {
+		if free := min(s.Quantity, g.collection.Quantity(s.Key)-g.unspendable(s.Key)); free > 0 {
 			spare[s.Key] = free
 		}
 	}

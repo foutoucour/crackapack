@@ -27,10 +27,13 @@ game is playable over several days in the browser, with `crackapack play`:
 - The game has daily and weekly quests, on the Quests page. A quest asks for an action, such as
   opening boosters of a set or selling red cards, and names its reward, such as a card to win or a
   set to unlock, which lands the moment you have done it. See [Quests](docs/core-features.md#quests).
+- Each binder has milestones: every card of a rarity, of a colour group, or of the set. A rarity or a
+  colour pays energy, the whole set opens more sets, and each milestone locks one copy of its cards for
+  good. See [Milestones](docs/core-features.md#milestones).
 
-Not built yet: milestones and their rewards, with milestones as named groups of cards such as the
-Urzatron, the coin top-up for energy, catalogue sync, packaging, and a simulation of the market's
-effect on the economy. See the [TODO](docs/todo.md).
+Not built yet: milestones as named groups of cards such as the Urzatron, and for playsets, catalogue
+sync, packaging, and a simulation of the market's effect on the economy. See the
+[TODO](docs/todo.md).
 
 ## Open your first boosters
 

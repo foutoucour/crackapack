@@ -57,14 +57,16 @@ type shelf struct {
 
 // apply fills the Counter's side of slot, from the card c it shows.
 func (sh shelf) apply(slot *slotView, c play.BinderCard) error {
+	slot.LockedCopy = c.RegularLocked+c.FoilLocked > 0
 	if sh.quotes == nil {
 		return nil
 	}
 	finishes := []struct {
 		finish domain.Finish
 		held   int
-	}{{domain.FinishNonFoil, c.Regular}, {domain.FinishFoil, c.Foil}}
+	}{{domain.FinishNonFoil, c.Regular - c.RegularLocked}, {domain.FinishFoil, c.Foil - c.FoilLocked}}
 	for _, f := range finishes {
+		// The copy a milestone locks is not for sale, so a finish held only by it has no sale tool.
 		if f.held == 0 {
 			continue
 		}

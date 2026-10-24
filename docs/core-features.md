@@ -198,7 +198,8 @@ printing: the same card in two sets counts as two cards.
   sets, the binders complete (every card held) and the sets unlocked out of all of them. Locked sets
   do not count in the cards, since they cannot be played yet.
 - **Unlock mark:** a binder that has reached the [unlock threshold](#stages) says so. The mark stays
-  when cards are sold, as the unlocks do. The page shows stats only: it gives no reward.
+  when cards are sold, as the unlocks do. The page lists the binder's [milestones](#milestones), and
+  earns none by itself.
 - **Basic lands** are excluded from totals, progress and milestones. The Ravnica and Time Spiral
   basics only come as foils, so counting them would make a complete binder nearly impossible.
 - **Master set:** every card in normal and foil, plus the variants present in the booster. The exact
@@ -233,6 +234,35 @@ than a hundred.
   a list of sets has no stage.
 
 The current values of the keys are in the [tuning log](tuning-log.md).
+
+## Milestones
+
+A milestone is a goal inside one set's binder. It gives the player something to reach long before the
+whole binder is filled, and a boost that pays even in a set the player never finishes.
+
+- **Goals:** every card of a rarity of the set, common up to mythic, every card of a colour group,
+  and every card of the set. A rarity or a group that the set has no card in has no milestone. The
+  colour groups are the five colours, gold, colourless and land, and a gold card counts for gold
+  alone. Basic lands and the special rarity of Time Spiral's timeshifted cards have none.
+- **Reward:** a rarity or a colour group pays energy, the harder the rarity the more, as a share of
+  the energy bar, see
+  [ADR-0074](adr/0074-a-milestone-pays-energy-as-a-share-of-the-reserve-cap-into-the-savings.md).
+  The whole set pays sets to open instead, drawn as the threshold's are, see
+  [ADR-0075](adr/0075-a-whole-binder-unlocks-sets-as-the-threshold-does.md), on top of that unlock.
+- **Once, and locked:** a reward is paid once. Earning a milestone locks one copy of each of its
+  cards, which cannot be sold, listed or traded, see
+  [ADR-0073](adr/0073-a-milestone-locks-one-copy-of-each-of-its-cards.md). Copies above it stay free,
+  and before the milestone is earned nothing is locked.
+- **Told at once:** the next page says which milestone was earned, what it gave and that the copies
+  are locked, whichever action earned it: an opening, a purchase, a trade or a quest.
+- **On the page:** the collection lists the goals of the shown binder with their reward, and the card
+  tools say when a copy is locked. A game saved before milestones earns the ones its collection holds
+  when it loads.
+- **Values:** the rewards are the `milestones` block of the configuration, see
+  [`internal/config/milestones.go`](../internal/config/milestones.go), and their current values are in
+  the [tuning log](tuning-log.md).
+- **Not built:** milestones for named groups of cards such as planeswalkers or the Urzatron, which
+  need the card's types in the catalogue, and for playsets, see the [TODO](todo.md).
 
 ## Economy: coins, sources and sinks
 
@@ -334,8 +364,7 @@ Trades let the player complete a binder by negotiating with NPCs.
 - **Trade help:** "which NPCs have this card as a duplicate", NPCs whose duplicates match my wish
   list.
 - **History** of trades received, sent and concluded.
-- A trade that removes the last copy of a card can cost a collection milestone, see
-  [Retention](retention.md#collection-goals-and-badges).
+- A copy that a [milestone](#milestones) locks is never traded. The market refuses it.
 
 The rules above are those of the simulation's Exchange. The game trades on a market instead.
 

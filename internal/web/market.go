@@ -14,6 +14,9 @@ import (
 // reservedMessage tells why a card cannot be sold or given: the market holds it.
 const reservedMessage = "This card is held for the market, for a listing or a counter: unlist it or wait for the NPC's reply, then try again."
 
+// lockedCopyMessage tells why a card cannot be sold or given: a milestone locks the copy.
+const lockedCopyMessage = "A milestone locks this copy: you earned it by holding the card, so you keep it. Only the copies above it can be sold or traded."
+
 // refusal is what the player is told when the market refuses an action, with the status of it.
 type refusal struct {
 	status  int
@@ -35,6 +38,7 @@ func marketRefusal(err error) (refusal, bool) {
 		{play.ErrAlreadyAsked, refusal{http.StatusConflict, "You are already asking around for this card."}},
 		{play.ErrAlreadyListed, refusal{http.StatusConflict, "This card is on the market already."}},
 		{play.ErrReserved, refusal{http.StatusConflict, reservedMessage}},
+		{play.ErrCopyLocked, refusal{http.StatusConflict, lockedCopyMessage}},
 		{play.ErrNotHeld, refusal{http.StatusConflict, "You do not hold this card, or not as many copies of it."}},
 		{play.ErrInvalidPrice, refusal{http.StatusBadRequest, "A price is at least 1 coin."}},
 		{play.ErrCoinsOnly, refusal{http.StatusBadRequest, "A counter to an offer asks for coins, with no card."}},

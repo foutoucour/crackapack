@@ -41,6 +41,12 @@
   <p class="notice" role="alert">Your progress could not be saved, so closing the game now would lose
     what you did since the last save. The server log says why.</p>
   {{end}}
+  {{range milestones}}
+  <div class="results">
+    <p class="unlock" role="status">{{.Text}}</p>
+    {{if .Unlocked}}{{template "unlocked" .Unlocked}}{{end}}
+  </div>
+  {{end}}
   <main>
     {{template "content" .}}
   </main>

@@ -35,6 +35,8 @@ const (
 	maxUnlockSets = 1_000
 	// maxCatchUpDays bounds the days a game catches up on: a year of them still starts in seconds.
 	maxCatchUpDays = 365
+	// maxMilestonePct bounds a milestone reward: a hundred bars of energy, far above the savings cap.
+	maxMilestonePct = 10_000
 	// maxQuestCount bounds the quests on a board: far more than a page shows.
 	maxQuestCount = 100
 	// maxQuestWeight bounds the odds of a quest template.
@@ -72,6 +74,11 @@ func validateBounds(cfg Config) error {
 		{"unlock.stages", int64(cfg.Unlock.Stages), maxUnlockSets},
 		{"unlock.start_sets", int64(cfg.Unlock.StartSets), maxUnlockSets},
 		{"catch_up_days", int64(cfg.CatchUpDays), maxCatchUpDays},
+		{"milestones.common_pct", int64(cfg.Milestones.CommonPct), maxMilestonePct},
+		{"milestones.uncommon_pct", int64(cfg.Milestones.UncommonPct), maxMilestonePct},
+		{"milestones.rare_pct", int64(cfg.Milestones.RarePct), maxMilestonePct},
+		{"milestones.mythic_pct", int64(cfg.Milestones.MythicPct), maxMilestonePct},
+		{"milestones.colour_pct", int64(cfg.Milestones.ColourPct), maxMilestonePct},
 		{"quests.daily_count", int64(cfg.Quests.DailyCount), maxQuestCount},
 		{"quests.weekly_count", int64(cfg.Quests.WeeklyCount), maxQuestCount},
 	}

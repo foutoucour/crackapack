@@ -23,6 +23,28 @@ goal band changes. Newest first. Each entry says:
 - how the goals read before and after, on the same scenarios, so the entries compare;
 - what the run does not tell.
 
+## 2026-10-24 – Milestones pay energy, no search run
+
+**Trigger:** the game gets milestones, see [Milestones](core-features.md#milestones). The values below
+are the maintainers' choice, in `config.defaults()`. No simulation plays milestones, so the goals are
+unchanged and unmeasured.
+
+Each reward is a share of `energy.reserve_cap`, which is 10, so the energy is the share divided by ten.
+
+| Key | Share of the bar | Energy at a bar of 10 |
+|-----|-----------------:|----------------------:|
+| `milestones.common_pct` | 50 | 5, a booster of a regular set |
+| `milestones.uncommon_pct` | 100 | 10, a full reserve |
+| `milestones.rare_pct` | 200 | 20 |
+| `milestones.mythic_pct` | 400 | 40 |
+| `milestones.colour_pct` | 50 | 5 |
+
+**What it does not show:** how much the rewards shorten the pace of a binder. The rarities of a set
+without a mythic pay 35 energy in all, which is seven boosters of a regular set, and 75 with a mythic.
+The colour groups add 5 each on top. The pace goal of
+[ADR-0051](adr/0051-the-pace-of-the-scope-is-a-bell-curve-around-two-weeks.md) was tuned without
+them. A run with milestones is in the [TODO](todo.md).
+
 ## 2026-10-24 – Energy has a price in the game, and a smaller save, no search run
 
 **Trigger:** the game gets the coin fee above the energy cap and the coin top-up, see

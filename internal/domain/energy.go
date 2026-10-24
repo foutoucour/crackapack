@@ -55,7 +55,8 @@ func (e *InvalidSpendAmountError) Error() string {
 // (state unchanged) when total is insufficient. Returns *InvalidSpendAmountError (state
 // unchanged) when amount <= 0.
 //
-// Energy is never purchasable with coins: no such method exists on this type.
+// Energy is never purchasable with coins: no method on this type takes coins. Grant adds a reward
+// and is not for sale.
 // This is intentional — energy sets the rhythm of play sessions and must not be
 // bypassed through the coin economy. See docs/core-features.md §Energy.
 type Energy struct {

@@ -42,7 +42,7 @@ func (g *Game) addCopy(key domain.CardKey) {
 
 // foilCopy turns one non-foil copy of key into a foil, when the player holds one the market does not.
 func (g *Game) foilCopy(key domain.CardKey) ([]domain.CardKey, bool) {
-	if g.collection.Quantity(key)-g.reserved(key) < 1 {
+	if g.collection.Quantity(key)-g.unspendable(key) < 1 {
 		return nil, false
 	}
 	_ = g.collection.Remove(key, 1)

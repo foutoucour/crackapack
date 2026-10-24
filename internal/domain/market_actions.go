@@ -58,7 +58,8 @@ func (m *Market) holders(card CardKey) []*NPC {
 // archetype, see Advance.
 //
 // It returns ErrInvalidPrice for a price below one coin, ErrAlreadyListed, ErrPlayerLacksCard and
-// ErrReserved when every copy the player holds is held for the market already.
+// ErrReserved when every copy the player holds is held for the market already, and ErrLockedCopy
+// when the only copy left is the one a milestone locks.
 func (m *Market) List(card CardKey, price Coins, now time.Time) (MarketID, error) {
 	if price < 1 {
 		return 0, fmt.Errorf("%w: %d", ErrInvalidPrice, price)
@@ -204,13 +205,16 @@ func (m *Market) checkCounter(coins Coins, cards []TradeLine) ([]TradeLine, erro
 	return lines, nil
 }
 
-// available checks that the player holds qty copies of key that the market does not hold already.
+// available checks that the player holds qty copies of key that the market does not hold already,
+// and that no milestone locks.
 func (m *Market) available(key CardKey, qty int) error {
 	have := m.player.Quantity(key)
 	switch {
 	case have < qty:
 		return fmt.Errorf("%w: %s x%d, the player holds %d", ErrPlayerLacksCard, key.ID, qty, have)
-	case have-m.Reserved(key) < qty:
+	case have-m.player.Locked(key) < qty:
+		return fmt.Errorf("%w: %s x%d", ErrLockedCopy, key.ID, qty)
+	case have-m.player.Locked(key)-m.Reserved(key) < qty:
 		return fmt.Errorf("%w: %s x%d", ErrReserved, key.ID, qty)
 	}
 	return nil
