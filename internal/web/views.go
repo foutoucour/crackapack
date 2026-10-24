@@ -73,6 +73,10 @@ type packView struct {
 	// the time until the player can open one, 0 when they can now.
 	Cost int
 	Wait time.Duration
+	// Fee is the coins another booster costs on top of its energy, and TopUp what opening it with
+	// coins for the missing energy would cost, nil when it is not offered.
+	Fee   domain.Coins
+	TopUp *play.TopUp
 	// Unlocked are the sets the booster unlocked.
 	Unlocked []play.UnlockedSet
 	// Preload are the pictures to fetch before the reveal needs them: the first card's, the second's
@@ -112,7 +116,7 @@ func newPackView(opening play.Opening, packs []play.Pack, value cardValuer) pack
 	}
 	for _, p := range packs {
 		if p.SetCode == opening.SetCode {
-			view.Left, view.Cost, view.Wait = p.Count, p.Cost, p.Wait
+			view.Left, view.Cost, view.Wait, view.Fee, view.TopUp = p.Count, p.Cost, p.Wait, p.Fee, p.TopUp
 		}
 	}
 	for i, c := range opening.Cards {

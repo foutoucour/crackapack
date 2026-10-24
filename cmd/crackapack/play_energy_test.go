@@ -12,8 +12,8 @@ import (
 )
 
 // costPattern matches the name of a tile's button, which spells the price out: the icon next to it
-// says nothing to a screen reader.
-var costPattern = regexp.MustCompile(`aria-label="Open a ([^"]*) booster, (\d+) energy"`)
+// says nothing to a screen reader. A set with a coin fee adds it after the energy.
+var costPattern = regexp.MustCompile(`aria-label="Open a ([^"]*) booster, (\d+) energy(?: and [^"]*)?"`)
 
 // tileCosts reads the energy each tile of the home page asks for, by set name.
 func tileCosts(t *testing.T, home string) map[string]string {

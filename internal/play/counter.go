@@ -65,13 +65,17 @@ func (g *Game) HasCounter() bool {
 	return g.economy != nil
 }
 
-// Balance is the player's coins, and zero in a game without a Counter.
+// Balance is the player's coins, with the daily rewards of the days gone by, and zero in a game
+// without a Counter.
 func (g *Game) Balance() domain.Coins {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if g.economy == nil {
 		return 0
 	}
+	// A catch-up that fails stops before the day it cannot play, so the coins it did pay show. The
+	// next action catches up again and returns the error.
+	_ = g.syncCounter()
 	return g.economy.journal.Balance(domain.AccountPlayer)
 }
 
@@ -173,13 +177,14 @@ func (g *Game) Sell(id domain.CardID, finish domain.Finish, qty int) (domain.Coi
 	return paid, nil
 }
 
-// SellDuplicates sells the copies above a playset of every card of the binder of setCode, keeping
-// the foils longest and the copies the market holds, and returns the coins paid. It returns ErrUnknownSet, ErrNothingToSell,
+// SellDuplicates sells the copies above a playset of every card of the binder of setCode that
+// include accepts, or of every card when include is nil, keeping the foils longest and the copies
+// the market holds, and returns the coins paid. It returns ErrUnknownSet, ErrNothingToSell,
 // ErrCounterBroke, ErrNotTraded or ErrNoCounter, wrapped, and then changes nothing.
-func (g *Game) SellDuplicates(setCode string) (domain.Coins, error) {
+func (g *Game) SellDuplicates(setCode string, include func(domain.CardID) bool) (domain.Coins, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	lines, err := g.duplicateLines(setCode)
+	lines, err := g.duplicateLines(setCode, include)
 	if err != nil {
 		return 0, fmt.Errorf("sell the duplicates of %q: %w", setCode, err)
 	}
@@ -193,13 +198,13 @@ func (g *Game) SellDuplicates(setCode string) (domain.Coins, error) {
 	return paid, nil
 }
 
-// Duplicates previews SellDuplicates for setCode: the copies it would sell and what it would pay,
-// zero of both when the binder holds nothing above a playset. It returns ErrUnknownSet,
+// Duplicates previews SellDuplicates for setCode and include: the copies it would sell and what it
+// would pay, zero of both when the binder holds nothing above a playset. It returns ErrUnknownSet,
 // ErrNotTraded or ErrNoCounter, wrapped, and changes nothing.
-func (g *Game) Duplicates(setCode string) (Duplicates, error) {
+func (g *Game) Duplicates(setCode string, include func(domain.CardID) bool) (Duplicates, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	lines, err := g.duplicateLines(setCode)
+	lines, err := g.duplicateLines(setCode, include)
 	if err != nil {
 		return Duplicates{}, fmt.Errorf("duplicates of %q: %w", setCode, err)
 	}
@@ -239,15 +244,16 @@ func (g *Game) Card(id domain.CardID) (domain.Card, bool) {
 }
 
 // duplicateLines is the sale of the copies above a playset of every card of the binder of
-// setCode, the pools' cards included. It returns ErrUnknownSet and ErrNoCounter. g.mu must be held.
-func (g *Game) duplicateLines(setCode string) ([]domain.TradeLine, error) {
+// setCode, the pools' cards included, that include accepts, or all of them when it is nil. It
+// returns ErrUnknownSet and ErrNoCounter. g.mu must be held.
+func (g *Game) duplicateLines(setCode string, include func(domain.CardID) bool) ([]domain.TradeLine, error) {
 	binder, ok := g.binders[setCode]
 	if !ok {
 		return nil, ErrUnknownSet
 	}
 	return g.spareLines(func(id domain.CardID) bool {
 		_, inBinder := binder.Cards[id]
-		return inBinder
+		return inBinder && (include == nil || include(id))
 	})
 }
 

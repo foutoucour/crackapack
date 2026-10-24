@@ -213,7 +213,7 @@ func NewEngine(
 	if err != nil {
 		return nil, err
 	}
-	boosterFees, err := coinFees(cfg.Energy.CoinsPerEnergy, energyCap(cfg.Energy.CostTable), cfg.CoinRate, cfg.CounterSellPct, catalogues, avgValues)
+	boosterFees, err := domain.BoosterCoinFees(cfg.Energy.CoinsPerEnergy, domain.EnergyCap(cfg.Energy.CostTiers()), cfg.CoinRate, cfg.CounterSellPct, catalogues, avgValues)
 	if err != nil {
 		return nil, err
 	}

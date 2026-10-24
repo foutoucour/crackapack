@@ -350,7 +350,11 @@ func startGame(a playArgs, log *slog.Logger) (*play.Game, *play.Stream, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	game, err := play.NewGame(sets, pools, opener, play.Rules{Energy: a.cfg.Energy.Params(), Costs: costs}, a.now)
+	rules, err := playRules(a.cfg, sets, costs, prices)
+	if err != nil {
+		return nil, nil, err
+	}
+	game, err := play.NewGame(sets, pools, opener, rules, a.now)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -361,11 +365,11 @@ func startGame(a playArgs, log *slog.Logger) (*play.Game, *play.Stream, error) {
 			return nil, nil, err
 		}
 	}
-	rules, err := counterRules(a.cfg, prices)
+	counter, err := counterRules(a.cfg, prices)
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := game.OpenCounter(rules, play.NewStream(a.seed^supplySeedSalt), play.NewStream(a.seed^crowdSeedSalt)); err != nil {
+	if err := game.OpenCounter(counter, play.NewStream(a.seed^supplySeedSalt), play.NewStream(a.seed^crowdSeedSalt)); err != nil {
 		return nil, nil, err
 	}
 	// Said first, so that an error about the save has said which file it is.
@@ -375,6 +379,33 @@ func startGame(a playArgs, log *slog.Logger) (*play.Game, *play.Stream, error) {
 		return nil, nil, fmt.Errorf("save file %q: %w", a.savePath, err)
 	}
 	return game, stream, nil
+}
+
+// playRules is what opening a booster costs in the game of cfg, as the simulation prices it: the
+// energy of each set, the coin fee of the sets worth more than the energy cap, and the coin top-up.
+// The game tops up at one price for every point, the `min_energy` variant: a price that rises with
+// the day's use is not played.
+func playRules(cfg config.Config, sets []domain.SetCatalogue, costs map[string]int, prices domain.PriceSnapshot) (play.Rules, error) {
+	rules := play.Rules{Energy: cfg.Energy.Params(), Costs: costs}
+	values := make([]domain.USDCents, len(sets))
+	for i, cat := range sets {
+		var err error
+		if values[i], err = domain.BoosterAverageValue(cat, prices, cfg.FallbackPrice); err != nil {
+			return play.Rules{}, fmt.Errorf("booster value of %q: %w", cat.Code, err)
+		}
+	}
+	var err error
+	rules.Fees, err = domain.BoosterCoinFees(cfg.Energy.CoinsPerEnergy, domain.EnergyCap(cfg.Energy.CostTiers()), cfg.CoinRate, cfg.CounterSellPct, sets, values)
+	if err != nil {
+		return play.Rules{}, err
+	}
+	if topUp := cfg.Energy.CoinTopup; topUp.Enabled {
+		if topUp.Variant != config.CoinTopupVariantMinEnergy {
+			return play.Rules{}, fmt.Errorf("energy.coin_topup.variant: %q is not played yet, the game tops up at one price: use %q", topUp.Variant, config.CoinTopupVariantMinEnergy)
+		}
+		rules.TopUp = &play.TopUpRules{Price: cfg.Energy.CoinsPerEnergy, MinEnergy: topUp.MinEnergyUnits}
+	}
+	return rules, nil
 }
 
 // counterRules is the Counter of cfg, valuing the cards by prices, as the simulation builds it: the
@@ -389,6 +420,7 @@ func counterRules(cfg config.Config, prices domain.PriceSnapshot) (play.CounterR
 		Params:       cfg.CounterParams(),
 		Prices:       prices,
 		WelcomeBonus: cfg.WelcomeBonus,
+		DailyReward:  cfg.DailyReward,
 		CatchUpDays:  cfg.CatchUpDays,
 	}
 	if cfg.CounterBudget.Enabled {

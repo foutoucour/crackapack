@@ -8,17 +8,15 @@ import (
 )
 
 // snapshotCrowd is the crowd as the save holds it: the stream, the tick, and what each NPC holds
-// and remembers, its cards compactly.
-func snapshotCrowd(e *economy) (*CrowdSnapshot, error) {
+// and remembers, its cards compactly, named by dict.
+func snapshotCrowd(e *economy, dict *cardDict) (*CrowdSnapshot, error) {
 	s, err := e.crowd.State()
 	if err != nil {
 		return nil, err
 	}
 	snap := &CrowdSnapshot{Tick: s.Tick, NPCs: make([]NPCSnapshot, len(s.NPCs))}
 	for i, n := range s.NPCs {
-		if snap.NPCs[i], err = snapshotNPC(n); err != nil {
-			return nil, fmt.Errorf("NPC %d: %w", i, err)
-		}
+		snap.NPCs[i] = snapshotNPC(n, dict)
 	}
 	if snap.Rand, err = streamSnapshot(e.crowdStream); err != nil {
 		return nil, err
@@ -26,24 +24,23 @@ func snapshotCrowd(e *economy) (*CrowdSnapshot, error) {
 	return snap, nil
 }
 
-func snapshotNPC(n domain.NPCState) (NPCSnapshot, error) {
+func snapshotNPC(n domain.NPCState, dict *cardDict) NPCSnapshot {
 	out := NPCSnapshot{Credit: n.Credit, DeclineStreak: n.DeclineStreak, ChanceTilt: n.ChanceTilt}
-	var errs [4]error
-	out.Held, errs[0] = encodeCounts(n.Cards)
-	out.Shelf, errs[1] = encodeShelf(n.Shelf)
-	out.Wishes, errs[2] = encodeWishes(n.Wishes)
+	out.Held = encodeCounts(n.Cards, dict)
+	out.Shelf = encodeShelf(n.Shelf, dict)
+	out.Wishes = encodeWishes(n.Wishes, dict)
 	if r := n.Retry; r.Limit != 0 || r.Pending || r.Used != 0 || r.Day != 0 || len(r.Avoid) > 0 {
 		out.Retry = &RetrySnapshot{Limit: r.Limit, Pending: r.Pending, Used: r.Used, Day: r.Day}
-		out.Retry.Avoid, errs[3] = encodeKeys(r.Avoid)
+		out.Retry.Avoid = encodeKeys(r.Avoid, dict)
 	}
-	return out, errors.Join(errs[:]...)
+	return out
 }
 
 // restoreCrowd puts the NPCs of snap in the crowd of e. A save with no NPCs, or whose crowd has
 // another number of NPCs than the game's, which a change of the population makes, keeps the game's
 // new crowd, see docs/adr/0062-a-save-whose-npcs-do-not-fit-gets-the-games-new-ones.md, and reset is
 // true.
-func restoreCrowd(e *economy, snap *CrowdSnapshot) (reset bool, err error) {
+func restoreCrowd(e *economy, snap *CrowdSnapshot, dict *cardDict) (reset bool, err error) {
 	switch {
 	case snap == nil:
 		return e.crowd != nil, nil
@@ -59,7 +56,7 @@ func restoreCrowd(e *economy, snap *CrowdSnapshot) (reset bool, err error) {
 	}
 	state := domain.CrowdState{Tick: snap.Tick, NPCs: make([]domain.NPCState, len(snap.NPCs))}
 	for i, n := range snap.NPCs {
-		if state.NPCs[i], err = npcState(n); err != nil {
+		if state.NPCs[i], err = npcState(n, dict); err != nil {
 			return false, fmt.Errorf("counter: NPC %d: %w", i, err)
 		}
 	}
@@ -69,7 +66,7 @@ func restoreCrowd(e *economy, snap *CrowdSnapshot) (reset bool, err error) {
 	return false, e.crowd.Restore(state)
 }
 
-func npcState(n NPCSnapshot) (domain.NPCState, error) {
+func npcState(n NPCSnapshot, dict *cardDict) (domain.NPCState, error) {
 	if n.Cards != nil && n.Held != "" {
 		return domain.NPCState{}, errors.New("the cards are listed both one by one and compactly")
 	}
@@ -78,13 +75,13 @@ func npcState(n NPCSnapshot) (domain.NPCState, error) {
 	if n.Cards != nil {
 		out.Cards, errs[0] = cardMap(n.Cards)
 	} else {
-		out.Cards, errs[0] = decodeCounts(n.Held)
+		out.Cards, errs[0] = decodeCounts(n.Held, dict)
 	}
-	out.Shelf, errs[1] = decodeShelf(n.Shelf)
-	out.Wishes, errs[2] = decodeWishes(n.Wishes)
+	out.Shelf, errs[1] = decodeShelf(n.Shelf, dict)
+	out.Wishes, errs[2] = decodeWishes(n.Wishes, dict)
 	if r := n.Retry; r != nil {
 		out.Retry = domain.RetryState{Limit: r.Limit, Pending: r.Pending, Used: r.Used, Day: r.Day}
-		out.Retry.Avoid, errs[3] = decodeKeys(r.Avoid)
+		out.Retry.Avoid, errs[3] = decodeKeys(r.Avoid, dict)
 	}
 	return out, errors.Join(errs[:]...)
 }

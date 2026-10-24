@@ -11,9 +11,9 @@ import (
 	yaml "go.yaml.in/yaml/v3"
 )
 
-// Override sets one numeric key of a [Config], addressed by its path in the YAML document: dotted
-// mapping keys and bracketed sequence indexes, such as "counter_buy_pct",
-// "npcs.archetypes.casual.keep_copies" or "energy.cost_table[1].cost".
+// Override sets one numeric key of a [Config], or one switch with 0 for off and 1 for on, addressed
+// by its path in the YAML document: dotted mapping keys and bracketed sequence indexes, such as
+// "counter_buy_pct", "npcs.archetypes.casual.keep_copies" or "energy.cost_table[1].cost".
 type Override struct {
 	Path  string  `json:"path"`
 	Value float64 `json:"value"`
@@ -35,7 +35,7 @@ func LoadOverrides(r io.Reader) ([]Override, error) {
 // as a config file, so a combination that Load would refuse is an error here too. base is not
 // modified.
 //
-// A path must name an existing numeric key. A value with a fractional part is refused for a key
+// A path must name an existing numeric key or switch. A value with a fractional part is refused for a key
 // that holds a whole number. An archetype is overridden field by field: its other fields keep the
 // values they have in base.
 func ApplyOverrides(base Config, overrides []Override) (Config, error) {
@@ -79,6 +79,11 @@ func setNumber(root *yaml.Node, o Override) error {
 		node.Value = strconv.FormatInt(int64(o.Value), 10)
 	case "!!float":
 		node.Value = strconv.FormatFloat(o.Value, 'g', -1, 64)
+	case "!!bool":
+		if o.Value != 0 && o.Value != 1 {
+			return fmt.Errorf("%s is a switch, want 0 or 1, got %v", o.Path, o.Value)
+		}
+		node.Value = strconv.FormatBool(o.Value == 1)
 	default:
 		return fmt.Errorf("%s is not a number", o.Path)
 	}

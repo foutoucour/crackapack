@@ -49,6 +49,29 @@ func TestApplyOverrides_setsTheNamedKeys(t *testing.T) {
 	}
 }
 
+// A switch is a key of 0 or 1, so that the overlay of the game can turn a feature on in the form of
+// the search's candidates.
+func TestApplyOverrides_setsASwitchWithZeroOrOne(t *testing.T) {
+	t.Parallel()
+	on := []config.Override{{Path: "energy.coins_per_energy", Value: 100}, {Path: "energy.coin_topup.enabled", Value: 1}}
+
+	got, err := config.ApplyOverrides(loadDefaults(t), on)
+	if err != nil {
+		t.Fatalf("ApplyOverrides: %v", err)
+	}
+	if !got.Energy.CoinTopup.Enabled {
+		t.Error("coin_topup.enabled = false after an override of 1")
+	}
+
+	off, err := config.ApplyOverrides(got, []config.Override{{Path: "energy.coin_topup.enabled", Value: 0}})
+	if err != nil {
+		t.Fatalf("ApplyOverrides: %v", err)
+	}
+	if off.Energy.CoinTopup.Enabled {
+		t.Error("coin_topup.enabled = true after an override of 0")
+	}
+}
+
 func TestApplyOverrides_leavesTheBaseUntouched(t *testing.T) {
 	t.Parallel()
 
@@ -74,6 +97,7 @@ func TestApplyOverrides_rejects(t *testing.T) {
 		{"index out of range", config.Override{Path: "energy.cost_table[9].cost", Value: 1}, "cost_table[9]"},
 		{"a mapping is not a number", config.Override{Path: "energy", Value: 1}, "energy"},
 		{"fraction on a whole number", config.Override{Path: "counter_sell_pct", Value: 55.5}, "counter_sell_pct"},
+		{"a switch takes zero or one", config.Override{Path: "energy.coin_topup.enabled", Value: 2}, "coin_topup.enabled"},
 		{"invalid combination", config.Override{Path: "counter_sell_pct", Value: 200}, "counter_sell_pct"},
 		{"value out of bounds", config.Override{Path: "sessions_per_day", Value: 100000}, "sessions_per_day"},
 	}

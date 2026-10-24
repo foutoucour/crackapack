@@ -55,6 +55,15 @@
 
 {{define "icon"}}{{if .Code}}<span class="set-icon-chip rarity-{{.Rarity}}" aria-hidden="true"><span class="set-icon {{.Class}} rarity-{{.Rarity}}"></span></span>{{end}}{{end}}
 
+{{/* The form that opens a booster paying coins for the energy it lacks, for a page whose data has the set, its name and the top-up. */}}
+{{define "topUpForm"}}{{with .TopUp}}
+<form method="post" action="/open">
+  <input type="hidden" name="set" value="{{$.SetCode}}">
+  <input type="hidden" name="topup" value="yes">
+  <button type="submit" aria-label="Open a {{$.SetName}} booster, paying {{coins .Total}} for the {{.Units}} energy it lacks">Top up · {{coins .Total}}</button>
+</form>
+{{end}}{{end}}
+
 {{define "unlocked"}}
 <p class="unlock" role="status">Unlocked: {{range $i, $s := .}}{{if $i}}, {{end}}{{$s.Name}}{{end}}. <a href="/">Open them from your boosters</a>.</p>
 {{end}}

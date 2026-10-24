@@ -46,11 +46,12 @@ func newCounterSupply(cfg config.Config, openable []domain.SetCatalogue, counter
 	return supply, nil
 }
 
-// counterCoinFees returns the coin fee of each openable set for the Counter, see coinFees. Outside
+// counterCoinFees returns the coin fee of each openable set for the Counter, see
+// domain.BoosterCoinFees. Outside
 // energy mode no set has a fee.
 func counterCoinFees(cfg config.Config, openable []domain.SetCatalogue, avgValues []domain.USDCents) (map[string]domain.Coins, error) {
 	if cfg.CounterSupply.Mode != config.CounterSupplyEnergy {
 		return nil, nil
 	}
-	return coinFees(cfg.CounterSupply.CoinsPerEnergy, energyCap(cfg.Energy.CostTable), cfg.CoinRate, cfg.CounterSellPct, openable, avgValues)
+	return domain.BoosterCoinFees(cfg.CounterSupply.CoinsPerEnergy, domain.EnergyCap(cfg.Energy.CostTiers()), cfg.CoinRate, cfg.CounterSellPct, openable, avgValues)
 }
