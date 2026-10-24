@@ -14,12 +14,12 @@ type counterQuoter interface {
 }
 
 // cardRef is what a form of the Counter names: a card in a finish, and the binder to come back to,
-// with the rarity filter that was in force there, empty when none was.
+// with the filter that was in force there.
 type cardRef struct {
 	Set    string
 	ID     domain.CardID
 	Finish string
-	Filter string
+	Filter binderFilter
 }
 
 // saleView is the sale of one finish of a held card.
@@ -44,8 +44,9 @@ type buyView struct {
 
 // shelf is how the Counter serves the slots of one binder.
 type shelf struct {
-	set, filter string
-	quotes      counterQuoter
+	set    string
+	filter binderFilter
+	quotes counterQuoter
 	// locked is true for the binder of a set that cannot be opened yet: nothing in it can be bought.
 	locked bool
 	// market is the market, which adds its side to the slots. It is nil in a game without one.
@@ -163,7 +164,7 @@ type duplicatesView struct {
 	// Offered is false in a game without a Counter, and when the Counter does not trade a duplicate.
 	Offered bool
 	Set     string
-	Filter  string
+	Filter  binderFilter
 	Copies  int
 	Value   domain.Coins
 }

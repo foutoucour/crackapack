@@ -10,6 +10,7 @@
   <li class="card {{.Colour}} {{.Rarity}}{{if .Foil}} foil{{end}}{{if .ImageID}} has-image{{end}}" data-card data-rarity="{{.Rarity}}">
     {{if .ImageID}}<img src="/card-image/{{.ImageID}}" class="art" alt="{{.Name}}" width="488" height="680">{{end}}
     <div class="face">
+      {{template "icon" .Icon}}
       <span class="name">{{.Name}}</span>
       <span class="meta">{{.Rarity}}</span>
       {{if .New}}<span class="tag new">New</span>{{end}}

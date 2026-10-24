@@ -46,8 +46,8 @@ export function createViewer() {
     show(card, from) {
       openedFrom = from;
       const copy = card.cloneNode(true);
-      const view = copy.querySelector('.view');
-      if (view) view.remove();
+      // The buttons of the card are for the page, not for the dialog.
+      copy.querySelectorAll('.view, .pick, .tools').forEach((control) => control.remove());
       dialog.setAttribute('aria-label', describe(card));
       dialog.replaceChildren(copy, closeButton);
       dialog.showModal();

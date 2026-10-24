@@ -232,6 +232,29 @@ func TestCollection_aCardNeverInStockSaysSo(t *testing.T) {
 	mustNotContain(t, "a never-seen slot", got, `action="/buy"`, "last in stock")
 }
 
+func TestBuy_comesBackToTheBinderWithBothFiltersInForce(t *testing.T) {
+	t.Parallel()
+	shop := newCounterShop(t)
+
+	resp, _ := shop.post(t, "/buy", func() url.Values {
+		f := cardForm("S", cheapCard, "nonfoil")
+		f.Set("rarity", "common")
+		f.Set("colour", "colourless")
+		return f
+	}())
+
+	redirectsTo(t, "POST /buy", resp, "/collection?colour=colourless&rarity=common&set=S#c-S-00")
+}
+
+func TestCollection_everyFormOfAFilteredBinderCarriesTheFilters(t *testing.T) {
+	t.Parallel()
+	shop := newCounterShop(t)
+
+	body := shop.get(t, "/collection?set=S&rarity=common&colour=colourless")
+
+	mustContain(t, "a form of the filtered binder", slot(t, body, cheapCard), `name="rarity" value="common"`, `name="colour" value="colourless"`)
+}
+
 func TestBuy_takesTheCoinsAddsTheCardAndComesBackToItsPlaceInTheBinder(t *testing.T) {
 	t.Parallel()
 	shop := newCounterShop(t)

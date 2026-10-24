@@ -19,7 +19,7 @@
       {{end}}
       <form method="post" action="/open">
         <input type="hidden" name="set" value="{{.SetCode}}">
-        <button type="submit" class="primary"{{if .Wait}} disabled{{end}}>Open a booster{{if not .Count}} ({{.Cost}} energy){{end}}</button>
+        <button type="submit" class="primary"{{if .Wait}} disabled{{end}}>{{template "icon" .Icon}}Open a booster{{if not .Count}} ({{.Cost}} energy){{end}}</button>
       </form>
     </li>
     {{end}}

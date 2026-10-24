@@ -13,8 +13,9 @@ import (
 const MaxImageBytes = 5 << 20
 
 var (
-	// ErrInvalidID is returned for an ID that is not a lower-case UUID. It is checked before any
-	// request or file access, since the ID ends up in a URL and in a file name.
+	// ErrInvalidID is returned for a card ID that is not a lower-case UUID, or an icon code that is
+	// not a set code. It is checked before any request or file access, since the key ends up in a
+	// URL and in a file name.
 	ErrInvalidID = errors.New("images: invalid Scryfall id")
 	// ErrNotFound is returned when the source has no picture for a valid ID.
 	ErrNotFound = errors.New("images: no picture for this card")

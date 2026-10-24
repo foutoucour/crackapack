@@ -11,6 +11,7 @@ import (
 type BinderSummary struct {
 	SetCode  string
 	SetName  string
+	IconCode string
 	Progress domain.Progress
 	// Locked is true while the set cannot be opened, see [Pack].
 	Locked bool
@@ -66,8 +67,9 @@ type BinderPool struct {
 
 // Binder is the view of one set's collection, see docs/core-features.md#collection-and-binders.
 type Binder struct {
-	SetCode string
-	SetName string
+	SetCode  string
+	SetName  string
+	IconCode string
 	// Progress counts the set's own cards and the cards of its pools. Basic lands never count.
 	Progress domain.Progress
 	// Slots has one slot for every card of the set except basic lands, in collector number
@@ -85,7 +87,7 @@ func (g *Game) Binders() []BinderSummary {
 	defer g.mu.Unlock()
 	out := make([]BinderSummary, len(g.sets))
 	for i, cat := range g.sets {
-		out[i] = BinderSummary{SetCode: cat.Code, SetName: cat.Name, Progress: g.collection.BinderProgress(g.binders[cat.Code]), Locked: g.locked(cat.Code), PastThreshold: g.pastThreshold(cat.Code)}
+		out[i] = BinderSummary{SetCode: cat.Code, SetName: cat.Name, IconCode: cat.IconCode, Progress: g.collection.BinderProgress(g.binders[cat.Code]), Locked: g.locked(cat.Code), PastThreshold: g.pastThreshold(cat.Code)}
 	}
 	return out
 }
@@ -102,6 +104,7 @@ func (g *Game) Binder(setCode string) (Binder, error) {
 	binder := Binder{
 		SetCode:       cat.Code,
 		SetName:       cat.Name,
+		IconCode:      cat.IconCode,
 		Progress:      g.collection.BinderProgress(g.binders[cat.Code]),
 		PastThreshold: g.pastThreshold(cat.Code),
 	}

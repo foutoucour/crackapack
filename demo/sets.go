@@ -183,6 +183,7 @@ func newDEMCatalogue() domain.SetCatalogue {
 	return domain.SetCatalogue{
 		Code:        "DEM",
 		Name:        "Demo Set (Ravnica-style)",
+		IconCode:    "DEM",
 		ReleaseDate: "2005-10-07", // same date as the Ravnica set it is modelled on
 		Cards:       cards,
 		Sheets:      sheets,
@@ -308,6 +309,7 @@ func newDSPCatalogues() (dsp, dst domain.SetCatalogue) {
 	dsp = domain.SetCatalogue{
 		Code:        "DSP",
 		Name:        "Demo Spiral Set (Time Spiral-style)",
+		IconCode:    "DSP",
 		ReleaseDate: "2006-10-06", // same date as the Time Spiral set it is modelled on
 		Cards:       dspCards,
 		Sheets: map[string]domain.Sheet{

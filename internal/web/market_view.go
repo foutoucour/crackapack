@@ -27,7 +27,7 @@ type backView struct {
 	Market bool
 	Set    string
 	Card   domain.CardID
-	Filter string
+	Filter binderFilter
 }
 
 func (b backView) href() string {
@@ -42,10 +42,9 @@ func (b backView) query() url.Values {
 	if b.Market {
 		return url.Values{"from": {fromMarket}}
 	}
-	q := url.Values{"set": {b.Set}, "card": {string(b.Card)}}
-	if b.Filter != "" {
-		q.Set("rarity", b.Filter)
-	}
+	q := b.Filter.values()
+	q.Set("set", b.Set)
+	q.Set("card", string(b.Card))
 	return q
 }
 
@@ -55,7 +54,7 @@ func backOf(r *http.Request) backView {
 	if set == "" || r.FormValue("from") == fromMarket {
 		return backView{Market: true}
 	}
-	return backView{Set: set, Card: domain.CardID(r.FormValue("card")), Filter: r.FormValue("rarity")}
+	return backView{Set: set, Card: domain.CardID(r.FormValue("card")), Filter: binderFilterOf(r)}
 }
 
 // backLabelOf is the text of the link back to href.

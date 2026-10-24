@@ -24,6 +24,8 @@ var ErrUnknownSet = errors.New("play: unknown set")
 type Pack struct {
 	SetCode string
 	SetName string
+	// IconCode is the code of the set's icon, empty when the catalogue has none.
+	IconCode string
 	// Count is the welcome boosters left. They are opened before any energy is spent.
 	Count int
 	// Cost is the energy a booster of the set costs once no welcome booster is left.
@@ -47,9 +49,10 @@ type RevealedCard struct {
 
 // Opening is the result of opening one booster, in reveal order with the rare last.
 type Opening struct {
-	SetCode string
-	SetName string
-	Cards   []RevealedCard
+	SetCode  string
+	SetName  string
+	IconCode string
+	Cards    []RevealedCard
 	// Unlocked are the sets that the cards of the booster unlocked.
 	Unlocked []UnlockedSet
 }
@@ -157,7 +160,7 @@ func (g *Game) Packs() []Pack {
 	out := make([]Pack, len(g.sets))
 	for i, cat := range g.sets {
 		pack := Pack{
-			SetCode: cat.Code, SetName: cat.Name, Count: g.packs[cat.Code], Cost: g.rules.Costs[cat.Code],
+			SetCode: cat.Code, SetName: cat.Name, IconCode: cat.IconCode, Count: g.packs[cat.Code], Cost: g.rules.Costs[cat.Code],
 			Stage: g.stage(cat.Code), Locked: g.locked(cat.Code),
 		}
 		if pack.Count == 0 && !pack.Locked {
@@ -194,7 +197,7 @@ func (g *Game) Open(setCode string) (Opening, error) {
 		return Opening{}, fmt.Errorf("open %q: %w", setCode, err)
 	}
 
-	opening := Opening{SetCode: cat.Code, SetName: cat.Name, Cards: make([]RevealedCard, len(booster.Cards))}
+	opening := Opening{SetCode: cat.Code, SetName: cat.Name, IconCode: cat.IconCode, Cards: make([]RevealedCard, len(booster.Cards))}
 	// Resolve every card before touching the collection, so a card in no catalogue leaves the
 	// collection and the stock as they were.
 	inPack := make(map[domain.CardID]bool, len(booster.Cards))

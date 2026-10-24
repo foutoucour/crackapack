@@ -14,38 +14,40 @@
   </dl>
 </section>
 
+<div class="collection-layout">
 <nav class="binders" aria-label="Binders">
-  <ul>
-    {{range .Tabs}}
-    <li{{if .Locked}} class="locked"{{end}}><a href="/collection?set={{.SetCode}}"{{if .Current}} aria-current="page"{{end}}>{{.SetName}} <span class="tab-count">{{.Owned}} / {{.Total}}</span>{{if .Locked}} <span class="tab-lock">locked</span>{{end}}</a></li>
+  <details class="set-picker" open>
+    <summary>{{template "icon" .Icon}}{{.SetName}}</summary>
+    <input type="search" class="set-search" aria-label="Search sets" placeholder="Search a set" autocomplete="off" data-set-search>
+    <ul>
+      {{range .Sets}}{{template "binderEntry" .}}{{end}}
+    </ul>
+    {{if .LockedSets}}
+    <details class="locked-binders"{{if .Locked}} open{{end}}>
+      <summary>Locked sets ({{len .LockedSets}})</summary>
+      <ul>
+        {{range .LockedSets}}{{template "binderEntry" .}}{{end}}
+      </ul>
+    </details>
     {{end}}
-  </ul>
+  </details>
 </nav>
+<div class="collection-main">
 
-<h1>{{.SetName}}</h1>
-<div class="progress-line">
-  <progress value="{{.Owned}}" max="{{.Total}}" aria-label="Cards collected">{{.Owned}} / {{.Total}}</progress>
-  <p class="lead">{{.Owned}} / {{.Total}} cards</p>
-  {{if .PastThreshold}}<p class="unlock-mark">Unlock threshold reached</p>{{end}}
-</div>
-<nav class="rarities" aria-label="Filter by rarity">
-  <ul>
-    {{range .Filters}}
-    <li><a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}{{if .Counted}} <strong>{{.Owned}} / {{.Total}}</strong>{{end}}</a></li>
-    {{end}}
-    <li class="playsets">Complete playsets <strong>{{.Playsets}}</strong></li>
-  </ul>
-</nav>
-
-{{if .Colours}}
-<section class="colours" aria-label="Progress by colour">
-  <ul>
-    {{range .Colours}}
-    <li>{{.Label}} <strong>{{.Owned}} / {{.Total}}</strong></li>
-    {{end}}
-  </ul>
+<section class="set-header">
+  {{with .Icon}}{{if .Code}}<span class="set-watermark {{.Class}} rarity-{{.Rarity}}" aria-hidden="true"></span>{{end}}{{end}}
+  <div class="set-title">
+    <h1>{{.SetName}}</h1>
+    <div class="progress-line">
+      <progress value="{{.Owned}}" max="{{.Total}}" aria-label="Cards collected">{{.Owned}} / {{.Total}}</progress>
+      <p class="lead">{{.Owned}} / {{.Total}} cards <span class="pct">{{percent .Owned .Total}}%</span></p>
+      {{if .PastThreshold}}<p class="unlock-mark">Unlock threshold reached</p>{{end}}
+    </div>
+    <p class="playsets">Complete playsets <strong>{{.Playsets}}</strong></p>
+  </div>
+  {{template "filterPanel" .Rarities}}
+  {{template "filterPanel" .Colours}}
 </section>
-{{end}}
 
 {{if .Locked}}{{if .Counter}}<p class="counter-note">This set is locked, so its cards cannot be bought. What you hold of it can still be sold.</p>{{end}}{{end}}
 
@@ -53,7 +55,7 @@
 <section class="duplicates" aria-label="Sell duplicates">
   {{if .Duplicates.Copies}}
   <form method="post" action="/sell-duplicates">
-    <input type="hidden" name="set" value="{{.Duplicates.Set}}">{{if .Duplicates.Filter}}<input type="hidden" name="rarity" value="{{.Duplicates.Filter}}">{{end}}
+    <input type="hidden" name="set" value="{{.Duplicates.Set}}">{{template "filterFields" .Duplicates.Filter}}
     <p>{{.Duplicates.Copies}} {{if eq .Duplicates.Copies 1}}copy{{else}}copies{{end}} above a playset of four, {{coins .Duplicates.Value}} from the Counter.</p>
     <button type="submit">Sell duplicates for {{coins .Duplicates.Value}}</button>
   </form>
@@ -72,7 +74,26 @@
 {{template "slots" .Slots}}
 {{end}}
 
+</div>
+</div>
+
+{{template "glyphs"}}
 <script type="module" src="/static/collection.js"></script>
+{{end}}
+
+{{define "binderEntry"}}
+<li{{if .Locked}} class="locked"{{end}} data-set-entry><a href="/collection?set={{.SetCode}}"{{if .Current}} aria-current="page"{{end}}>{{if not .Locked}}<progress value="{{.Owned}}" max="{{.Total}}" aria-hidden="true"></progress>{{end}}{{template "icon" .Icon}}<span class="set-name">{{.SetName}}</span> <span class="tab-count">{{.Owned}} / {{.Total}} <span class="pct">{{percent .Owned .Total}}%</span></span>{{if .Locked}} <span class="tab-lock">locked</span>{{end}}</a></li>
+{{end}}
+
+{{define "filterPanel"}}
+<nav class="filter-panel" aria-label="{{.Label}}">
+  <h2>{{.Title}}</h2>
+  <ul>
+    {{range .Rows}}
+    <li><a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}} <strong>{{.Owned}} / {{.Total}}</strong><span class="pct">{{percent .Owned .Total}}%</span><progress class="{{.Class}}" value="{{.Owned}}" max="{{.Total}}" aria-hidden="true"></progress></a></li>
+    {{end}}
+  </ul>
+</nav>
 {{end}}
 
 {{define "slots"}}
@@ -88,67 +109,104 @@
         <span class="tag count">×{{.Regular}}</span>
         {{if .Foil}}<span class="tag foil-tag">Foil ×{{.Foil}}</span>{{end}}
       </div>
-      <button type="button" class="view" aria-label="View {{.Name}}"></button>
+      {{template "pick" .}}
+      {{template "tools" .}}
     </div>
     {{else}}
-    <div class="slot empty"><span class="sr-only">Empty slot, card number </span><span class="number">#{{.Number}}</span></div>
-    {{end}}
-    {{if or .Sales .Buy.Price .Buy.Note}}
-    <div class="counter">
-      {{range .Sales}}
-      {{if .Traded}}
-      <form method="post" action="/sell" class="sell">
-        {{template "cardFields" .}}
-        {{if gt .Copies 1}}<label>Quantity<span class="sr-only"> of {{$slot.Name}}</span> <input type="number" name="qty" value="1" min="1" max="{{.Copies}}" inputmode="numeric"></label>{{else}}<input type="hidden" name="qty" value="1">{{end}}
-        <button type="submit">Sell{{if .Foil}} foil{{end}}<span class="sr-only"> {{$slot.Name}}</span> for {{coins .Price}}{{if gt .Copies 1}} each{{end}}</button>
-      </form>
-      {{else}}
-      <p class="shelf-note">Not traded{{if .Foil}} (foil){{end}}<span class="sr-only"> by the Counter: {{$slot.Name}}</span></p>
-      {{end}}
-      {{end}}
-      {{with .Buy}}
-      {{if or .Price .Note}}
-      <p class="shelf-name">{{$slot.Name}}</p>
-      {{if .Buyable}}
-      <form method="post" action="/buy" class="buy">
-        {{template "cardFields" .}}
-        <button type="submit">Buy<span class="sr-only"> {{$slot.Name}}</span> for {{coins .Price}}</button>
-      </form>
-      {{else}}
-      {{if .Price}}<p class="shelf-price">{{coins .Price}}</p>{{end}}
-      <p class="shelf-note">{{.Note}}</p>
-      {{end}}
-      {{end}}
-      {{end}}
+    <div class="slot empty"><span class="sr-only">Empty slot, card number </span><span class="number">#{{.Number}}</span>
+      {{template "pick" .}}
+      {{template "tools" .}}
     </div>
     {{end}}
-    {{if or .Hunt .Lists}}
-    <div class="market">
-      {{with .Hunt}}
-      {{if .Request}}
-      {{template "request" .Request}}
-      {{else}}
-      <form method="post" action="/ask-around">
-        {{template "cardFields" .}}
-        <button type="submit">Ask around<span class="sr-only"> for {{$slot.Name}}</span></button>
-      </form>
-      {{end}}
-      {{end}}
-      {{range .Lists}}
-      {{if .Listing}}
-      {{template "listing" .Listing}}
-      {{else}}
-      {{if .Held}}<p class="shelf-note">{{.Held}} held for a counter{{if .Foil}} (foil){{end}}</p>{{end}}
-      <form method="post" action="/list" class="list">
-        {{template "cardFields" .}}
-        <label>Asking price<span class="sr-only"> for {{$slot.Name}}{{if .Foil}} (foil){{end}}</span> <input type="number" name="price" value="{{if .Price}}{{.Price}}{{end}}" min="1" inputmode="numeric" aria-describedby="price-hint"></label>
-        <button type="submit">List<span class="sr-only"> {{$slot.Name}}</span> on the market</button>
-      </form>
-      {{end}}
-      {{end}}
-    </div>
-    {{end}}
+    {{template "trading" .}}
   </li>
   {{end}}
 </ol>
+{{end}}
+
+{{/* The button that covers a slot: it shows the tools of the slot, and the name of the card. */}}
+{{define "pick"}}<button type="button" class="pick" aria-expanded="false" aria-controls="tools-{{.ID}}"><span class="sr-only">Actions for {{.Name}}</span></button>{{end}}
+
+{{define "glyph"}}<svg class="glyph" aria-hidden="true" focusable="false"><use href="#glyph-{{.}}"/></svg>{{end}}
+
+{{/* What the player can do with a slot, over the card: the Counter's buy and sell, and the market's
+   ask around and list. A request or a listing that is under way shows under the card instead, see
+   "trading", since its answers need an answer. */}}
+{{define "tools"}}
+{{$slot := .}}
+<div class="tools" id="tools-{{.ID}}">
+  <p class="tools-name">{{.Name}}</p>
+  <span class="tool-row">
+    {{if .Held}}<button type="button" class="tool tool-view">{{template "glyph" "view"}}<span class="sr-only">View {{.Name}}</span></button>{{end}}
+    {{range .Sales}}
+    {{if .Traded}}
+    {{if gt .Copies 1}}
+    <details class="tool-panel">
+      <summary class="tool sell">{{template "glyph" "sell"}}<span class="tool-price">{{.Price}}</span>{{if .Foil}}<span class="tool-finish" aria-hidden="true">★</span>{{end}}<span class="sr-only">Sell{{if .Foil}} foil{{end}} {{$slot.Name}}</span></summary>
+      <form method="post" action="/sell" class="sell">
+        {{template "cardFields" .}}
+        <label>Quantity<span class="sr-only"> of {{$slot.Name}}</span> <input type="number" name="qty" value="1" min="1" max="{{.Copies}}" inputmode="numeric"></label>
+        <button type="submit">Sell{{if .Foil}} foil{{end}}<span class="sr-only"> {{$slot.Name}}</span> for {{coins .Price}} each</button>
+      </form>
+    </details>
+    {{else}}
+    <form method="post" action="/sell" class="sell">
+      {{template "cardFields" .}}<input type="hidden" name="qty" value="1">
+      <button type="submit" class="tool sell">{{template "glyph" "sell"}}<span class="tool-price">{{.Price}}</span>{{if .Foil}}<span class="tool-finish" aria-hidden="true">★</span>{{end}}<span class="sr-only">Sell{{if .Foil}} foil{{end}} {{$slot.Name}} for {{coins .Price}}</span></button>
+    </form>
+    {{end}}
+    {{else}}
+    <p class="tool-note">Not traded{{if .Foil}} (foil){{end}}<span class="sr-only"> by the Counter: {{$slot.Name}}</span></p>
+    {{end}}
+    {{end}}
+    {{with .Buy}}
+    {{if or .Price .Note}}
+    {{if .Buyable}}
+    <form method="post" action="/buy" class="buy">
+      {{template "cardFields" .}}
+      <button type="submit" class="tool buy">{{template "glyph" "buy"}}<span class="tool-price">{{.Price}}</span><span class="sr-only">Buy {{$slot.Name}} for {{coins .Price}}</span></button>
+    </form>
+    {{else}}
+    <p class="tool-note">{{if .Price}}{{coins .Price}}. {{end}}{{.Note}}</p>
+    {{end}}
+    {{end}}
+    {{end}}
+    {{with .Hunt}}
+    {{if not .Request}}
+    <form method="post" action="/ask-around">
+      {{template "cardFields" .}}
+      <button type="submit" class="tool trade">{{template "glyph" "trade"}}<span class="sr-only">Ask around for {{$slot.Name}}</span></button>
+    </form>
+    {{end}}
+    {{end}}
+    {{range .Lists}}
+    {{if not .Listing}}
+    <details class="tool-panel">
+      <summary class="tool trade">{{template "glyph" "trade"}}{{if .Foil}}<span class="tool-finish" aria-hidden="true">★</span>{{end}}<span class="sr-only">List {{$slot.Name}}{{if .Foil}} (foil){{end}} on the market</span></summary>
+      <form method="post" action="/list" class="list">
+        {{template "cardFields" .}}
+        {{if .Held}}<p class="tool-note">{{.Held}} held for a counter{{if .Foil}} (foil){{end}}</p>{{end}}
+        <label>Asking price<span class="sr-only"> for {{$slot.Name}}{{if .Foil}} (foil){{end}}</span> <input type="number" name="price" value="{{if .Price}}{{.Price}}{{end}}" min="1" inputmode="numeric" aria-describedby="price-hint"></label>
+        <button type="submit">List<span class="sr-only"> {{$slot.Name}}</span> on the market</button>
+      </form>
+    </details>
+    {{end}}
+    {{end}}
+  </span>
+</div>
+{{end}}
+
+{{/* A request or a listing under way, which stays under its card: its answers wait for the player. */}}
+{{define "trading"}}
+{{with .Hunt}}{{with .Request}}<div class="market">{{template "request" .}}</div>{{end}}{{end}}
+{{range .Lists}}{{with .Listing}}<div class="market">{{template "listing" .}}</div>{{end}}{{end}}
+{{end}}
+
+{{define "glyphs"}}
+<svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">
+  <symbol id="glyph-view" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6"/></symbol>
+  <symbol id="glyph-buy" viewBox="0 0 24 24"><path d="M3 4h2l2.4 10h9.2L19 7H6.2"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></symbol>
+  <symbol id="glyph-sell" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8L3 12z"/><circle cx="7.5" cy="8.5" r="1"/></symbol>
+  <symbol id="glyph-trade" viewBox="0 0 24 24"><path d="M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4"/></symbol>
+</svg>
 {{end}}
