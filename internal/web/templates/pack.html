@@ -2,11 +2,13 @@
 {{define "content"}}
 {{range .Preload}}<link rel="preload" as="image" href="/card-image/{{.}}">
 {{end}}
-<h1>{{if .Icon.Code}}<span class="title-icon {{.Icon.Class}}" aria-hidden="true"></span>{{end}}{{.SetName}}</h1>
+<div class="page-head">
+  <h1>{{if .Icon.Code}}<span class="title-icon {{.Icon.Class}}" aria-hidden="true"></span>{{end}}{{.SetName}}</h1>
+  <p id="reveal-status" class="lead" role="status" aria-live="polite">{{len .Cards}} cards, the rare last.</p>
+</div>
 {{if .Unlocked}}
 {{template "unlocked" .Unlocked}}
 {{end}}
-<p id="reveal-status" class="lead" role="status" aria-live="polite">{{len .Cards}} cards, the rare last.</p>
 <ol class="booster" data-booster>
   {{range .Cards}}
   <li class="card {{.Colour}} {{.Rarity}}{{if .Foil}} foil{{end}}{{if .ImageID}} has-image{{end}}{{if .Highlight}} new-{{.Highlight}}{{end}}" data-card data-rarity="{{.Rarity}}">
@@ -23,15 +25,15 @@
   </li>
   {{end}}
 </ol>
-<nav class="actions" aria-label="After the booster">
+<nav class="actions" aria-label="After the booster" data-pack="{{.SetCode}}">
   {{if .Icon.Code}}<span class="bar-icon {{.Icon.Class}}" aria-hidden="true"></span>{{end}}
   <div class="bar-info">
     <a class="bar-link" href="/">All boosters</a>
-    {{if .Wait}}<p class="hint wait">Ready in {{duration .Wait}}</p>{{end}}
+    <p class="hint wait" data-pack-wait{{if not .Wait}} hidden{{end}}>{{if .Wait}}Ready in {{duration .Wait}}{{end}}</p>
   </div>
   <form method="post" action="/open">
     <input type="hidden" name="set" value="{{.SetCode}}">
-    <button type="submit" class="primary"{{if .Wait}} disabled{{end}}>
+    <button type="submit" class="primary" data-pack-open{{if .Wait}} disabled{{end}}>
       Open another{{if .Left}} ({{.Left}} left){{else}} ({{.Cost}} energy){{end}}
     </button>
   </form>

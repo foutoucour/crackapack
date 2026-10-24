@@ -1,6 +1,8 @@
 {{define "title"}}Oops{{end}}
 {{define "content"}}
-<h1>Oops</h1>
-<p class="lead" role="alert">{{.Message}}</p>
+<div class="page-head">
+  <h1>Oops</h1>
+  <p class="lead" role="alert">{{.Message}}</p>
+</div>
 <p class="actions"><a class="button" href="{{or .BackHref "/"}}">{{or .BackLabel "Back to your boosters"}}</a>{{with .AltHref}} <a class="button" href="{{.}}">{{$.AltLabel}}</a>{{end}}</p>
 {{end}}

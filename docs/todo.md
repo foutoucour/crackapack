@@ -423,17 +423,33 @@ The stack is server-rendered `html/template`, see
   largest binders weigh 280 to 330 KB: one form shared by a binder's buttons would cut it), and a
   simulation of what the market does to the coins and the Counter's stock.
 - [ ] Quests and the profile.
-- [ ] **Hunted cards.** A player marks a card as a favorite to hunt for. NPCs then offer an exchange
-  for it, and the player is told when it appears at the Counter. See [The Counter](core-features.md#the-counter)
-  and [The market](core-features.md#the-market).
-- [ ] **A header that stays visible** while the page scrolls.
-- [ ] **One style across the pages.** Home, boosters, collection, binders and market do not share
-  one look yet.
-- [ ] **A live energy gauge.** The header gauge updates without a reload.
+- [x] **Hunted cards.** A player hunts the card of an empty slot. The NPCs that hold it offer an
+  exchange, asked again each day, and the header says when the Counter has a copy, see
+  [Hunted cards](core-features.md#hunted-cards) and
+  [ADR-0066](adr/0066-a-hunted-card-asks-the-npcs-again-each-day.md) and
+  [ADR-0067](adr/0067-the-counter-tells-a-hunter-that-a-copy-came-never-how-many.md). The rules are
+  tested in `play`, including a card that runs out and comes back being new again, and the pages by
+  their HTML, and by a screenshot of headless Chrome.
+- [x] **A header that stays visible** while the page scrolls. It sticks to the top of every page,
+  and what else sticks sits under it. Checked in headless Chrome over the DevTools protocol, on a
+  page scrolled 1,200 px at 1280 and at 390 px wide: the header stays at the top of the window. On
+  a narrow screen the brand gives way to the Boosters link to keep the header short.
+- [x] **One style across the pages.** Every page, the booster reveal included, opens on the same
+  panel, and the panels share one gradient and edge, with a header and a footer as wide as the page.
+  The header lights the page the player is on, which a test pins. The look is checked by screenshots
+  of headless Chrome, with no automated test.
+- [x] **A live energy gauge.** The header gauge, and the "Ready in" wait and the enabled state of
+  the buttons that open a booster, on the home page and on the booster page, follow the energy
+  without a reload. The script asks `/energy` every 30 seconds while the page is open, and when the
+  tab comes back to the front. The server says the waits, so the page holds no rule. The endpoint
+  and the hooks are tested; the script has no automated test, since CI has no browser: it was
+  checked in headless Chrome over the DevTools protocol, with the tiles disabled and `/energy`
+  answering that the energy was back.
 - [x] Card pictures, downloaded from Scryfall on demand and cached, see
   [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md). The demo draws its own.
   Left: a cache that can be refreshed, and the two faces of a double-faced card.
-- [ ] Open the browser on launch.
+- [x] Open the browser on launch. `crackapack play` opens the game with the OS's opener, and
+  `--no-browser` turns it off. A browser that cannot be opened is logged, not fatal.
 - [ ] A JSON API adapter, when a second client needs one, see [Architecture](architecture.md).
 
 ## Other layers (rough)

@@ -51,6 +51,8 @@ type shelf struct {
 	locked bool
 	// market is the market, which adds its side to the slots. It is nil in a game without one.
 	market *marketIndex
+	// hunted is the cards the player hunts, to mark the empty slots of them.
+	hunted map[domain.CardKey]bool
 }
 
 // apply fills the Counter's side of slot, from the card c it shows.
@@ -93,6 +95,9 @@ func (sh shelf) apply(slot *slotView, c play.BinderCard) error {
 	slot.Buy = buyView{cardRef: sh.ref(c.Card.ID, finish), Price: q.BuyPrice, Buyable: q.InStock && q.BuyPrice > 0, Note: buyNote(q)}
 	if sh.market != nil {
 		slot.Hunt = sh.market.hunt(sh.ref(c.Card.ID, finish))
+	}
+	if c.Regular+c.Foil == 0 {
+		slot.Hunted = &huntedMark{cardRef: sh.ref(c.Card.ID, finish), On: sh.hunted[domain.CardKey{ID: c.Card.ID, Finish: finish}]}
 	}
 	return nil
 }

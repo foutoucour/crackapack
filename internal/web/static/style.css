@@ -11,6 +11,11 @@
   --focus: #8ec5ff;
   --radius: 0.75rem;
   --gap: 1rem;
+  /* The same gradient and edge dress every panel of every page, so that the pages read as one. */
+  --panel-bg: linear-gradient(160deg, var(--surface-raised) 0%, var(--surface) 55%, var(--surface-deep) 100%);
+  --page-width: 60rem;
+  /* The height of the sticky header, for what sticks or scrolls to just under it. */
+  --header-h: 3.25rem;
 
   --white: #f4efd9;
   --blue: #bcd7f2;
@@ -37,13 +42,36 @@ body {
   font: 1rem/1.5 system-ui, sans-serif;
 }
 
-main { max-width: 60rem; margin: 0 auto; padding: var(--gap); }
+/* The binders need more room than a page of text does: the header, the page and the footer widen together. */
+body:has(.collection-layout) { --page-width: 90rem; }
+html { scroll-padding-top: var(--header-h); }
 
-.site-header { padding: var(--gap); border-bottom: 1px solid var(--surface); }
+main { max-width: var(--page-width); margin: 0 auto; padding: var(--gap); }
+
+/* The header stays in view while the page scrolls. */
+.site-header { position: sticky; top: 0; z-index: 20; border-bottom: 1px solid var(--surface-edge); background: var(--surface-deep); }
+.site-header-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem var(--gap); max-width: var(--page-width); margin: 0 auto; padding: 0.6rem var(--gap); }
 .brand { color: var(--accent); font-weight: 700; text-decoration: none; letter-spacing: 0.05em; }
+/* On a narrow screen the gauges drop to a second row, and the brand gives its place to the Boosters
+   link, which goes to the same page: a sticky header has to be short. */
+@media (max-width: 39.99rem) {
+  :root { --header-h: 4.25rem; }
+  .brand, .energy-label { display: none; }
+  .site-header-inner { padding-block: 0.4rem; }
+}
 
 h1 { margin: 0 0 0.25rem; }
 .lead { color: var(--text-muted); margin-top: 0; }
+
+/* Every page opens on the same panel: its title and what it is for. */
+.page-head, .overview, .set-header, .market-section, .duplicates, .counter-form fieldset {
+  border: 1px solid var(--surface-edge);
+  border-radius: var(--radius);
+  background: var(--panel-bg);
+}
+.page-head { margin: var(--gap) 0; padding: var(--gap); }
+.page-head h1 { margin: 0; }
+.page-head .lead { margin: 0.25rem 0 0; }
 
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
@@ -63,7 +91,7 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .packs { list-style: none; margin: var(--gap) 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); gap: 0.5rem; }
 /* A set is one row: its name and cost, and the button to open it, over the set's icon. */
-.pack-tile { position: relative; isolation: isolate; display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0 0.5rem 0.75rem; overflow: hidden; border: 1px solid var(--surface-edge); border-radius: var(--radius); background: linear-gradient(160deg, var(--surface-raised) 0%, var(--surface) 55%, var(--surface-deep) 100%); }
+.pack-tile { position: relative; isolation: isolate; display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0 0.5rem 0.75rem; overflow: hidden; border: 1px solid var(--surface-edge); border-radius: var(--radius); background: var(--panel-bg); }
 /* The watermark is a mask over a light box, like the icon of the button: /set-icons.css gives each
    set's picture under its set-icon-<code> class, as the CSP allows no inline style to carry it. */
 .pack-watermark { position: absolute; z-index: -1; left: -0.75rem; top: 50%; width: 6rem; height: 6rem; transform: translateY(-50%); background-color: var(--text); opacity: 0.1; mask-size: contain; mask-repeat: no-repeat; mask-position: center; pointer-events: none; }
@@ -195,8 +223,6 @@ main:has(.booster.staged) { --above-card: 18rem; }
 .shelf .view { position: absolute; inset: 0; width: 100%; padding: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
 .shelf .view:hover { background: rgb(255 255 255 / 15%); }
 
-.site-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--gap); }
-
 /* The energy gauge sits at the right of the header on every page. */
 .energy { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-left: auto; color: var(--text-muted); font-size: 0.9rem; }
 .energy strong { color: var(--text); }
@@ -211,8 +237,11 @@ main:has(.booster.staged) { --above-card: 18rem; }
 .actions .hint { margin: 0; align-self: center; }
 .site-nav a { color: var(--text-muted); text-decoration: none; margin-right: var(--gap); }
 .site-nav a:hover { color: var(--text); }
+/* The page the player is on is lit, in text and in a line, not in colour alone. */
+.site-nav a[aria-current="page"] { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); }
 
 /* The overview is one line of figures above the switcher, so that the long list of binders stays below. */
+.overview { margin: var(--gap) 0; padding: 0.6rem var(--gap); }
 .overview dl { display: flex; flex-wrap: wrap; gap: 0.25rem var(--gap); margin: 0; color: var(--text-muted); }
 .overview dl div { display: flex; gap: 0.4rem; }
 .overview dt, .overview dd { margin: 0; }
@@ -222,11 +251,9 @@ main:has(.booster.staged) { --above-card: 18rem; }
    folds into the name of the set in view, and opens over the binder. */
 .collection-layout { display: grid; gap: var(--gap); margin-top: var(--gap); }
 .collection-main { min-width: 0; }
-/* The binders and the filters need more room than a page of text does. */
-main:has(.collection-layout) { max-width: 90rem; }
 @media (min-width: 56rem) {
   .collection-layout { grid-template-columns: 17rem minmax(0, 1fr); align-items: start; }
-  .binders { position: sticky; top: var(--gap); max-height: calc(100vh - 2 * var(--gap)); overflow-y: auto; }
+  .binders { position: sticky; top: calc(var(--header-h) + var(--gap)); max-height: calc(100vh - var(--header-h) - 2 * var(--gap)); overflow-y: auto; }
   .set-picker > summary { display: none; }
 }
 .set-picker > summary, .locked-binders > summary { cursor: pointer; padding: 0.5rem 0.75rem; border-radius: 0.6rem; background: var(--surface); }
@@ -255,7 +282,7 @@ html:not(.js) .set-search { display: none; }
 .tab-lock { font-size: 0.85rem; }
 
 /* The header of a binder: the title and its progress, the two filters, and a faint copy of the set icon. */
-.set-header { position: relative; display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--gap); overflow: hidden; padding: var(--gap); border-radius: var(--radius); background: var(--surface); }
+.set-header { position: relative; display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--gap); overflow: hidden; padding: var(--gap); }
 .set-header > :not(.set-watermark) { position: relative; }
 .set-title { flex: 1 1 12rem; align-self: start; }
 .set-title h1 { margin: 0 0 0.5rem; }
@@ -314,7 +341,7 @@ h2 { margin: 1.5rem 0 0; }
 /* The tools of a slot show with its card big, in the viewer, which opens when the slot is clicked:
    the name on top, and a row of buttons. They are icons, so each carries its words for a screen
    reader. Without the script nothing can be clicked, and the tools show under the card as plain forms. */
-.binder .entry { display: flex; flex-direction: column; gap: 0.4rem; scroll-margin-top: 4rem; }
+.binder .entry { display: flex; flex-direction: column; gap: 0.4rem; scroll-margin-top: calc(var(--header-h) + 3rem); }
 .slot.empty { position: relative; }
 .pick { position: absolute; inset: 0; width: 100%; padding: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
 html:not(.js) .pick { display: none; }
@@ -326,6 +353,8 @@ html:not(.js) .pick { display: none; }
 .tool.buy { border-color: var(--accent); }
 .tool.sell { border-color: var(--green); }
 .tool.trade { border-color: var(--focus); }
+.tool.hunt { border-color: var(--accent); }
+.tool.hunt.on .glyph { fill: var(--accent); }
 .tool:hover { background: var(--bg); }
 .tool-price { color: var(--accent); }
 .tool-price + .tool-finish { margin-top: -0.1rem; }
@@ -352,13 +381,13 @@ html:not(.js) .pick { display: none; }
 .shelf-note { color: var(--text-muted); }
 .coins { display: flex; align-items: center; gap: 0.4rem; color: var(--text-muted); font-size: 0.9rem; }
 .coins strong { color: var(--accent); }
-.duplicates { margin: var(--gap) 0; padding: 0.75rem var(--gap); border: 1px solid var(--surface); border-radius: var(--radius); }
+.duplicates { margin: var(--gap) 0; padding: 0.75rem var(--gap); }
 .duplicates p { margin: 0 0 0.5rem; }
 .duplicates form { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
 .duplicates form p { margin: 0; }
 .counter-note { color: var(--text-muted); }
 /* The result of a purchase or a sale stays in view when the page jumps to the slot it concerns. */
-.results { position: sticky; top: 0; z-index: 2; }
+.results { position: sticky; top: var(--header-h); z-index: 2; }
 .sale-notice { margin: 0; padding: 0.75rem var(--gap); background: var(--accent); color: var(--accent-text); font-weight: 600; }
 .results .unlock { margin: 0; border-radius: 0; border-top: 1px solid var(--accent-text); }
 
@@ -374,12 +403,18 @@ html:not(.js) .pick { display: none; }
 .market .answers strong { color: var(--text); }
 .answer-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.25rem 0 0; }
 .answer-actions form { margin: 0; }
-.market-section { margin: var(--gap) 0; }
+.market-section { margin: var(--gap) 0; padding: 0 var(--gap) var(--gap); }
+.market-section h2 { margin: var(--gap) 0 0.5rem; }
 .market-section h3 { margin: 0 0 0.25rem; }
-.market-list > li, .results-list > li { padding: 0.75rem var(--gap); border: 1px solid var(--surface); border-radius: var(--radius); }
+.market-section > p { margin: 0; color: var(--text-muted); }
+.market-section a:not(.button) { color: var(--accent); }
+.market-list > li > p { margin: 0 0 0.25rem; }
+.market-list > li > form { margin: 0.5rem 0 0; }
+.market-list > li > form button { padding: 0.3rem 0.6rem; font-size: 0.85rem; }
+.market-list > li, .results-list > li { padding: 0.75rem var(--gap); border: 1px solid var(--surface-edge); border-radius: var(--radius); background: var(--surface); }
 .market-list .answers, .market-list p { color: var(--text); }
 .market-list .shelf-note, .results-list .shelf-note { color: var(--text-muted); }
-.counter-form fieldset { margin: var(--gap) 0; border: 1px solid var(--surface); border-radius: var(--radius); }
+.counter-form fieldset { margin: var(--gap) 0; }
 .counter-form label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
 .counter-form input[type="number"] { width: 6rem; padding: 0.3rem; font: inherit; }
 .lead a { color: var(--accent); }
@@ -523,6 +558,8 @@ main:has(.booster) { padding-bottom: 6rem; }
    reach past the card, and must not widen the page. */
 .title-icon { flex: none; width: 1.25rem; height: 1.25rem; background-color: var(--text-muted); mask-size: contain; mask-repeat: no-repeat; mask-position: center; }
 main:has(.booster.staged) { overflow-x: clip; }
+/* The panel of the title shrinks to one line over the card, so that the card keeps the room. */
+main:has(.booster.staged) .page-head { margin: 0.25rem 0 0.5rem; padding: 0.4rem var(--gap); }
 main:has(.booster.staged) h1 { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin: 0; font-size: 1.25rem; }
 main:has(.booster.staged) #reveal-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -559,7 +596,7 @@ main:has(.booster.staged) #reveal-status { position: absolute; width: 1px; heigh
 /* The tags sit on the art, below the title bar, so they never cover the card's name. */
 .card.has-image .face { position: absolute; top: 14%; left: 8%; height: auto; flex-direction: row; gap: 0.35rem; }
 .card.has-image .name, .card.has-image .meta { display: none; }
-.site-footer { max-width: 60rem; margin: 2rem auto 0; padding: var(--gap); color: var(--text-muted); font-size: 0.85rem; }
+.site-footer { max-width: var(--page-width); margin: 2rem auto 0; padding: var(--gap); color: var(--text-muted); font-size: 0.85rem; }
 .site-footer a { color: var(--text-muted); }
 
 @media (min-width: 40rem) {

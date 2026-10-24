@@ -1,7 +1,9 @@
 {{define "title"}}Counter {{.Who}}{{end}}
 {{define "content"}}
-<h1>Counter {{.Who}}</h1>
-<p class="lead">{{.Who}} {{.Summary}}. It answers your counter once, yes or no, after its delay.</p>
+<div class="page-head">
+  <h1>Counter {{.Who}}</h1>
+  <p class="lead">{{.Who}} {{.Summary}}. It answers your counter once, yes or no, after its delay.</p>
+</div>
 <form method="post" action="/counter-offer" class="counter-form">
   <input type="hidden" name="answer" value="{{.AnswerID}}">{{template "backFields" .Back}}
   <p>

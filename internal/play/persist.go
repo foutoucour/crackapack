@@ -124,7 +124,28 @@ func (g *Game) snapshot() (Snapshot, error) {
 	if snap.Counter, err = g.snapshotCounter(); err != nil {
 		return Snapshot{}, err
 	}
+	for _, h := range g.hunts {
+		snap.Hunts = append(snap.Hunts, HuntSnapshot{ID: h.key.ID, Finish: h.key.Finish, Seen: h.seen, Told: h.told, AskedAt: h.askedAt})
+	}
 	return snap, nil
+}
+
+// restoreHunts is the hunts of a save. A card that no catalogue of the game holds any more is
+// dropped, as a saved opening of one is, and so is a hunt in a game without a Counter, which has
+// nothing to hunt with.
+func (g *Game) restoreHunts(snaps []HuntSnapshot) []*hunt {
+	if g.economy == nil {
+		return nil
+	}
+	var hunts []*hunt
+	for _, s := range snaps {
+		card, ok := g.cards[s.ID]
+		if !ok || !slices.Contains(card.Finishes, s.Finish) {
+			continue
+		}
+		hunts = append(hunts, &hunt{key: domain.CardKey{ID: s.ID, Finish: s.Finish}, seen: s.Seen, told: s.Told, askedAt: s.AskedAt})
+	}
+	return hunts
 }
 
 // snapshotUnlocks lists the unlocks in code order, so that a save does not depend on the maps'.
@@ -224,6 +245,9 @@ func (g *Game) restore(snap Snapshot, stream *Stream) error {
 	commitUnlocks()
 	commitCounter()
 	g.openCrowdSets(g.economy)
+	if snap.Hunts != nil {
+		g.hunts = g.restoreHunts(snap.Hunts)
+	}
 	if snap.LastOpening != nil {
 		g.last = g.restoreOpening(*snap.LastOpening)
 	}

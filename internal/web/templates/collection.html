@@ -192,6 +192,12 @@
     </form>
     {{end}}
     {{end}}
+    {{with .Hunted}}
+    <form method="post" action="{{if .On}}/unhunt{{else}}/hunt{{end}}">
+      {{template "cardFields" .}}
+      <button type="submit" class="tool hunt{{if .On}} on{{end}}">{{template "glyph" "hunt"}}<span class="sr-only">{{if .On}}Stop hunting{{else}}Hunt{{end}} {{$slot.Name}}</span></button>
+    </form>
+    {{end}}
     {{range .Lists}}
     {{if not .Listing}}
     <details class="tool-panel">
@@ -220,5 +226,6 @@
   <symbol id="glyph-buy" viewBox="0 0 24 24"><path d="M3 4h2l2.4 10h9.2L19 7H6.2"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></symbol>
   <symbol id="glyph-sell" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8L3 12z"/><circle cx="7.5" cy="8.5" r="1"/></symbol>
   <symbol id="glyph-trade" viewBox="0 0 24 24"><path d="M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4"/></symbol>
+  <symbol id="glyph-hunt" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></symbol>
 </svg>
 {{end}}

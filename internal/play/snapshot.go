@@ -30,6 +30,18 @@ type Snapshot struct {
 	Unlocks *UnlocksSnapshot `json:"unlocks"`
 	// Counter is the coins and the Counter, see [Game.OpenCounter].
 	Counter *CounterSnapshot `json:"counter"`
+	// Hunts are the cards the player hunts, see [Game.Hunt].
+	Hunts []HuntSnapshot `json:"hunts,omitempty"`
+}
+
+// HuntSnapshot is a card the player hunts, and what the hunt has seen of the Counter and asked of
+// the NPCs, so that a reload neither tells the player of the same copy twice nor asks the NPCs again.
+type HuntSnapshot struct {
+	ID      domain.CardID `json:"id"`
+	Finish  domain.Finish `json:"finish"`
+	Seen    bool          `json:"seen,omitempty"`
+	Told    bool          `json:"told,omitempty"`
+	AskedAt time.Time     `json:"asked_at,omitzero"`
 }
 
 // OpenerSnapshot is a seed and the opaque state of the [Stream] it started.

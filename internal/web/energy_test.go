@@ -1,6 +1,7 @@
 package web_test
 
 import (
+	"encoding/json"
 	"math/rand/v2"
 	"net/http"
 	"net/http/httptest"
@@ -219,5 +220,101 @@ func TestEnergy_durationsAreSaidInHoursAndMinutesAndNeverAsZero(t *testing.T) {
 	}
 	if !strings.Contains(short, "+1 in less than a minute") {
 		t.Errorf("30 seconds must read less than a minute, not 0 min:\n%s", short)
+	}
+}
+
+func TestEnergy_theEndpointReadsTheGaugeSoThePageCanUpdateItWithoutAReload(t *testing.T) {
+	t.Parallel()
+	srv, c, clock, code := energyServer(t, playtest.Cost)
+	spendWelcome(t, c, srv.URL, code)
+	openPack(t, c, srv.URL, code)
+	read := func() map[string]any {
+		t.Helper()
+		resp, body := get(t, c, srv.URL+"/energy")
+		if resp.StatusCode != http.StatusOK || !strings.HasPrefix(resp.Header.Get("Content-Type"), "application/json") {
+			t.Fatalf("GET /energy = %d %q, want 200 JSON", resp.StatusCode, resp.Header.Get("Content-Type"))
+		}
+		var got map[string]any
+		if err := json.Unmarshal([]byte(body), &got); err != nil {
+			t.Fatalf("the body is not JSON: %v\n%s", err, body)
+		}
+		return got
+	}
+
+	before := read()
+	clock.Advance(20 * time.Minute)
+	after := read()
+
+	if before["reserve"] != float64(10-playtest.Cost) || before["reserveCap"] != float64(10) {
+		t.Errorf("before = %v, want a reserve of %d of 10", before, 10-playtest.Cost)
+	}
+	if after["reserve"] != float64(10-playtest.Cost+2) {
+		t.Errorf("after = %v: 20 minutes must add two points to the reserve", after)
+	}
+	if _, ok := before["next"].(string); !ok {
+		t.Errorf("before = %v: next must say, as a string, when the next point comes", before)
+	}
+}
+
+func TestEnergy_theEndpointSaysHowLongEachSetWaitsSoTheButtonsCanFollowTheGauge(t *testing.T) {
+	t.Parallel()
+	srv, c, clock, code := energyServer(t, playtest.Cost)
+	spendWelcome(t, c, srv.URL, code)
+	openPack(t, c, srv.URL, code)
+	openPack(t, c, srv.URL, code)
+	waits := func() map[string]string {
+		t.Helper()
+		_, body := get(t, c, srv.URL+"/energy")
+		var got struct {
+			Packs []struct{ Set, Wait string }
+		}
+		if err := json.Unmarshal([]byte(body), &got); err != nil {
+			t.Fatalf("the body is not JSON: %v\n%s", err, body)
+		}
+		out := map[string]string{}
+		for _, p := range got.Packs {
+			out[p.Set] = p.Wait
+		}
+		return out
+	}
+
+	empty := waits()
+	clock.Advance(20 * time.Minute)
+	later := waits()
+	clock.Advance(time.Hour)
+	ready := waits()
+
+	if empty[code] != "50 min" || later[code] != "30 min" || ready[code] != "" {
+		t.Errorf("waits = %q, %q, %q, want 50 min, 30 min, then none once the energy is there", empty[code], later[code], ready[code])
+	}
+}
+
+func TestEnergy_theButtonsCarryTheHooksOfTheScript(t *testing.T) {
+	t.Parallel()
+	srv, c, _, code := energyServer(t, playtest.Cost)
+	spendWelcome(t, c, srv.URL, code)
+	openPack(t, c, srv.URL, code)
+	openPack(t, c, srv.URL, code)
+
+	_, home := get(t, c, srv.URL+"/")
+	_, pack := get(t, c, srv.URL+"/pack")
+
+	for page, body := range map[string]string{"home": home, "pack": pack} {
+		for _, want := range []string{`data-pack="` + code + `"`, `data-pack-wait`, `data-pack-open`} {
+			if !strings.Contains(body, want) {
+				t.Errorf("the %s page lacks %q:\n%s", page, want, body)
+			}
+		}
+	}
+}
+
+func TestEnergy_theGaugeIsReadyForTheScriptToUpdate(t *testing.T) {
+	t.Parallel()
+	srv, c, _, _ := energyServer(t, playtest.Cost)
+
+	_, body := get(t, c, srv.URL+"/")
+
+	if !strings.Contains(body, `data-energy`) || !strings.Contains(body, `/static/energy.js`) {
+		t.Errorf("the gauge must carry the hooks of the script and the page must load it:\n%s", body)
 	}
 }

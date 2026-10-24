@@ -1,0 +1,33 @@
+{{define "title"}}Hunted cards{{end}}
+{{define "content"}}
+{{if .Notice.Text}}
+<div class="results">
+  <p class="sale-notice" role="status">{{.Notice.Text}}</p>
+</div>
+{{end}}
+<div class="page-head">
+  <h1>Hunted cards</h1>
+  <p class="lead">Hunt the card of an empty slot of a binder. The NPCs that hold it offer it to you, and ask again each day, and the header tells you when the Counter has a copy. <a href="/collection">Go to your binders</a>.</p>
+</div>
+
+<section class="market-section" aria-labelledby="hunted-heading">
+  <h2 id="hunted-heading">On the hunt</h2>
+  {{if .Cards}}
+  <ul class="market-list">
+    {{range .Cards}}
+    <li>
+      <h3>{{.Name}}{{if .Foil}} (foil){{end}}{{if .New}} <span class="tag new">New</span>{{end}}</h3>
+      <p>{{if .AtCounter}}At the Counter for {{coins .Price}}.{{if .Href}} <a href="{{.Href}}">Buy it from its binder<span class="sr-only">: {{.Name}}</span></a>{{end}}{{else}}Not at the Counter.{{end}}</p>
+      <p>{{if .Offers}}{{.Offers}} {{if eq .Offers 1}}offer{{else}}offers{{end}} waiting. <a href="/market">Go to the market</a>.{{else}}No offer waiting.{{end}}</p>
+      <form method="post" action="/unhunt">
+        <input type="hidden" name="card" value="{{.ID}}"><input type="hidden" name="finish" value="{{.Finish}}"><input type="hidden" name="from" value="hunted">
+        <button type="submit">Stop hunting<span class="sr-only"> {{.Name}}</span></button>
+      </form>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p>You are not hunting any card.</p>
+  {{end}}
+</section>
+{{end}}
