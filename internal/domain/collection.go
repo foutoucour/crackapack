@@ -83,11 +83,13 @@ type Surplus struct {
 // Collection is not safe for concurrent use.
 type Collection struct {
 	qty map[CardKey]int
+	// locked is the finish of the one copy of a card that cannot leave, see [Collection.Lock].
+	locked map[CardID]Finish
 }
 
 // NewCollection returns an empty Collection ready to use.
 func NewCollection() *Collection {
-	return &Collection{qty: make(map[CardKey]int)}
+	return &Collection{qty: make(map[CardKey]int), locked: make(map[CardID]Finish)}
 }
 
 // Add adds n copies of key to the collection.
@@ -112,6 +114,7 @@ func (c *Collection) AddBooster(b Booster) {
 // the collection holds fewer than n copies. Both checks precede any mutation, so
 // the collection is unchanged on error.
 // When Remove brings a quantity to zero, the key is deleted from the map.
+// It returns ErrLockedCopy, wrapped, when it would remove the copy that [Collection.Lock] holds.
 func (c *Collection) Remove(key CardKey, n int) error {
 	if n <= 0 {
 		return &InvalidQuantityError{N: n}
@@ -119,6 +122,9 @@ func (c *Collection) Remove(key CardKey, n int) error {
 	have := c.qty[key]
 	if have < n {
 		return &InsufficientQuantityError{Key: key, Have: have, Want: n}
+	}
+	if have-n < c.Locked(key) {
+		return fmt.Errorf("collection: remove %d of card %s (finish %s) of the %d held: %w", n, key.ID, key.Finish, have, ErrLockedCopy)
 	}
 	if have == n {
 		delete(c.qty, key)

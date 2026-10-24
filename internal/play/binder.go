@@ -53,6 +53,9 @@ type BinderCard struct {
 	Card    domain.Card
 	Regular int
 	Foil    int
+	// RegularLocked and FoilLocked are how many of those copies a milestone locks, 0 or 1.
+	RegularLocked int
+	FoilLocked    int
 }
 
 // BinderPool is the part of a binder that comes from another catalogue: the timeshifted cards of
@@ -140,10 +143,14 @@ func (g *Game) Binder(setCode string) (Binder, error) {
 }
 
 func (g *Game) held(card domain.Card) BinderCard {
+	regular := domain.CardKey{ID: card.ID, Finish: domain.FinishNonFoil}
+	foil := domain.CardKey{ID: card.ID, Finish: domain.FinishFoil}
 	return BinderCard{
-		Card:    card,
-		Regular: g.collection.Quantity(domain.CardKey{ID: card.ID, Finish: domain.FinishNonFoil}),
-		Foil:    g.collection.Quantity(domain.CardKey{ID: card.ID, Finish: domain.FinishFoil}),
+		Card:          card,
+		Regular:       g.collection.Quantity(regular),
+		Foil:          g.collection.Quantity(foil),
+		RegularLocked: g.collection.Locked(regular),
+		FoilLocked:    g.collection.Locked(foil),
 	}
 }
 

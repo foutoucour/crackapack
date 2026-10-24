@@ -34,6 +34,9 @@ type Snapshot struct {
 	Hunts []HuntSnapshot `json:"hunts,omitempty"`
 	// Quests are the daily and weekly quests, see [Game.OpenQuests].
 	Quests *QuestsSnapshot `json:"quests,omitempty"`
+	// Milestones are the milestones the player has earned and the cards they lock, see
+	// [Rules.Milestones].
+	Milestones *MilestonesSnapshot `json:"milestones,omitempty"`
 }
 
 // HuntSnapshot is a card the player hunts, and what the hunt has seen of the Counter and asked of

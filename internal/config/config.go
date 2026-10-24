@@ -470,6 +470,8 @@ type Config struct {
 
 	// Quests is how the game's daily and weekly quests are drawn, see docs/core-features.md#quests.
 	Quests QuestsConfig `yaml:"quests"`
+	// Milestones is what completing a part of a binder pays, see docs/core-features.md#milestones.
+	Milestones MilestonesConfig `yaml:"milestones"`
 }
 
 // CounterParams returns the parameters of the Counter that the config describes, for the
@@ -574,6 +576,7 @@ func defaults() Config {
 		Unlock:         UnlockConfig{BinderThreshold: 0.9, SetsPerUnlock: 3, Stages: 4, StartSets: 5},
 		CatchUpDays:    30,
 		Quests:         defaultQuests(),
+		Milestones:     MilestonesConfig{CommonPct: 50, UncommonPct: 100, RarePct: 200, MythicPct: 400, ColourPct: 50},
 	}
 }
 
@@ -664,6 +667,9 @@ func validate(cfg Config) error {
 		return err
 	}
 	if err := validateUnlock(cfg.Unlock); err != nil {
+		return err
+	}
+	if err := validateMilestones(cfg.Milestones); err != nil {
 		return err
 	}
 	return validateQuests(cfg.Quests)

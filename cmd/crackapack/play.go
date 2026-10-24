@@ -399,7 +399,10 @@ func startGame(a playArgs, log *slog.Logger) (*play.Game, *play.Stream, error) {
 // The game tops up at one price for every point, the `min_energy` variant: a price that rises with
 // the day's use is not played.
 func playRules(cfg config.Config, sets []domain.SetCatalogue, costs map[string]int, prices domain.PriceSnapshot) (play.Rules, error) {
-	rules := play.Rules{Energy: cfg.Energy.Params(), Costs: costs}
+	rules := play.Rules{
+		Energy: cfg.Energy.Params(), Costs: costs,
+		Milestones: &play.MilestoneRules{Rarity: cfg.Milestones.RarityPercents(), Colour: cfg.Milestones.ColourPct},
+	}
 	values := make([]domain.USDCents, len(sets))
 	for i, cat := range sets {
 		var err error

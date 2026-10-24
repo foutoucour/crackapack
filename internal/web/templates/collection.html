@@ -51,6 +51,18 @@
 
 {{template "showPanel" .Shows}}
 
+{{if .Milestones}}
+<section class="milestones" aria-label="Milestones">
+  <h2>Milestones</h2>
+  <ul>
+    {{range .Milestones}}
+    <li class="milestone{{if .Done}} done{{end}}">{{.Name}}: {{if .Done}}done{{else if .Unlocks}}unlocks sets{{else if .Reward}}+{{.Reward}} energy{{else}}no energy{{end}}</li>
+    {{end}}
+  </ul>
+  <p class="milestone-note">Each milestone locks one copy of each of its cards for good.</p>
+</section>
+{{end}}
+
 {{if .Locked}}{{if .Counter}}<p class="counter-note">This set is locked, so its cards cannot be bought. What you hold of it can still be sold.</p>{{end}}{{end}}
 
 {{if .Duplicates.Offered}}
@@ -150,6 +162,7 @@
 {{$slot := .}}
 <div class="tools">
   <p class="tools-name">{{.Name}}</p>
+  {{if .LockedCopy}}<p class="tool-note">One copy is locked by a milestone: it cannot be sold or traded.</p>{{end}}
   <span class="tool-row">
     {{range .Sales}}
     {{if .Traded}}

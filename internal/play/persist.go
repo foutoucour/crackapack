@@ -65,6 +65,10 @@ func (g *Game) Persist(saves Saves) error {
 		}
 	}
 	g.unlockCaughtUp()
+	// A save from before the milestones, or from other rules, earns the ones its collection holds.
+	if g.settleMilestones() {
+		g.save()
+	}
 	return nil
 }
 
@@ -78,9 +82,11 @@ func (g *Game) SaveError() error {
 
 // save writes the game to the store, if it has one, and remembers whether it went through. g.mu
 // must be held. Every method that changes the game calls it last, once nothing can fail any more, so
-// it is also where the quests count what the player did.
+// it is also where the quests count what the player did, and where the milestones that the
+// collection completes are earned, after the quests, whose rewards may complete one.
 func (g *Game) save() {
 	g.settleQuests()
+	g.settleMilestones()
 	if g.saves.Store == nil {
 		return
 	}
@@ -132,6 +138,7 @@ func (g *Game) snapshot() (Snapshot, error) {
 	if snap.Quests, err = g.snapshotQuests(); err != nil {
 		return Snapshot{}, err
 	}
+	snap.Milestones = g.snapshotMilestones()
 	return snap, nil
 }
 
@@ -248,6 +255,13 @@ func (g *Game) restore(snap Snapshot, stream *Stream) error {
 			return err
 		}
 	}
+	commitMilestones := func() {}
+	if snap.Milestones != nil {
+		var err error
+		if commitMilestones, err = g.restoreMilestones(*snap.Milestones, collection); err != nil {
+			return err
+		}
+	}
 	if snap.Opener != nil {
 		if err := stream.Restore(snap.Opener.Seed, snap.Opener.State); err != nil {
 			return err
@@ -257,6 +271,7 @@ func (g *Game) restore(snap Snapshot, stream *Stream) error {
 	commitUnlocks()
 	commitCounter()
 	commitQuests()
+	commitMilestones()
 	if g.quests != nil {
 		// What the save holds was not sold or bought by the player now.
 		g.quests.rebase(g)

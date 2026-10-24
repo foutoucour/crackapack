@@ -24,8 +24,10 @@ type collectionView struct {
 	Rarities      filterPanel
 	Colours       filterPanel
 	Shows         showPanel
-	Slots         []slotView
-	Pools         []poolView
+	// Milestones are the goals of the binder, empty in a game without milestones.
+	Milestones []milestoneView
+	Slots      []slotView
+	Pools      []poolView
 	// Counter is true in a game with a Counter, whose prices the slots show. Locked is true when
 	// the binder's set cannot be opened yet, so that none of its cards can be bought.
 	Counter    bool
@@ -122,6 +124,8 @@ type slotView struct {
 	// Regular and Foil are the copies held, by finish.
 	Regular int
 	Foil    int
+	// LockedCopy is true when a milestone locks one of the copies held: it cannot be sold or traded.
+	LockedCopy bool
 	// Sales are what the Counter pays for the copies held, one per finish, and Buy what it offers
 	// for an empty slot. Both are empty in a game without a Counter.
 	Sales []saleView

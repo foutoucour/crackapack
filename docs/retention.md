@@ -30,23 +30,18 @@ gives a card, a booster or an unlock. How they work is in [Quests](core-features
 
 ## Collection goals and badges
 
-Completing a collection earns coins and energy, in proportion to the effort. It is the long-term
-engine.
+Completing a collection earns energy, in proportion to the effort. It is the long-term engine. The
+milestones of a binder are built, see [Milestones](core-features.md#milestones). What follows is
+still a design.
 
 | Milestone (per set) | Example reward |
 | --- | --- |
-| All commons | 650 coins + 4 energy |
-| All uncommons | 700 coins + 4 energy |
-| All rares | 1,200 coins + 6 energy |
 | All timeshifted (Time Spiral) | To calibrate |
-| Complete binder | 6,300 coins + 10 energy |
 | Commons playset (4 of each) | To calibrate, above the commons binder |
 | Uncommons playset | To calibrate |
 | Rares playset | To calibrate, very long: big reward or rare badge |
 | Master set (normal + foil + variants) | To calibrate, the biggest milestone |
 
-- **Reversible reward:** if I sell, trade or otherwise give away the last copy that completed a
-  milestone, I give the reward back and get it again when I complete it again.
 - **Playsets:** the Magic-specific twist compared to Holopocket. Aiming for 4 copies gives commons a
   use, makes players keep duplicates and motivates trades with NPCs.
 - **"Almost complete" section** at the top of the page: the closest milestones, to push players to
