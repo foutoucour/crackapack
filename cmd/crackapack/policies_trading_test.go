@@ -6,7 +6,7 @@ func TestBuildPolicies_includesTheTradingPolicies(t *testing.T) {
 	t.Parallel()
 	policies := buildPolicies()
 
-	for _, name := range []string{"trader", "exploiter"} {
+	for _, name := range []string{"trader", "exploiter", "market-trader"} {
 		build, ok := policies[name]
 		if !ok {
 			t.Errorf("policy %q is not registered", name)

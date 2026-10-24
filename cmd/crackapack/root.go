@@ -30,6 +30,7 @@ func newRootCmd(stdout, stderr io.Writer) *cobra.Command {
 		newSweepCmd(stdout, stderr),
 		newCompareCmd(stdout, stderr),
 		newTuneCmd(stdout, stderr),
+		newMarketStudyCmd(stdout, stderr),
 		newDemoCmd(stdout, stderr),
 		newPlayCmd(stdout, stderr),
 	)

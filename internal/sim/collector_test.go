@@ -11,6 +11,7 @@ import (
 // It records actions and returns preconfigured responses.
 type fakeSession struct {
 	sim.Trading
+	sim.Marketplace
 	views       []sim.WorldView // views returned in sequence; last one repeated
 	viewCalls   int
 	openCalls   []string // setCode per OpenBooster call

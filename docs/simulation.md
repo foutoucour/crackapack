@@ -105,6 +105,20 @@ go run ./cmd/crackapack tune \
 
 `crackapack demo --tune` runs a small search on the synthetic dataset, with no files needed.
 
+### market-study
+
+Compare boosters alone, the Counter and the market on each set of a per-set scenario, under the
+tweaks of a variants file. See [The market study](#the-market-study).
+
+```
+go run ./cmd/crackapack market-study \
+  --goals tune/goals.yaml \
+  --variants tune/market-study.yaml \
+  --catalogue-dir ./catalogues \
+  --prices prices.json \
+  --out ./study-out
+```
+
 ## Input files
 
 ### Fetching real data
@@ -270,6 +284,7 @@ above the run horizon. Config validation keeps it from passing by accident: an `
 | `npc_boosters_opened` | Boosters the NPCs opened over the run. Present only when `npcs.population` is above zero |
 | `npc_cards_sold` | Cards the NPCs sent to the Counter over the run. Present only with a crowd |
 | `npc_cards_held` | Cards all NPC collections hold after the last day. Present only with a crowd |
+| `market_asks`, `market_listings`, `market_deals` | Requests the player made on the market, cards it listed and answers it took. Present only when the player uses the market, see [The market](#the-market) |
 | `counter_boosters_opened` | Boosters the Counter opened to stock itself over the run. Present only when it opens boosters |
 | `counter_cards_opened` | Cards those boosters held, all put on the Counter's shelf. Present only when it opens boosters or has a treasury |
 | `counter_fee_coins` | Coin fees the Counter paid from its treasury to open boosters. Present with the Counter metrics |
@@ -285,6 +300,7 @@ so `max_booster_wait_minutes` only changes when a set with a higher cost joins t
 
 | Name | Behaviour |
 |------|-----------|
+| `boosters-only` | Opens boosters for the set with the lowest C/U progress and does nothing else: no sale, no purchase, no trade. The baseline of the [market study](#the-market-study) |
 | `collector` | Opens boosters for the set with the lowest C/U progress; sells duplicates above playset; buys missing non-foil cards cheapest-first up to a coin floor, the timeshifted cards of a Time Spiral binder included |
 | `converting-collector` | Same as `collector` plus coin top-up in Phase 1: when short on energy, pays coins for the shortfall (no-op when `energy.coin_topup.enabled` is false). Raises the coin floor by the minimum booster fee so the fee buffer is never spent on card purchases. See [Energy coin top-up](#energy-coin-top-up) |
 | `master-collector` | Plays like the `collector`, then spends the coins above the coin floor on the foil of every card it owns no foil of, cheapest first, skipping out-of-stock foils. The Counter stocks foils only from sales and from `counter_supply`, so a run needs that supply on. At the default `counter_foil_pct` of 500 foils are a coin sink |
@@ -293,6 +309,7 @@ so `max_booster_wait_minutes` only changes when a set with a higher cost joins t
 | `idle` | Does nothing, so only the NPCs act and the run measures the supply they send to the Counter |
 | `trader` | Plays like the `collector` and also trades with NPCs, see [Trades](#trades) |
 | `exploiter` | Plays like the `collector` and chains trades across every NPC looking for a gain, see [Trades](#trades) |
+| `market-trader` | Plays like the `collector` and trades on the market, see [The market](#the-market) |
 
 ## The coin fee on dear boosters
 
@@ -774,6 +791,83 @@ To see the cost of a long run, `go test ./internal/sim -run '^$' -bench Benchmar
 runs 90 days with 500 NPCs with and without trades. To check the exploiter's cost at the
 formerly-slow config, run `go test ./internal/sim -run '^$' -bench BenchmarkExploiterHighSessionRate
 -benchmem` (144 sessions/day, 30 NPCs, 10 days).
+
+## The market
+
+The game's player trades on a market, see [The market](core-features.md#the-market), and the
+simulation can too. A policy that implements `sim.MarketPlayer` gets a market between the player and
+the crowd, and `Session` offers it as `MarketAsk`, `MarketList`, `MarketAnswers` and `MarketAccept`.
+The `market-trader` policy is the one that does.
+
+- **Time:** the market works in instants, so the engine gives each tick one, from a clock that starts
+  at the Unix epoch, and delivers the answers due before the player's session of that tick. The
+  delay of each archetype, `response_delay_hours`, is read, see
+  [ADR-0059](adr/0059-an-npc-answers-on-the-market-after-the-delay-of-its-archetype.md).
+- **No Exchange:** the game has none, so a market run has none either unless `trades.enabled` turns
+  it on too. The crowd keeps its surplus on a shelf for `npcs.surplus_hold_days` in both cases, since
+  an NPC trades only what it holds there.
+- **Reserved copies:** a listed copy is held for the market, so selling duplicates to the Counter
+  leaves it, and the copy the player keeps, in the collection.
+- **Settings:** `trades.offer_expiry_days` is how long an answer stays open, and
+  `trades.max_cards_per_side` bounds the cards of a counter.
+- **Normal outcomes:** a card no NPC holds, a request or a listing made twice, an answer already
+  gone, an NPC that no longer holds the card and a balance too low are returned to the policy, and
+  anything else aborts the run.
+
+`market-trader` plays like the `collector`, and on each visit:
+
+1. takes the answers worth taking, the cheapest asking price it can pay above the coin floor for each
+   request, an offer of a card it lacks on a listing, else the highest coin offer;
+2. plays as the collector does;
+3. asks around for every rare and mythic it lacks;
+4. lists every card it holds twice at its reference value.
+
+It never counters, so the delays of the NPCs are the only thing that slows it down.
+
+## The market study
+
+`crackapack market-study` answers one question: how much faster do the Counter and the market make a
+binder than opening boosters alone? It runs three players on each set of a per-set scenario of the
+goals file, `pace-3-visits` unless `--scenario` says otherwise, under each variant of a variants
+file:
+
+| Player | Policy |
+|--------|--------|
+| Boosters alone | `boosters-only` |
+| Boosters and the Counter | `collector` |
+| Boosters, Counter and market | `market-trader` |
+
+All three play in the crowd of the game, which keeps its surplus on a shelf for
+`npcs.surplus_hold_days` before the Counter gets it, see `sim.WithTradingCrowd`. Without that only
+the market player would, and the Counter of the others would be stocked a week sooner than its own:
+a first run of the study compared the players across two worlds and made the market look slower than
+the Counter.
+
+A speed is the median days to a complete binder of the boosters-only player over the median of the
+player judged. The study judges each variant on four checks, whose values are in
+`cmd/crackapack/market_study.go`: the Counter's speed falls in a band, the market's speed is at
+least a floor and a multiple of the Counter's, and no set is done with the market in under a number
+of days. Variants are ranked by how far they miss the checks.
+
+The variants file, [`tune/market-study.yaml`](../tune/market-study.yaml), lists named variants, each
+a list of config overrides in the form of [`tune/play.yaml`](../tune/play.yaml). The first is the
+baseline, and the report shows the change of the others from it. The base world is the game's own,
+`tune/base.yaml` with the play overlay, unless `--config` gives another.
+
+It writes `study.json`, with the days of every run, and `report.html`, a single page with the
+ranking and the charts. Variants that meet every target are ranked by the room they have on their
+tightest speed, since one at the edge of a band can leave it on another seed.
+
+`--seeds` takes several seeds, such as `--seeds 42,43,44`, and pools the sets of all of them. One
+seed moved the speed of a variant by up to a third in the first study, so a verdict wants at least
+three. Runs are independent, so `--workers` sets how many go at once, three by default, and the same
+seeds give the same files whatever the number. A study over 25 variants and three seeds takes about
+an hour on three workers.
+
+Creating a file named `STOP` in `--out` stops the study, and so does `--deadline`: both write
+nothing. `--from study.json` writes the report of an earlier study again, with no simulation and no
+other flag but `--out`: it is how a change to the targets or to the page reaches a study that took an
+hour. What the studies found is in the [tuning log](tuning-log.md).
 
 ## The tuning system
 

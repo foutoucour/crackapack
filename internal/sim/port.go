@@ -3,6 +3,7 @@ package sim
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/foutoucour/crackapack/internal/domain"
 )
@@ -61,6 +62,7 @@ func (e *Engine) buildWorldView(day int) WorldView {
 type port struct {
 	e        *Engine
 	day      int
+	now      time.Time // the instant of the session on the market's clock
 	fatalErr error
 }
 
@@ -125,6 +127,16 @@ func (p *port) OpenBooster(setCode string) error {
 	return nil
 }
 
+// sellable is how many copies of s the player may sell to the Counter. The copies the market holds
+// for a listing or a counter are kept on top of the copies the player keeps: a listed copy is a
+// duplicate to give, and selling it would let the deal take the last copy of the binder.
+func (p *port) sellable(s domain.Surplus) int {
+	if p.e.market == nil {
+		return s.Quantity
+	}
+	return max(0, s.Quantity-p.e.market.Reserved(s.Key))
+}
+
 // SellDuplicates sells all copies above keep to the Counter, one copy at a time.
 // Each sell is atomic: remove from collection then sell; on ErrSubCoin or ErrCounterBroke
 // refusal the copy is restored and the refusal is counted. After an ErrCounterBroke the
@@ -138,7 +150,7 @@ func (p *port) SellDuplicates(keep int) (sold, refused int) {
 	}
 
 	for _, s := range surplus {
-		for range s.Quantity {
+		for range p.sellable(s) {
 			if err := p.e.collection.Remove(s.Key, 1); err != nil {
 				p.fatalErr = fmt.Errorf("sell duplicates: remove: %w", err)
 				return sold, refused

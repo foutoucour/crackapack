@@ -75,6 +75,72 @@ were 334 KB of the 359. The table of the 2026-10-23 entry below was measured bef
 **What it does not show:** what the fee and the top-up do to the pace and to the coin pile. No search
 runs them, and the price was not tuned. The goals of ADR-0041 and ADR-0051 were read without them.
 
+## 2026-10-24 – What makes a binder fast: the Counter, the crowd and the market, no value applied
+
+**Trigger:** the market of the game was thought too generous, see
+[ADR-0060](adr/0060-an-npc-pays-coins-for-a-card-on-the-market.md), and no simulation ran it. The
+maintainers' aim is that trading is the fast road: with boosters alone as speed 1, the Counter should
+make a binder about a third faster (1.2 to 1.5), the market at least twice as fast and 1.5 times the
+Counter, and no set should be done with it in under 5 days. `crackapack market-study` measured it, see
+[The market study](simulation.md#the-market-study). No config value was applied: `config.defaults()`,
+`tune/base.yaml` and `tune/play.yaml` are unchanged. The variants are in
+[`tune/market-study.yaml`](../tune/market-study.yaml).
+
+**Measured** on the 107 sets of the scope played one at a time, `pace-3-visits` (3 visits a day, 120
+days), seeds 42, 43 and 44 pooled: 321 runs of each player per variant. The speeds are the median
+days of boosters alone over the median of the player, and 24% of the sets were not finished by
+boosters alone in 120 days.
+
+| Variant | Days: boosters | Counter | Market | Counter speed | Market speed | Fastest set |
+|---------|---------------:|--------:|-------:|--------------:|-------------:|------------:|
+| `baseline` (the game today) | 42 | 14 | 11 | 3.00 | 3.82 | 5 days |
+| `supply-1-hold-28` | 42 | 33 | 12 | 1.27 | 3.50 | 5 days |
+| `crowd-24-supply-1-hold-28-buy-400` | 42 | 32 | 11 | 1.31 | 3.82 | 5 days |
+| `supply-1-hold-21-buy-400` | 42 | 28 | 12 | 1.50 | 3.50 | 5 days |
+| `crowd-6-supply-1-hold-28-buy-400` | 42 | 36 | 23 | 1.17 | 1.83 | 7 days |
+| `crowd-48-supply-1-hold-28-buy-400` | 42 | 32 | 9 | 1.31 | 4.67 | 4 days |
+
+- **The Counter is the generous one, not the market.** Today the Counter makes a binder 3 times
+  faster than boosters alone, where 1.33 is wanted. The market is already above its floor, at 3.82,
+  but only 1.27 times the Counter: it is a better road than the Counter, and not by the margin wanted.
+- **The NPCs are the Counter's main supply.** In a run of one set the crowd sells its surplus to the
+  Counter. Alone, the Counter's own supply (13 boosters a day down to 1) brings its speed from 3.00 to
+  2.47, and an NPC hold of 28 days, not 7, to 2.33. Together they bring it to 1.27: the NPCs keep the
+  surplus until the Counter's own supply is all that is left. The price (`counter_buy_pct` 400)
+  alone moves it as far as the hold does, to 2.33, and the Counter's sale price, its shelf life and
+  the daily reward less, to 2.62, 2.80 and 2.80. Once the supply and the hold are set the price adds
+  nothing: 1.27 with it and without it.
+- **Six variants meet every target, and two keys are enough.** `supply-1-hold-28` sets
+  `counter_supply.boosters_per_day` to 1 and `npcs.surplus_hold_days` to 28. The stack with a crowd of
+  24 has the most room on its tightest speed, 9%, and the one with a hold of 21 days sits on the edge
+  of the Counter's band.
+- **The market's speed follows the crowd, not the Counter.** Two NPCs give it 2.33 and six 2.80,
+  against 3.82 for twelve and 5.25 for forty-eight, which is also where the fastest set falls to 3
+  days, under the floor. The delays of the archetypes barely matter: answering at once gives 4.20.
+- **One seed misleads.** The baseline's Counter speed was 3.50, 2.33 and 2.80 on the three seeds, and
+  `supply-1-hold-28` met the Counter's band on two of them. Read the pooled numbers.
+- **A first version of the study compared two worlds.** The crowd kept its surplus on a shelf only
+  for the player that used the market, so its Counter was fed a week later than the others'. That
+  made the market look slower than the Counter in a small crowd. All the players now play in the
+  crowd of the game, see `sim.WithTradingCrowd`, and the earlier numbers were discarded.
+
+**What it does not show:**
+- **A set alone is not the game.** The crowd and the Counter's supply go into the one set, where the
+  game spreads them over every set the player can open, so each is faster here than there. The
+  pace bands of the product are judged the same way, see
+  [ADR-0051](adr/0051-the-pace-of-the-scope-is-a-bell-curve-around-two-weeks.md).
+- **The other goals.** The coin pile, the Counter's stock and the small prices, the goals of
+  ADR-0041, ADR-0049 and ADR-0043, were not read with any of these variants. A Counter fed less by the
+  crowd stocks fewer rares, which ADR-0049 wants between 10% and 50% out of stock.
+- **The size of the save.** A hold of 28 days keeps four times as many cards on the shelves as one of
+  7, and the save holds them. It was not measured.
+- **One way of trading.** The market player asks around for the rares it lacks, lists every card it
+  holds twice and takes the cheapest asking price it can pay, and never counters. A player who
+  counters, or who hoards, would find another speed. Its calls are listed in
+  [The market](simulation.md#the-market).
+- **The fastest set.** It is a whole number of days that the pace of the energy fixes, and it sat on
+  its floor of 5 days in almost every variant, so it separates few of them.
+
 ## 2026-10-23 – A trading crowd and a market for the game, no search run
 
 **Trigger:** the game gets a market, see

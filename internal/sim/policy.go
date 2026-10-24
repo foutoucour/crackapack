@@ -17,6 +17,7 @@ import "github.com/foutoucour/crackapack/internal/domain"
 // the simulation run.
 type Session interface {
 	Trading
+	Marketplace
 
 	// View returns the current simulation state. Cheap to call; recomputed each time.
 	View() WorldView

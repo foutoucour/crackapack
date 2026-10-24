@@ -57,7 +57,13 @@ crowd, `Valuer` gives the Counter and the Exchange the same reference value, and
 per archetype picks wishes, the margin and proposals. `internal/sim` composes them behind
 `trades.enabled` and exposes them to player policies through `Session`. `Market` is the game's way to
 trade: requests, listings and answers due at instants the caller gives, on the Exchange's acceptance
-rule and atomic transfer, see [The market](core-features.md#the-market).
+rule and atomic transfer, see [The market](core-features.md#the-market). A policy that implements
+`sim.MarketPlayer` gets one in a simulation too, with its own clock of ticks.
+
+`internal/study` judges what the simulation reports: it reads the days each player took on each set
+and turns them into speeds against the player who only opens boosters, and into the report of
+`crackapack market-study`. It runs nothing itself, `cmd/crackapack` does, see
+[The market study](simulation.md#the-market-study).
 
 `internal/images` fetches card pictures from Scryfall, one at a time, and keeps them in the image
 cache, see [ADR-0035](adr/0035-card-pictures-are-served-from-a-local-cache.md). It does the same for

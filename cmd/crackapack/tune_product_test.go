@@ -7,7 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/foutoucour/crackapack/demo"
 	"github.com/foutoucour/crackapack/internal/config"
+	"github.com/foutoucour/crackapack/internal/study"
 	"github.com/foutoucour/crackapack/internal/tune"
 )
 
@@ -86,6 +88,29 @@ func TestProductTuneFiles_aShapeFitsItsRunLength(t *testing.T) {
 		tail := sh.Center + upperTailSpreads*sh.Spread
 		if run := runDays[sh.Scenario]; run == 0 || tail > float64(run) {
 			t.Errorf("shape %s on %s: the bell reaches %v days, past the scenario's run_days %d", sh.Metric, sh.Scenario, tail, run)
+		}
+	}
+}
+
+// The variants of the market study are applied to the game's world one by one, so a key the config
+// refuses would stop a run that takes an hour, long after it started.
+func TestProductTuneFiles_everyMarketStudyVariantAppliesToTheGamesWorld(t *testing.T) {
+	t.Parallel()
+	world, err := playConfig(false, demo.Dataset{})
+	if err != nil {
+		t.Fatalf("playConfig: %v", err)
+	}
+	variants, err := study.LoadVariants(strings.NewReader(readProductFile(t, "market-study.yaml")))
+	if err != nil {
+		t.Fatalf("market-study.yaml: %v", err)
+	}
+	if variants[0].Name != "baseline" || len(variants[0].Overrides) != 0 {
+		t.Errorf("first variant = %+v, want the baseline with no override", variants[0])
+	}
+
+	for _, v := range variants {
+		if _, err := config.ApplyOverrides(world, v.Overrides); err != nil {
+			t.Errorf("variant %q: %v", v.Name, err)
 		}
 	}
 }

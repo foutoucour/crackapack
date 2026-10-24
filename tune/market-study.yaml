@@ -1,0 +1,132 @@
+# The variants of `crackapack market-study`, see docs/simulation.md#the-market-study. Each changes
+# keys of the game's world, tune/base.yaml with the tune/play.yaml overlay, to see what it does to
+# the speed of the Counter and of the market. The first variant is the baseline the others are
+# compared with. The reading of the results is in docs/tuning-log.md.
+#
+# A first run of more variants, on one seed, found no effect from a card staying 7 days at the
+# Counter, 30 coins a day, a Counter that starts empty, and NPCs that all take 48 hours to answer.
+# Five more lay between values kept here and are left out to keep a run short: the Counter opening
+# 4 boosters a day, the player paying 200% at the Counter, 4 NPCs, and an NPC keeping its surplus 3
+# and 21 days.
+variants:
+  - name: baseline
+    note: the game's world as it is
+
+  # One lever of the Counter at a time.
+  - name: supply-1
+    note: the Counter opens 1 booster a day, not 13
+    overrides: [{path: counter_supply.boosters_per_day, value: 1}]
+  - name: shelf-2
+    note: a card sold to the Counter stays 2 days, not 28
+    overrides: [{path: counter_shelf_days, value: 2}]
+  - name: buy-400
+    note: the player pays 400% of a card's value at the Counter, not 120%
+    overrides: [{path: counter_buy_pct, value: 400}]
+  - name: sell-30
+    note: the Counter pays 30% of a card's value, not 60%
+    overrides: [{path: counter_sell_pct, value: 30}]
+  - name: reward-10
+    note: 10 coins a day, not 100
+    overrides: [{path: daily_reward, value: 10}]
+
+  # One lever of the crowd at a time.
+  - name: crowd-2
+    note: 2 NPCs, not 12
+    overrides: [{path: npcs.population, value: 2}]
+  - name: crowd-6
+    note: 6 NPCs
+    overrides: [{path: npcs.population, value: 6}]
+  - name: crowd-24
+    note: 24 NPCs
+    overrides: [{path: npcs.population, value: 24}]
+  - name: crowd-48
+    note: 48 NPCs
+    overrides: [{path: npcs.population, value: 48}]
+  - name: hold-14
+    note: an NPC keeps its surplus 14 days, not 7
+    overrides: [{path: npcs.surplus_hold_days, value: 14}]
+  - name: hold-28
+    note: an NPC keeps its surplus 28 days
+    overrides: [{path: npcs.surplus_hold_days, value: 28}]
+  - name: answers-at-once
+    note: every NPC answers at once, whatever its archetype
+    overrides:
+      - {path: npcs.archetypes.archivist.response_delay_hours, value: 0}
+      - {path: npcs.archetypes.archivist_ego_stingy.response_delay_hours, value: 0}
+      - {path: npcs.archetypes.ego.response_delay_hours, value: 0}
+      - {path: npcs.archetypes.ego_stingy.response_delay_hours, value: 0}
+      - {path: npcs.archetypes.gambler.response_delay_hours, value: 0}
+      - {path: npcs.archetypes.playset_hunter.response_delay_hours, value: 0}
+      - {path: npcs.archetypes.stingy.response_delay_hours, value: 0}
+      - {path: npcs.archetypes.targeted_collector.response_delay_hours, value: 0}
+      - {path: npcs.archetypes.whale.response_delay_hours, value: 0}
+
+  # Levers stacked, to slow the Counter to a third faster than boosters alone while the market stays
+  # at least twice as fast. The NPCs are the Counter's main supply, so how long they keep their
+  # surplus is what moves it most, and the Counter's own supply is what is left to it.
+  - name: supply-1-hold-14
+    overrides:
+      - {path: counter_supply.boosters_per_day, value: 1}
+      - {path: npcs.surplus_hold_days, value: 14}
+  - name: supply-1-buy-400
+    overrides:
+      - {path: counter_supply.boosters_per_day, value: 1}
+      - {path: counter_buy_pct, value: 400}
+  - name: supply-1-hold-14-buy-400
+    overrides:
+      - {path: counter_supply.boosters_per_day, value: 1}
+      - {path: npcs.surplus_hold_days, value: 14}
+      - {path: counter_buy_pct, value: 400}
+  - name: supply-1-hold-21-buy-400
+    overrides:
+      - {path: counter_supply.boosters_per_day, value: 1}
+      - {path: npcs.surplus_hold_days, value: 21}
+      - {path: counter_buy_pct, value: 400}
+  - name: hold-28-buy-400
+    note: without the one-booster supply
+    overrides:
+      - {path: npcs.surplus_hold_days, value: 28}
+      - {path: counter_buy_pct, value: 400}
+  - name: supply-1-hold-28
+    note: the simplest stack that can meet the targets, with two keys
+    overrides:
+      - {path: counter_supply.boosters_per_day, value: 1}
+      - {path: npcs.surplus_hold_days, value: 28}
+  - name: supply-1-hold-28-buy-400
+    overrides:
+      - {path: counter_supply.boosters_per_day, value: 1}
+      - {path: npcs.surplus_hold_days, value: 28}
+      - {path: counter_buy_pct, value: 400}
+  - name: supply-1-hold-28-buy-800-reward-30
+    overrides:
+      - {path: counter_supply.boosters_per_day, value: 1}
+      - {path: npcs.surplus_hold_days, value: 28}
+      - {path: counter_buy_pct, value: 800}
+      - {path: daily_reward, value: 30}
+  - name: supply-1-hold-28-buy-800-reward-10-sell-30
+    overrides:
+      - {path: counter_supply.boosters_per_day, value: 1}
+      - {path: npcs.surplus_hold_days, value: 28}
+      - {path: counter_buy_pct, value: 800}
+      - {path: daily_reward, value: 10}
+      - {path: counter_sell_pct, value: 30}
+
+  # The stacks that can meet the targets, with another crowd.
+  - name: crowd-6-supply-1-hold-28-buy-400
+    overrides:
+      - {path: npcs.population, value: 6}
+      - {path: counter_supply.boosters_per_day, value: 1}
+      - {path: npcs.surplus_hold_days, value: 28}
+      - {path: counter_buy_pct, value: 400}
+  - name: crowd-24-supply-1-hold-28-buy-400
+    overrides:
+      - {path: npcs.population, value: 24}
+      - {path: counter_supply.boosters_per_day, value: 1}
+      - {path: npcs.surplus_hold_days, value: 28}
+      - {path: counter_buy_pct, value: 400}
+  - name: crowd-48-supply-1-hold-28-buy-400
+    overrides:
+      - {path: npcs.population, value: 48}
+      - {path: counter_supply.boosters_per_day, value: 1}
+      - {path: npcs.surplus_hold_days, value: 28}
+      - {path: counter_buy_pct, value: 400}
