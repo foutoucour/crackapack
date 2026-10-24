@@ -1,0 +1,34 @@
+{{define "title"}}Quests{{end}}
+
+{{define "questList"}}
+<ul class="market-list">
+  {{range .}}
+  <li>
+    <h3>{{.Task}} <span class="tag {{.State}}">{{.Label}}</span></h3>
+    <p>Reward: {{.Prize}}.</p>
+    <p><progress value="{{.Progress}}" max="{{.Target}}" aria-label="{{.Task}}">{{.Progress}} of {{.Target}}</progress> {{.Progress}} / {{.Target}}</p>
+    {{if .Got}}<p>You got {{range $i, $name := .Got}}{{if $i}}, {{end}}{{$name}}{{end}}.</p>{{end}}
+    {{if eq .State "lost"}}<p>The reward could not be given: the card or the copies it needed were gone.</p>{{end}}
+  </li>
+  {{end}}
+</ul>
+{{end}}
+
+{{define "content"}}
+<div class="page-head">
+  <h1>Quests</h1>
+  <p class="lead">Do what a quest asks, and its reward lands the moment you have done it. You choose which quests to follow: an ignored one costs nothing.</p>
+</div>
+
+<section class="market-section" aria-labelledby="daily-heading">
+  <h2 id="daily-heading">Today</h2>
+  {{if .Daily}}{{template "questList" .Daily}}{{else}}<p>No daily quest today: the game had nothing to name for one.</p>{{end}}
+  <p class="lead">New daily quests at {{.DailyResets}}.</p>
+</section>
+
+<section class="market-section" aria-labelledby="weekly-heading">
+  <h2 id="weekly-heading">This week</h2>
+  {{if .Weekly}}{{template "questList" .Weekly}}{{else}}<p>No weekly quest this week: the game had nothing to name for one.</p>{{end}}
+  <p class="lead">New weekly quests at {{.WeeklyResets}}.</p>
+</section>
+{{end}}
