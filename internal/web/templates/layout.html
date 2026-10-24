@@ -57,4 +57,4 @@
 
 {{define "cardFields"}}<input type="hidden" name="set" value="{{.Set}}"><input type="hidden" name="card" value="{{.ID}}"><input type="hidden" name="finish" value="{{.Finish}}">{{template "filterFields" .Filter}}{{end}}
 
-{{define "filterFields"}}{{with .Rarity}}<input type="hidden" name="rarity" value="{{.}}">{{end}}{{with .Colour}}<input type="hidden" name="colour" value="{{.}}">{{end}}{{end}}
+{{define "filterFields"}}{{with .Rarity}}<input type="hidden" name="rarity" value="{{.}}">{{end}}{{with .Colour}}<input type="hidden" name="colour" value="{{.}}">{{end}}{{with .Show}}<input type="hidden" name="show" value="{{.}}">{{end}}{{end}}

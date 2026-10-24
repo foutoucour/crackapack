@@ -1,6 +1,8 @@
 package web
 
 import (
+	"slices"
+
 	"github.com/foutoucour/crackapack/internal/domain"
 	"github.com/foutoucour/crackapack/internal/play"
 )
@@ -21,6 +23,7 @@ type collectionView struct {
 	PastThreshold bool
 	Rarities      filterPanel
 	Colours       filterPanel
+	Shows         showPanel
 	Slots         []slotView
 	Pools         []poolView
 	// Counter is true in a game with a Counter, whose prices the slots show. Locked is true when
@@ -62,6 +65,21 @@ type filterView struct {
 	Class   string
 	Owned   int
 	Total   int
+	Current bool
+}
+
+// showPanel is the list of the show filter: what the player can do with the cards of the binder.
+type showPanel struct {
+	Label string
+	Rows  []showView
+}
+
+// showView is one entry of the show filter: a link that picks it, or clears it when it is the one
+// in force, with the number of cards of the binder it keeps under the other filters.
+type showView struct {
+	Label   string
+	Href    string
+	Count   int
 	Current bool
 }
 
@@ -150,6 +168,10 @@ func newCollectionView(binder play.Binder, binders []play.BinderSummary, filter 
 		}
 	}
 
+	view.Shows = newShowPanel(binder.SetCode, filter, quotes != nil, market != nil, view.Slots, view.Pools)
+	view.Slots = keepShown(view.Slots, filter)
+	view.Pools = shownPools(view.Pools, filter)
+
 	view.Rarities = filterPanel{Title: "Rarity", Label: "Filter by rarity", Rows: []filterView{{
 		Label: "All rarities", Href: collectionHref(binder.SetCode, filter.toggleRarity("")), Class: "bar-all",
 		Owned: binder.Progress.Owned, Total: binder.Progress.Total, Current: filter.Rarity == "",
@@ -175,6 +197,41 @@ func newCollectionView(binder play.Binder, binders []play.BinderSummary, filter 
 		}
 	}
 	return view, nil
+}
+
+// newShowPanel builds the show filter of the binder of set, which counts what each choice keeps of
+// the slots and pools that the other filters left.
+func newShowPanel(set string, filter binderFilter, counter, market bool, slots []slotView, pools []poolView) showPanel {
+	panel := showPanel{Label: "Show cards"}
+	for _, choice := range showChoices(counter, market) {
+		keep := binderFilter{Show: choice.Value}
+		count := len(keepShown(slots, keep))
+		for _, pool := range pools {
+			count += len(keepShown(pool.Slots, keep))
+		}
+		panel.Rows = append(panel.Rows, showView{
+			Label: choice.Label, Href: collectionHref(set, filter.toggleShow(choice.Value)),
+			Count: count, Current: choice.Value == filter.Show,
+		})
+	}
+	return panel
+}
+
+// keepShown is the slots that the show filter of filter keeps.
+func keepShown(slots []slotView, filter binderFilter) []slotView {
+	return slices.DeleteFunc(slices.Clone(slots), func(s slotView) bool { return !filter.keepsSlot(s) })
+}
+
+// shownPools is the pools with the slots that the show filter of filter keeps, without the pools it
+// leaves empty.
+func shownPools(pools []poolView, filter binderFilter) []poolView {
+	var out []poolView
+	for _, pool := range pools {
+		if slots := keepShown(pool.Slots, filter); len(slots) > 0 {
+			out = append(out, poolView{Name: pool.Name, Slots: slots})
+		}
+	}
+	return out
 }
 
 // percentOf is the share of total that owned makes, in whole percent and rounded down, so that 100

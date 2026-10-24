@@ -49,6 +49,8 @@
   {{template "filterPanel" .Colours}}
 </section>
 
+{{template "showPanel" .Shows}}
+
 {{if .Locked}}{{if .Counter}}<p class="counter-note">This set is locked, so its cards cannot be bought. What you hold of it can still be sold.</p>{{end}}{{end}}
 
 {{if .Duplicates.Offered}}
@@ -66,6 +68,8 @@
 {{end}}
 
 {{if .Market}}<p id="price-hint" class="counter-note">A listing's asking price starts at what the Counter sells the card for. Change it as you like.</p>{{end}}
+
+{{if not (or .Slots .Pools)}}<p class="counter-note">No card matches this filter.</p>{{end}}
 
 {{if .Slots}}{{template "slots" .Slots}}{{end}}
 
@@ -91,6 +95,16 @@
   <ul>
     {{range .Rows}}
     <li><a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}} <strong>{{.Owned}} / {{.Total}}</strong><span class="pct">{{percent .Owned .Total}}%</span><progress class="{{.Class}}" value="{{.Owned}}" max="{{.Total}}" aria-hidden="true"></progress></a></li>
+    {{end}}
+  </ul>
+</nav>
+{{end}}
+
+{{define "showPanel"}}
+<nav class="show-bar" aria-label="{{.Label}}">
+  <ul>
+    {{range .Rows}}
+    <li><a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}} <strong>{{.Count}}</strong></a></li>
     {{end}}
   </ul>
 </nav>
@@ -124,20 +138,19 @@
 </ol>
 {{end}}
 
-{{/* The button that covers a slot: it shows the tools of the slot, and the name of the card. */}}
-{{define "pick"}}<button type="button" class="pick" aria-expanded="false" aria-controls="tools-{{.ID}}"><span class="sr-only">Actions for {{.Name}}</span></button>{{end}}
+{{/* The button that covers a slot: it opens the card big, with the tools of the slot. */}}
+{{define "pick"}}<button type="button" class="pick" aria-haspopup="dialog"><span class="sr-only">Open {{.Name}}</span></button>{{end}}
 
 {{define "glyph"}}<svg class="glyph" aria-hidden="true" focusable="false"><use href="#glyph-{{.}}"/></svg>{{end}}
 
-{{/* What the player can do with a slot, over the card: the Counter's buy and sell, and the market's
-   ask around and list. A request or a listing that is under way shows under the card instead, see
-   "trading", since its answers need an answer. */}}
+{{/* What the player can do with a slot, shown with the card big: the Counter's buy and sell, and the
+   market's ask around and list. Without the script they show under the card. A request or a listing
+   that is under way shows under the card instead, see "trading", since its answers need an answer. */}}
 {{define "tools"}}
 {{$slot := .}}
-<div class="tools" id="tools-{{.ID}}">
+<div class="tools">
   <p class="tools-name">{{.Name}}</p>
   <span class="tool-row">
-    {{if .Held}}<button type="button" class="tool tool-view">{{template "glyph" "view"}}<span class="sr-only">View {{.Name}}</span></button>{{end}}
     {{range .Sales}}
     {{if .Traded}}
     {{if gt .Copies 1}}
@@ -204,7 +217,6 @@
 
 {{define "glyphs"}}
 <svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">
-  <symbol id="glyph-view" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6"/></symbol>
   <symbol id="glyph-buy" viewBox="0 0 24 24"><path d="M3 4h2l2.4 10h9.2L19 7H6.2"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></symbol>
   <symbol id="glyph-sell" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8L3 12z"/><circle cx="7.5" cy="8.5" r="1"/></symbol>
   <symbol id="glyph-trade" viewBox="0 0 24 24"><path d="M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4"/></symbol>

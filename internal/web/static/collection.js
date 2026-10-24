@@ -1,38 +1,18 @@
-// The collection page: the tools of a card, the list of binders, and the card big.
+// The collection page: a card opens big with its tools, and the list of binders.
 import { createViewer, dropBrokenPictures } from './cards.js';
 
-// The View button of a card, among its tools, opens it big.
+// A click on a slot opens its card big, with what the player can do with it. An empty slot has no
+// card to show, so its dialog is named after the card it stands for.
 const viewer = createViewer();
 document.querySelectorAll('[data-binder]').forEach((binder) => {
   dropBrokenPictures(binder);
-  binder.querySelectorAll('[data-card] .tool-view').forEach((open) => {
-    open.addEventListener('click', () => viewer.show(open.closest('[data-card]'), open));
+  binder.querySelectorAll('.entry').forEach((entry) => {
+    const pick = entry.querySelector('.pick');
+    const tools = entry.querySelector('.tools');
+    const face = entry.querySelector('[data-card], .slot');
+    const label = face.matches('[data-card]') ? undefined : `${tools.querySelector('.tools-name').textContent}, not in your collection`;
+    pick.addEventListener('click', () => viewer.show(face, pick, { tools, label }));
   });
-});
-
-// A click on a slot shows its tools and the name of its card, one slot at a time. A click anywhere
-// else, or Escape, puts them away.
-const picks = [...document.querySelectorAll('.binder .pick')];
-const isOpen = (pick) => pick.getAttribute('aria-expanded') === 'true';
-const setOpen = (pick, open) => {
-  pick.setAttribute('aria-expanded', String(open));
-  const entry = pick.closest('.entry');
-  entry.classList.toggle('selected', open);
-  if (!open) entry.querySelectorAll('details[open]').forEach((panel) => { panel.open = false; });
-};
-const closeAll = (except) => picks.forEach((pick) => { if (pick !== except) setOpen(pick, false); });
-picks.forEach((pick) => pick.addEventListener('click', () => {
-  closeAll(pick);
-  setOpen(pick, !isOpen(pick));
-}));
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.entry')) closeAll();
-});
-document.addEventListener('keydown', (e) => {
-  const open = picks.find(isOpen);
-  if (e.key !== 'Escape' || !open) return;
-  closeAll();
-  open.focus();
 });
 
 // On a wide screen the list of binders stays open beside the binder, and on a narrow one it folds

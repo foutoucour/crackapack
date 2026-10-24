@@ -549,7 +549,8 @@ func TestMarketSlot_aHeldCardOffersToListWithTheCountersSellingPriceAsAsk(t *tes
 
 	got := slot(t, body, cheapCard)
 	mustContain(t, "a held card", got, `action="/list"`, `name="price"`, `value="120"`, "List", "on the market", `aria-describedby="price-hint"`)
-	mustNotContain(t, "a held card", got, `action="/ask-around"`, "Listed at")
+	mustContain(t, "a held card, which can be asked around for again, for a playset", got, `action="/ask-around"`)
+	mustNotContain(t, "a held card", got, "Listed at")
 	mustContain(t, "the binder", body, `id="price-hint"`, "what the Counter sells")
 	// A card the Counter does not trade has no reference to start from.
 	mustNotContain(t, "an untraded card", slot(t, body, unpricedKey), `value="1"`)

@@ -183,7 +183,7 @@ func TestMarketIndex_aListedCardShowsListedAndAnotherShowsWhatACounterHolds(t *t
 			return 2
 		}
 		return 1
-	})
+	}, nil)
 
 	a := idx.sale(cardRef{Set: "S", ID: "A", Finish: "nonfoil"}, false, 48)
 	b := idx.sale(cardRef{Set: "S", ID: "B", Finish: "nonfoil"}, false, 48)

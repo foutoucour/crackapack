@@ -78,7 +78,8 @@ func (sh shelf) apply(slot *slotView, c play.BinderCard) error {
 			slot.Lists = append(slot.Lists, sh.market.sale(sh.ref(c.Card.ID, f.finish), f.finish == domain.FinishFoil, q.BuyPrice))
 		}
 	}
-	if slot.Held() || sh.locked {
+	// A held card can be bought again: the player may be building a playset.
+	if sh.locked {
 		return nil
 	}
 	finish, ok := buyableFinish(c.Card)

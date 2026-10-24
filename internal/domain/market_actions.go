@@ -25,12 +25,7 @@ func (m *Market) AskAround(card CardKey, now time.Time) (MarketID, error) {
 		over = r.ID
 		break
 	}
-	var holders []*NPC
-	for _, id := range m.crowd.HoldersOf(card) {
-		if npc := m.crowd.byID[id]; npc.Behaviour != nil {
-			holders = append(holders, npc)
-		}
-	}
+	holders := m.holders(card)
 	if len(holders) == 0 {
 		return 0, fmt.Errorf("%w: %s", ErrNoHolder, card.ID)
 	}
@@ -41,6 +36,21 @@ func (m *Market) AskAround(card CardKey, now time.Time) (MarketID, error) {
 	m.requests = append(m.requests, MarketRequest{ID: id, Card: card, At: now, Asked: len(holders)})
 	m.expect(id, holders, now)
 	return id, nil
+}
+
+// HasHolder reports whether an NPC that trades holds card on its shelf, which is whether AskAround
+// would find one.
+func (m *Market) HasHolder(card CardKey) bool { return len(m.holders(card)) > 0 }
+
+// holders returns the NPCs that trade and hold card on their shelf.
+func (m *Market) holders(card CardKey) []*NPC {
+	var holders []*NPC
+	for _, id := range m.crowd.HoldersOf(card) {
+		if npc := m.crowd.byID[id]; npc.Behaviour != nil {
+			holders = append(holders, npc)
+		}
+	}
+	return holders
 }
 
 // List puts one copy of card on the market at price, and reserves it. The NPCs that wish for the

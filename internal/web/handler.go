@@ -140,8 +140,8 @@ func (h *handler) pack(w http.ResponseWriter, r *http.Request) {
 }
 
 // collection shows one set's binder, the first set's unless ?set= names another, and only the cards
-// of one rarity when ?rarity= names one that the binder has, and of one colour group when ?colour=
-// names one.
+// of one rarity when ?rarity= names one that the binder has, of one colour group when ?colour=
+// names one, and the ones that ?show= names when the game offers it.
 func (h *handler) collection(w http.ResponseWriter, r *http.Request) {
 	// The market first: it catches the game up, and what it delivers changes the binders.
 	market, err := h.marketIndex()
@@ -171,6 +171,10 @@ func (h *handler) collection(w http.ResponseWriter, r *http.Request) {
 	var quotes counterQuoter
 	if h.game.HasCounter() {
 		quotes = h.game
+	}
+	if !offers(filter.Show, quotes != nil, market != nil) {
+		h.fail(w, http.StatusBadRequest, "Unknown filter: pick one of the filters above the binder.")
+		return
 	}
 	view, err := newCollectionView(binder, binders, filter, quotes, market)
 	if err != nil {

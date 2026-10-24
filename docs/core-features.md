@@ -151,7 +151,8 @@ The collection is the player's goal: one binder per set, filled card by card. Ca
 printing: the same card in two sets counts as two cards.
 
 - **Set binder:** all cards of the set except basic lands, in collector number order, empty slots
-  greyed out. The collection page filters it by rarity and by colour, and the two filters combine.
+  greyed out. The collection page filters it by rarity, by colour and by what the player can do with
+  a card, and the three filters combine.
 - **Cards from another list:** the cards that a set's boosters draw from another catalogue count in
   its binder, in a section of their own. Time Spiral's binder holds the 121 timeshifted cards that
   boosters can draw, and leaves out the one that no booster holds, since nobody could complete the
@@ -171,18 +172,24 @@ printing: the same card in two sets counts as two cards.
   with a bar of what the player holds. A row filters the binder, and the row in force clears its
   filter when clicked again. The bars always show the whole binder, so a filter never changes the
   progress.
+- **Show filter:** a row of pills over the binder, each with the number of cards it keeps under the
+  rarity and colour in force, that picks the cards to act on. *Duplicates* keeps the cards held above
+  a playset, in both finishes together: the copies to sell or to trade. *At the Counter* keeps the
+  cards the Counter has in stock, held or not, in a game with a Counter. *Available to trade* keeps
+  the cards an NPC that trades holds, which is whether Ask around finds someone, in a game with a
+  market. A choice that keeps nothing says so.
 - **Finding a set:** the sets that can be opened are listed beside the binder, each entry filled up
   to the player's progress in it, with a search box above. Locked sets are folded into a closed
   section, which opens by itself when the binder in view is locked. On a narrow screen the list
   folds into the name of the set in view. With 107 sets, a row of buttons would push the binder off
   the screen.
-- **Card tools:** a click on a card, or on an empty slot, shows its name and a row of icon buttons
-  over it, one slot at a time, and a click elsewhere or Escape puts them away. Nothing depends on
-  hovering, so the page works on a phone. View opens the card big, Sell and Buy go to the Counter,
-  and Trade asks the NPCs around or lists the card on the market. A sale of several copies asks the
-  quantity, and a listing asks the price, in a panel that takes the card. A request or a listing
-  that is under way stays under its card, since its answers wait for the player. A binder card
-  carries no set icon.
+- **Card tools:** the binder shows a held card with how many copies are held and nothing else. A
+  click on a card, or on an empty slot, opens it big in a dialog, with its name and a row of icon
+  buttons under it; a click outside the buttons, Close or Escape puts it away. Nothing depends on
+  hovering, so the page works on a phone. Sell and Buy go to the Counter, and Trade asks the NPCs
+  around or lists the card on the market. A sale of several copies asks the quantity, and a listing
+  asks the price, in a panel under the icons. A request or a listing that is under way stays under
+  its card in the binder, since its answers wait for the player. A binder card carries no set icon.
 - **Overview:** at the top of the collection page, the cards held out of the cards of the unlocked
   sets, the binders complete (every card held) and the sets unlocked out of all of them. Locked sets
   do not count in the cards, since they cannot be played yet.
@@ -284,11 +291,12 @@ the collection page, with no page of its own:
 - **Cards on the market:** the Counter does not buy a copy held for a listing or a counter on the
   market, see [The market](#the-market). Selling the duplicates keeps those copies.
 - **In the binder:** the coins show in the header next to the energy. A held card has a Sell
-  button with the price of a copy, per finish, and a quantity when more than one copy is held. A sale
+  button with the price of a copy, per finish, and a quantity when more than one copy is held. It
+  has a Buy button too, as a slot with no copy does, since the player may be building a playset. A sale
   that empties the slot, with no copy left in either finish, asks first on a page of its own, so
   that no script is needed. The binder offers Sell duplicates with the copies and the total it
-  pays, and says so when there is nothing above a playset. An empty slot shows the card's name, its
-  price and a Buy button, or why it cannot be bought: the Counter has no copy and when it last had
+  pays, and says so when there is nothing above a playset. A slot shows the card's name, its price and
+  a Buy button, or why it cannot be bought: the Counter has no copy and when it last had
   one ("last in stock 5 minutes ago"), it never had one ("never seen at the Counter"), or it does
   not trade the card. A locked set's binder only sells. The result of a purchase or a sale shows on
   the binder it returns to, with the sets it unlocked.
@@ -350,8 +358,8 @@ In the game the player starts trades, as on Reverb or eBay, see
 - **What the player sees:** the requests, the listings, the answers with who made them and their
   terms, how many NPCs asked have still to answer a request but not who, and the latest answers that
   ended: accepted, refused, lapsed, or failed because the NPC no longer had its card.
-- **In the binders:** on an empty slot of an open set, next to the Counter's price, an Ask around
-  button. Once asked, the slot says how far the NPCs have answered ("3 NPCs asked, no answer yet",
+- **In the binders:** on a slot of an open set, held or not, next to the Counter's price, an Ask
+  around button. Once asked, the slot says how far the NPCs have answered ("3 NPCs asked, no answer yet",
   "3 NPCs asked, 1 still to answer"), then shows each answer with who made it, its personality and its
   asking price, and Accept, Counter and Decline buttons, with Stop asking. On a held card, per
   finish, a List on the market form with the asking price, which starts at what the Counter sells the

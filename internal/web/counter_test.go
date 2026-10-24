@@ -197,7 +197,7 @@ func TestCollection_everyStateOfAnEmptySlotAndOfAHeldCard(t *testing.T) {
 		want []string
 		not  []string
 	}{
-		{name: "held", card: cheapCard, want: []string{`action="/sell"`, "◎60"}, not: []string{`action="/buy"`, "stock"}},
+		{name: "held", card: cheapCard, want: []string{`action="/sell"`, "◎60", `action="/buy"`, "◎120"}, not: []string{"stock"}},
 		{name: "not traded", card: unpricedKey, want: []string{"Not traded"}, not: []string{`action="/buy"`, `action="/sell"`}},
 		{name: "out of stock", card: neverCard, want: []string{"last in stock 1 day ago", "◎120"}, not: []string{`action="/buy"`, "never seen"}},
 	}
@@ -273,6 +273,20 @@ func TestBuy_takesTheCoinsAddsTheCardAndComesBackToItsPlaceInTheBinder(t *testin
 	if again := shop.get(t, "/collection?set=S"); strings.Contains(again, "Bought") {
 		t.Error("the notice of the purchase is shown twice")
 	}
+}
+
+func TestBuy_aCardAlreadyHeldCanBeBoughtAgainForAPlayset(t *testing.T) {
+	t.Parallel()
+	shop := newCounterShop(t)
+	shop.open(t, 1)
+
+	resp, body := shop.post(t, "/buy", cardForm("S", cheapCard, "nonfoil"))
+
+	redirectsTo(t, "POST /buy of a held card", resp, "/collection?set=S#c-S-00")
+	if got := shop.game.Balance(); got != 80 {
+		t.Errorf("balance %d, want 80:\n%s", got, body)
+	}
+	mustContain(t, "the binder after buying a second copy", slot(t, shop.get(t, "/collection?set=S"), cheapCard), `×2`)
 }
 
 func TestBuy_aPurchaseThatUnlocksSetsSaysSoAfterTheRedirect(t *testing.T) {
