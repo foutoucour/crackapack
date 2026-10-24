@@ -56,12 +56,13 @@ const (
 	// playing it never touches a real game.
 	saveFile     = "save.json"
 	demoSaveFile = "save-demo.json"
-	// unlockSeedSalt, supplySeedSalt and crowdSeedSalt set the seeds of the unlocks, of the
-	// Counter's boosters and of the NPCs apart from the seed of the player's boosters, so that no two
-	// draw the same numbers.
+	// unlockSeedSalt, supplySeedSalt, crowdSeedSalt and questSeedSalt set the seeds of the unlocks,
+	// of the Counter's boosters, of the NPCs and of the quests apart from the seed of the player's
+	// boosters, so that no two draw the same numbers.
 	unlockSeedSalt = 0x9e3779b97f4a7c15
 	supplySeedSalt = 0xbf58476d1ce4e5b9
 	crowdSeedSalt  = 0x94d049bb133111eb
+	questSeedSalt  = 0xd6e8feb86659fd93
 )
 
 // playArgs holds all dependencies for runPlay, decoupled from the OS so that tests can serve on a
@@ -370,6 +371,13 @@ func startGame(a playArgs, log *slog.Logger) (*play.Game, *play.Stream, error) {
 		return nil, nil, err
 	}
 	if err := game.OpenCounter(counter, play.NewStream(a.seed^supplySeedSalt), play.NewStream(a.seed^crowdSeedSalt)); err != nil {
+		return nil, nil, err
+	}
+	quests, err := a.cfg.Quests.Rules()
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := game.OpenQuests(quests, play.NewStream(a.seed^questSeedSalt)); err != nil {
 		return nil, nil, err
 	}
 	// Said first, so that an error about the save has said which file it is.
