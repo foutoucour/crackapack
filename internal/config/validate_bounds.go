@@ -83,7 +83,7 @@ func validateBounds(cfg Config) error {
 		}{fmt.Sprintf("energy.cost_table[%d].cost", i), int64(entry.Cost), maxEnergyCost})
 	}
 	for i, t := range cfg.Quests.Templates {
-		for _, entry := range []struct {
+		checks = append(checks, []struct {
 			key   string
 			value int64
 			max   int64
@@ -91,9 +91,7 @@ func validateBounds(cfg Config) error {
 			{fmt.Sprintf("quests.templates[%d].target", i), t.Target, maxCoins},
 			{fmt.Sprintf("quests.templates[%d].max_value", i), t.MaxValue, maxCoins},
 			{fmt.Sprintf("quests.templates[%d].weight", i), int64(t.Weight), maxQuestWeight},
-		} {
-			checks = append(checks, entry)
-		}
+		}...)
 	}
 	// Trait parameter upper bounds: archetypes in name order, params in sorted order.
 	for _, aname := range slices.Sorted(maps.Keys(cfg.NPCs.Archetypes)) {

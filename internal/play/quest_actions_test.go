@@ -141,15 +141,11 @@ func TestQuests_aRewardIsNeitherASaleNorAPurchase(t *testing.T) {
 
 	board := mustQuests(t, g)
 	for _, q := range board.Daily {
-		switch q.Action {
-		case domain.QuestOpenBoosters:
-			if q.State != play.QuestDone {
-				t.Errorf("the booster quest is %v, want done", q.State)
-			}
-		case domain.QuestBuyCards:
-			if q.Progress != 0 {
-				t.Errorf("the buy quest is at %d, want 0: the card won is not bought", q.Progress)
-			}
+		if q.Action == domain.QuestOpenBoosters && q.State != play.QuestDone {
+			t.Errorf("the booster quest is %v, want done", q.State)
+		}
+		if q.Action == domain.QuestBuyCards && q.Progress != 0 {
+			t.Errorf("the buy quest is at %d, want 0: the card won is not bought", q.Progress)
 		}
 	}
 }
