@@ -32,6 +32,8 @@ type Snapshot struct {
 	Counter *CounterSnapshot `json:"counter"`
 	// Hunts are the cards the player hunts, see [Game.Hunt].
 	Hunts []HuntSnapshot `json:"hunts,omitempty"`
+	// Quests are the daily and weekly quests, see [Game.OpenQuests].
+	Quests *QuestsSnapshot `json:"quests,omitempty"`
 }
 
 // HuntSnapshot is a card the player hunts, and what the hunt has seen of the Counter and asked of

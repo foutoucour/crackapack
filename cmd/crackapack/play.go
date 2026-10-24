@@ -56,12 +56,13 @@ const (
 	// playing it never touches a real game.
 	saveFile     = "save.json"
 	demoSaveFile = "save-demo.json"
-	// unlockSeedSalt, supplySeedSalt and crowdSeedSalt set the seeds of the unlocks, of the
-	// Counter's boosters and of the NPCs apart from the seed of the player's boosters, so that no two
-	// draw the same numbers.
+	// unlockSeedSalt, supplySeedSalt, crowdSeedSalt and questSeedSalt set the seeds of the unlocks,
+	// of the Counter's boosters, of the NPCs and of the quests apart from the seed of the player's
+	// boosters, so that no two draw the same numbers.
 	unlockSeedSalt = 0x9e3779b97f4a7c15
 	supplySeedSalt = 0xbf58476d1ce4e5b9
 	crowdSeedSalt  = 0x94d049bb133111eb
+	questSeedSalt  = 0xd6e8feb86659fd93
 )
 
 // playArgs holds all dependencies for runPlay, decoupled from the OS so that tests can serve on a
@@ -158,6 +159,11 @@ the NPCs that have it ask a price, or list a card and the NPCs that want it make
 cards. Each answers at the pace of its personality, some at once and some the next day, also while
 the game is closed. Ask around from an empty slot of a binder, list a card from a held one, and
 answer on the Market page, which the header links to with the answers waiting.
+
+The Quests page lists the daily quests, which renew at midnight UTC, and the weekly ones, which renew on
+Monday. A quest names what to do, such as open two boosters of a set, and what it gives, such as a
+card to win or a set to unlock, and the reward comes the moment you have done it. Follow the quests
+you want and ignore the rest.
 
 Card pictures are downloaded from Scryfall the first time a card shows, one at a time, and kept
 in the user cache directory. A card whose picture cannot be downloaded shows as text. The back of
@@ -370,6 +376,13 @@ func startGame(a playArgs, log *slog.Logger) (*play.Game, *play.Stream, error) {
 		return nil, nil, err
 	}
 	if err := game.OpenCounter(counter, play.NewStream(a.seed^supplySeedSalt), play.NewStream(a.seed^crowdSeedSalt)); err != nil {
+		return nil, nil, err
+	}
+	quests, err := a.cfg.Quests.Rules()
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := game.OpenQuests(quests, play.NewStream(a.seed^questSeedSalt)); err != nil {
 		return nil, nil, err
 	}
 	// Said first, so that an error about the save has said which file it is.

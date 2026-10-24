@@ -70,12 +70,14 @@ func NewHandler(game *play.Game, pics, icons images.Source, log *slog.Logger) ht
 		"marketNav": h.marketNav,
 		// So is the one to the hunted cards, with the copies that came to the Counter.
 		"huntedNav": h.huntedNav,
+		// And to the quests, in a game that has them.
+		"questsNav": h.questsNav,
 	}
 	// Each page is parsed together with the layout, since pages define the same blocks.
 	// The header marks the link of the section a page belongs to; a page with no section marks none.
 	sections := map[string]string{
 		"home": "/", "pack": "/", "collection": "/collection", "confirm": "/collection",
-		"market": marketPath, "market_counter": marketPath, "hunted": huntedPath, "error": "",
+		"market": marketPath, "market_counter": marketPath, "hunted": huntedPath, "quests": questsPath, "error": "",
 	}
 	for name, section := range sections {
 		pageFuncs := template.FuncMap{"section": func() string { return section }}
@@ -96,6 +98,7 @@ func NewHandler(game *play.Game, pics, icons images.Source, log *slog.Logger) ht
 	mux.HandleFunc("POST /sell", h.sell)
 	mux.HandleFunc("POST /sell-duplicates", h.sellDuplicates)
 	mux.HandleFunc("GET /market", h.market)
+	mux.HandleFunc("GET /quests", h.quests)
 	mux.HandleFunc("GET /hunted", h.hunted)
 	mux.HandleFunc("POST /hunt", h.hunt)
 	mux.HandleFunc("POST /unhunt", h.unhunt)

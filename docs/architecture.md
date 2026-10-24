@@ -69,7 +69,9 @@ opening them costs, which recharges from an injected clock, the collection they 
 that unlock the sets, see [Stages](core-features.md#stages). It holds the coins and the Counter too,
 and catches up the Counter's supply and NPCs on the days gone by, with the domain objects the
 simulation uses, see [The Counter](core-features.md#the-counter), and the market, whose answers it
-delivers in time with those days. `internal/config` maps the config to
+delivers in time with those days. It draws the daily and weekly quests and counts what the player did
+for them, from the change of the collection and of the ledger, see
+[Quests](core-features.md#quests). `internal/config` maps the config to
 those objects' parameters for both. It also
 defines the save of that state: a `Snapshot` and a `Store` interface, with a JSON file
 implementation, see [ADR-0052](adr/0052-the-game-is-saved-in-one-versioned-json-file.md). It sits

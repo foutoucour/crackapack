@@ -16,6 +16,7 @@
       <nav class="site-nav" aria-label="Main">
         <a href="/"{{if eq section "/"}} aria-current="page"{{end}}>Boosters</a>
         <a href="/collection"{{if eq section "/collection"}} aria-current="page"{{end}}>Collection</a>
+        {{with questsNav}}<a href="/quests"{{if eq section "/quests"}} aria-current="page"{{end}}>Quests</a>{{end}}
         {{with huntedNav}}<a href="/hunted"{{if eq section "/hunted"}} aria-current="page"{{end}}>Hunted{{if .New}} <span class="badge">{{.New}}<span class="sr-only"> new at the Counter</span></span>{{end}}</a>{{end}}
         {{with marketNav}}<a href="/market"{{if eq section "/market"}} aria-current="page"{{end}}>Market{{if .Waiting}} <span class="badge">{{.Waiting}}<span class="sr-only"> {{.Label}}</span></span>{{end}}</a>{{end}}
       </nav>

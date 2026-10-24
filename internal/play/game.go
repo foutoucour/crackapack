@@ -93,6 +93,9 @@ type Game struct {
 	// hunts are the cards the player hunts, oldest first, see Hunt.
 	hunts []*hunt
 
+	// quests is the daily and weekly quests, nil in a game without them, see OpenQuests.
+	quests *questBoard
+
 	// saves is where the game is kept between runs, see Persist, and saveErr why the latest save failed.
 	saves   Saves
 	saveErr error
@@ -268,7 +271,10 @@ func (g *Game) open(setCode string, topUp bool) (Opening, error) {
 	} else if err := g.pay(setCode, bill); err != nil {
 		return Opening{}, fmt.Errorf("open %q: %w", setCode, err)
 	}
+	// What came to the collection before is counted first, so that the booster's cards are not.
+	g.settleQuests()
 	g.collection.AddBooster(booster)
+	g.questOpened(setCode)
 	opening.Unlocked = g.unlockEarned()
 	g.last = &opening
 	g.save()

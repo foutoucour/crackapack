@@ -93,11 +93,16 @@ many parameters at once for a config that meets the goals.
     every call, would help either way.
   - [x] Done when the config above runs in a few seconds, and a benchmark covers the exploiter with
     trades at a high session rate so that the cliff cannot come back unseen.
-- [ ] **Daily quests and chest**, see [Daily quests and chest](retention.md#daily-quests-and-chest).
-  - [ ] Three quests a day drawn from a catalogue of quests, and a claim step.
-  - [ ] The chest worth +2 energy. `Energy` has no way to add a bonus yet.
-  - [ ] Reward values, which are to be calibrated.
-  - [ ] Whether a new basic land counts for "discover 10 new cards".
+- [ ] **Quests**, see [Quests](core-features.md#quests) and [Quests in retention](retention.md#quests).
+  Built in the game, not in the simulation.
+  - [x] Daily and weekly quests that name an action and a reward, six rewards, counted from the
+    change of the collection and of the ledger, saved with the game and shown on `/quests`, see
+    [ADR-0070](adr/0070-a-quest-names-its-action-and-its-reward-and-pays-at-once.md),
+    [ADR-0071](adr/0071-quests-count-the-change-of-the-collection-and-of-the-ledger.md) and
+    [ADR-0072](adr/0072-a-weekly-quest-can-unlock-a-set-of-the-earliest-stage-with-one-locked.md).
+  - [ ] Simulate them, see [Tune the quests](#tuning-system-and-metrics).
+  - [ ] The chest worth +2 energy of the first design was dropped: a reward lands when the action is
+    done. `Energy` has no way to add a bonus yet, which the milestones will need.
 - [ ] **Collection milestones and rewards**, see
   [Collection goals and badges](retention.md#collection-goals-and-badges).
   - [ ] Rewards in coins and energy for commons, uncommons, rares, the binder, the timeshifted
@@ -213,6 +218,10 @@ are the goals and their bands, the scope, and the remedies that change a rule.
   [Mechanics not simulated yet](#mechanics-not-simulated-yet-in-v1).
 - [ ] **Initial Counter stock:** which cards, instead of a flat count per rarity.
 - [ ] **Counter rates:** the 60% and 120% are starting values.
+- [ ] **The daily reward next to the quests.** The game pays a flat daily reward, see
+  [ADR-0067](adr/0067-the-daily-reward-is-paid-for-each-day-the-game-catches-up.md), and the quests
+  came after it. Decide whether the reward stays: a coin for being there sits beside rewards that
+  cost the player energy. The quests do not count it as coins won.
 - [ ] **Energy:** calibrate the cost tiers against the real booster values, and check the
   collector's `collectorReserveDays = 1` and `sessions_per_day` assumptions.
 - [ ] **Pacing target** of a set's binder in about two weeks at 3 visits a day. Real-data runs
@@ -320,6 +329,22 @@ run today. The other two wait for features that are not built. The
     search runs out of reach.
   - [ ] **New goals** for quests, milestones and trades as those mechanics land. The system does
     not need them to start.
+- [ ] **Tune the quests.** The targets, the value caps, the weights and the counts of the `quests`
+  block are starting guesses, see [`internal/config/quests.go`](../internal/config/quests.go). A
+  quest only works if its reward is worth the energy it pulls away from the race for a binder, and
+  not worth so much that every player must follow it.
+  - [ ] A player policy that chooses between racing a binder and following quests, with the energy
+    and the coins each quest costs it. It needs the game's quest rules in the simulation, which has
+    none yet.
+  - [ ] Metrics: the energy spent on quests, the days to a binder with and without them, the cards and
+    boosters the rewards add, and the share of quests followed.
+  - [ ] A search space on `quests.templates[N].target`, `max_value` and `weight`, which the override
+    paths reach by index, and goals with bands. A faucet needs a sink, see
+    [ADR-0041](adr/0041-a-finished-collector-keeps-at-most-3000-coins.md).
+  - [ ] Two risks to measure: a quest to sell or buy cards that a buy-and-sell loop completes at a
+    small loss, and the quests that ask for coins spent or won, which cost the player almost nothing
+    in net worth, so their rewards should be small.
+  - [ ] The values then go to the [tuning log](tuning-log.md).
 - [ ] A metric for rare stock-outs, for example the days a card the player wants is out of stock.
 - [ ] Coin pressure metrics, to judge whether coins matter: the share of income absorbed by sinks,
   the days to afford a chosen goal, the energy converted per day and the change in net worth.
@@ -372,7 +397,7 @@ The stack is server-rendered `html/template`, see
   every booster costs the middle tier. The coin fee above the cap and the coin top-up are in, see
   [ADR-0068](adr/0068-the-game-charges-a-sets-coin-fee-when-a-booster-is-opened.md) and
   [ADR-0069](adr/0069-the-player-asks-for-a-coin-top-up-and-the-game-plays-one-price.md). Left: the
-  bonuses that add to the savings, such as the chest and the milestones, and the escalating variants
+  bonuses that add to the savings, such as the milestones, and the escalating variants
   of the top-up.
 - [x] The collection: one binder per set at `/collection`, every card but the basic lands in
   collector number order with the empty slots greyed, progress overall and by rarity, complete
@@ -426,7 +451,11 @@ The stack is server-rendered `html/template`, see
   after it was listed, a lighter binder page (the controls add about 400 bytes a slot, so the
   largest binders weigh 280 to 330 KB: one form shared by a binder's buttons would cut it), and a
   simulation of what the market does to the coins and the Counter's stock.
-- [ ] Quests and the profile.
+- [x] Quests: the `/quests` page with the daily and the weekly quests worded as what to do and what
+  it gives, the progress of each, what a finished one gave and why a lost one was lost, and a link in
+  the header, see [Quests](core-features.md#quests). Left: a badge for the quests done since the
+  player last looked, and the quest's card marked on its slot of a binder.
+- [ ] The profile.
 - [x] **Hunted cards.** A player hunts the card of an empty slot. The NPCs that hold it offer an
   exchange, asked again each day, and the header says when the Counter has a copy, see
   [Hunted cards](core-features.md#hunted-cards) and

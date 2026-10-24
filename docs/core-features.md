@@ -123,7 +123,7 @@ rhythm of sessions.
 
 - **Recharge:** +1 every 10 minutes up to 10 (a full reserve in 1 h 40).
 - **Savings:** with a full reserve, recharge continues at +1 every 30 minutes, capped at 200.
-  Bonuses (chest, milestones, events) are added to it.
+  Bonuses (milestones, events) are added to it.
 - **Spending:** the reserve first, then the savings.
 - **Cost relative to the catalogue:** every V1 set is expensive in USD today. The cost follows the
   booster's average value relative to the catalogue median, not its absolute value.
@@ -248,7 +248,8 @@ Counter's rates and the rewards.
 | Daily reward | Source | 100 coins / day, for each day the game catches up, see [ADR-0067](adr/0067-the-daily-reward-is-paid-for-each-day-the-game-catches-up.md) |
 | Sales to the Counter | Source | 60% of the reference value |
 | Sales to NPCs on the market | Source | Up to the reference value less the NPC's margin |
-| Quests, milestones, mini-games | Source | See [Retention](retention.md) |
+| Quests | Source | Cards, boosters and unlocks more than coins, see [Quests](#quests) |
+| Milestones, mini-games | Source | See [Retention](retention.md) |
 | Coin top-ups in trades, and purchases from NPCs on the market | Sink | Difference in reference value, or the NPC's asking price |
 | Coin fee on a booster worth more than the energy cap, and coin top-up of its energy | Sink | See [Energy](#energy) |
 | Purchases from the Counter | Sink | 120% of the reference value |
@@ -406,6 +407,40 @@ the hunt in the save, up to 20 cards.
 - **The Counter:** the `/hunted` page says whether the Counter has a copy and its price, never how
   many. The header's Hunted link counts the copies that came since the page was last shown, see
   [ADR-0067](adr/0067-the-counter-tells-a-hunter-that-a-copy-came-never-how-many.md).
+
+## Quests
+
+A quest asks the player for something that costs energy or coins and gives back something that
+serves a binder. Energy sets the pace of the game, so a reward has to be worth pulling it away from
+the race for a binder. The player chooses which quests to follow, and an ignored one costs nothing.
+
+A quest is an action and a reward that its wording names, and the reward lands the moment the action
+is done, see [ADR-0070](adr/0070-a-quest-names-its-action-and-its-reward-and-pays-at-once.md).
+
+- **The board:** daily quests renew at midnight UTC and weekly ones on Monday. How many of each, and
+  every target and cap, are the `quests` block of the configuration, see
+  [`internal/config/quests.go`](../internal/config/quests.go). They are starting guesses, see the
+  [TODO](todo.md). A quest the game has nothing to name, such as a foil for a player who holds no
+  card, is not drawn that period.
+- **Actions:** open boosters of a named set, sell or trade cards of a colour or a rarity, buy or
+  trade for them, win a deal on the market worth some coins, spend coins, win coins, and for a weekly
+  quest finish daily quests. What counts is the change of the collection and of the ledger, see
+  [ADR-0071](adr/0071-quests-count-the-change-of-the-collection-and-of-the-ledger.md).
+- **Rewards:**
+  - Win a named card the player lacks.
+  - Turn a named card the player holds into a foil.
+  - A premium booster of a named set, which holds no card the player has a playset of. A slot with no
+    such card left draws as it always does.
+  - Unlock a named set of the next stage, see
+    [ADR-0072](adr/0072-a-weekly-quest-can-unlock-a-set-of-the-earliest-stage-with-one-locked.md).
+  - Double the spare copies of a named set: the copies above a playset, so that five copies become six
+    and six become eight.
+  - A swap: the card named for the spare copies named, which cover its value at the Counter's
+    reference. The quest is lost when the copies are gone by then.
+- **The page:** `/quests` lists the quests with their progress, and what a finished one gave. The
+  header links to it in a game that has quests.
+
+The simulation does not play quests yet, see the [TODO](todo.md#tuning-system-and-metrics).
 
 ## NPCs and simulation
 

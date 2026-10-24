@@ -77,8 +77,10 @@ func (g *Game) SaveError() error {
 }
 
 // save writes the game to the store, if it has one, and remembers whether it went through. g.mu
-// must be held. Every method that changes the game calls it last, once nothing can fail any more.
+// must be held. Every method that changes the game calls it last, once nothing can fail any more, so
+// it is also where the quests count what the player did.
 func (g *Game) save() {
+	g.settleQuests()
 	if g.saves.Store == nil {
 		return
 	}
@@ -126,6 +128,9 @@ func (g *Game) snapshot() (Snapshot, error) {
 	}
 	for _, h := range g.hunts {
 		snap.Hunts = append(snap.Hunts, HuntSnapshot{ID: h.key.ID, Finish: h.key.Finish, Seen: h.seen, Told: h.told, AskedAt: h.askedAt})
+	}
+	if snap.Quests, err = g.snapshotQuests(); err != nil {
+		return Snapshot{}, err
 	}
 	return snap, nil
 }
@@ -236,6 +241,13 @@ func (g *Game) restore(snap Snapshot, stream *Stream) error {
 		}
 		commitCounter = func() { e.market = m }
 	}
+	commitQuests := func() {}
+	if snap.Quests != nil && g.quests != nil {
+		var err error
+		if commitQuests, err = g.restoreQuests(*snap.Quests); err != nil {
+			return err
+		}
+	}
 	if snap.Opener != nil {
 		if err := stream.Restore(snap.Opener.Seed, snap.Opener.State); err != nil {
 			return err
@@ -244,6 +256,11 @@ func (g *Game) restore(snap Snapshot, stream *Stream) error {
 	g.collection, g.packs, g.energy, g.lastTick = collection, packs, energy, lastTick
 	commitUnlocks()
 	commitCounter()
+	commitQuests()
+	if g.quests != nil {
+		// What the save holds was not sold or bought by the player now.
+		g.quests.rebase(g)
+	}
 	g.openCrowdSets(g.economy)
 	if snap.Hunts != nil {
 		g.hunts = g.restoreHunts(snap.Hunts)
