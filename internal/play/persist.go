@@ -77,8 +77,10 @@ func (g *Game) SaveError() error {
 }
 
 // save writes the game to the store, if it has one, and remembers whether it went through. g.mu
-// must be held. Every method that changes the game calls it last, once nothing can fail any more.
+// must be held. Every method that changes the game calls it last, once nothing can fail any more, so
+// it is also where the quests count what the player did.
 func (g *Game) save() {
+	g.settleQuests()
 	if g.saves.Store == nil {
 		return
 	}
