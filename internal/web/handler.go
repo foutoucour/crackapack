@@ -136,7 +136,7 @@ func (h *handler) pack(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	h.render(w, http.StatusOK, "pack", newPackView(opening, h.game.Packs()))
+	h.render(w, http.StatusOK, "pack", newPackView(opening, h.game.Packs(), h.game.CardValue))
 }
 
 // collection shows one set's binder, the first set's unless ?set= names another, and only the cards

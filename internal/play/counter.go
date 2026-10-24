@@ -98,6 +98,23 @@ func (g *Game) CounterQuote(id domain.CardID, finish domain.Finish) (Quote, erro
 	return q, nil
 }
 
+// CardValue returns the reference value in coins of the card id in finish, what the Counter's
+// prices are a percentage of. It returns ErrUnknownCard, wrapped, for a card the game does not
+// hold, and ErrNoCounter in a game without a Counter.
+func (g *Game) CardValue(id domain.CardID, finish domain.Finish) (domain.Coins, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	e, key, err := g.counterFor(id, finish)
+	if err != nil {
+		return 0, fmt.Errorf("value %q: %w", id, err)
+	}
+	value, err := e.counter.Reference(key)
+	if err != nil {
+		return 0, fmt.Errorf("value %q: %w", id, err)
+	}
+	return value, nil
+}
+
 // Buy buys one copy of the card id in finish from the Counter and adds it to the collection. It
 // returns ErrUnknownCard, ErrLocked when no unlocked set's binder holds the card, ErrOutOfStock,
 // ErrNotEnoughCoins, ErrNotTraded or ErrNoCounter, wrapped, when it cannot, and then changes nothing.

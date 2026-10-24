@@ -75,7 +75,15 @@ type packView struct {
 	Wait time.Duration
 	// Unlocked are the sets the booster unlocked.
 	Unlocked []play.UnlockedSet
+	// Preload are the pictures to fetch before the reveal needs them: the first card's, the second's
+	// and the last's, which is what "skip to the end" shows.
+	Preload []string
+	// Icon is the icon of the set, behind the buttons.
+	Icon iconView
 }
+
+// cardValuer says what a card is worth in coins, and fails in a game that has no coins.
+type cardValuer func(domain.CardID, domain.Finish) (domain.Coins, error)
 
 type cardView struct {
 	Name   string
@@ -85,12 +93,23 @@ type cardView struct {
 	ImageID string
 	Foil    bool
 	New     bool
+	// Highlight is the rarity of a new rare or mythic, which turns with an effect of its own, and
+	// empty for any other card.
+	Highlight string
+	// Value is the reference value of the card in coins, zero when the page shows none.
+	Value domain.Coins
 	// Icon is the icon of the card's set in the colour of its rarity.
 	Icon iconView
 }
 
-func newPackView(opening play.Opening, packs []play.Pack) packView {
-	view := packView{SetName: opening.SetName, SetCode: opening.SetCode, Cards: make([]cardView, len(opening.Cards)), Unlocked: opening.Unlocked}
+func newPackView(opening play.Opening, packs []play.Pack, value cardValuer) packView {
+	view := packView{
+		SetName:  opening.SetName,
+		SetCode:  opening.SetCode,
+		Cards:    make([]cardView, len(opening.Cards)),
+		Unlocked: opening.Unlocked,
+		Icon:     newIconView(opening.IconCode, string(domain.RarityCommon)),
+	}
 	for _, p := range packs {
 		if p.SetCode == opening.SetCode {
 			view.Left, view.Cost, view.Wait = p.Count, p.Cost, p.Wait
@@ -106,8 +125,28 @@ func newPackView(opening play.Opening, packs []play.Pack) packView {
 			New:     c.New,
 			Icon:    newIconView(opening.IconCode, string(c.Card.Rarity)),
 		}
+		if c.New && (c.Card.Rarity == domain.RarityRare || c.Card.Rarity == domain.RarityMythic) {
+			view.Cards[i].Highlight = string(c.Card.Rarity)
+		}
+		// A game without coins has no value to show, and says so with an error.
+		if coins, err := value(c.Card.ID, c.Finish); err == nil {
+			view.Cards[i].Value = coins
+		}
 	}
+	view.Preload = preloadIDs(view.Cards)
 	return view
+}
+
+// preloadIDs are the pictures of the first, the second and the last card, the cards without a
+// picture left out.
+func preloadIDs(cards []cardView) []string {
+	var ids []string
+	for i, c := range cards {
+		if (i <= 1 || i == len(cards)-1) && c.ImageID != "" {
+			ids = append(ids, c.ImageID)
+		}
+	}
+	return ids
 }
 
 // colourClass names the CSS frame of a card: "colourless" for no colour, the colour's name for one,

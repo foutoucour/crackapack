@@ -134,6 +134,17 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   min-height: 0;
   border-radius: calc(var(--radius) * 1.5);
 }
+/* The card shown in the reveal takes what the screen leaves above the pinned bar: the header and the
+   title are over the card, and the price pill is under it. The header takes more room on a narrow
+   screen, where it wraps. */
+main:has(.booster.staged) { --above-card: 18rem; }
+@media (min-width: 40rem) {
+  main:has(.booster.staged) { --above-card: 14rem; }
+}
+.booster.staged .card.current {
+  width: min(90vw, 28rem, calc((100vh - var(--above-card)) * 488 / 680));
+  width: min(90vw, 28rem, calc((100dvh - var(--above-card)) * 488 / 680));
+}
 .booster.staged .card.current:not(.has-image),
 .viewer .card:not(.has-image) { padding: 1.25rem; }
 .booster.staged .card.current .name,
@@ -154,7 +165,8 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   cursor: pointer;
 }
 .booster.staged .card.facedown .face,
-.booster.staged .card.facedown .art { visibility: hidden; }
+.booster.staged .card.facedown .art,
+.booster.staged .card.facedown .price { visibility: hidden; }
 
 /* The rare is the last card. While it waits face down it breathes, and turning it takes longer. */
 .booster.staged .card.last.facedown { animation: wait 1.6s ease-in-out infinite; }
@@ -374,8 +386,160 @@ html:not(.js) .pick { display: none; }
 .viewer::backdrop { background: rgb(8 9 14 / 85%); }
 .viewer .close { display: block; margin: var(--gap) auto 0; }
 
-.controls, .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: var(--gap) 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: var(--gap) 0; }
 .actions form { margin: 0; }
+
+/* The buttons of the booster page are one bar pinned to the bottom of the window, so that the card
+   can take the height of the screen and the buttons never move. Revealing, it holds the progress and
+   the way to skip on the left and the button that turns the card on the right; once the booster is
+   shown, it holds the way back and the next booster. The icon of the set sits faded behind it, and
+   the button is a strip that fills the bar's height. The bar's content lines up with the page. */
+.controls, .booster ~ .actions {
+  --bar-inset: max(var(--gap), calc((100vw - 60rem) / 2 + var(--gap)));
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 10;
+  isolation: isolate;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0 0 env(safe-area-inset-bottom) var(--bar-inset);
+  overflow: hidden;
+  border-top: 1px solid var(--surface-edge);
+  background: linear-gradient(160deg, var(--surface-raised) 0%, var(--surface) 55%, var(--surface-deep) 100%);
+  box-shadow: 0 -0.5rem 1.5rem rgb(0 0 0 / 40%);
+}
+/* A display of its own would beat the hidden attribute that keeps the bar off until the reveal is done. */
+.booster ~ .actions[hidden] { display: none; }
+/* The bar hides the foot of the page, which gets room to scroll past it. */
+main:has(.booster) { padding-bottom: 6rem; }
+/* The picture is a mask over a box, so the colour is the text's. Its URL comes from /set-icons.css. */
+.bar-icon {
+  position: absolute;
+  z-index: -1;
+  left: calc(var(--bar-inset) - 1.5rem);
+  top: 50%;
+  width: 6rem;
+  height: 6rem;
+  translate: 0 -50%;
+  background-color: var(--text);
+  opacity: 0.1;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  pointer-events: none;
+}
+.bar-info { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 0.5rem 0; }
+.bar-info .hint { align-self: flex-start; }
+.bar-progress { font-weight: 600; }
+.bar-link { padding: 0; border: 0; border-radius: 0; background: none; color: var(--text-muted); font-size: 0.85rem; text-decoration: underline; }
+.bar-link:hover { color: var(--text); }
+.booster ~ .actions form { display: flex; }
+.controls .primary, .booster ~ .actions .primary { padding: 0 1.5rem; border: 0; border-radius: 0; white-space: nowrap; }
+.controls .primary::after, .booster ~ .actions .primary:not(:disabled)::after { content: " \203A"; content: " \203A" / ""; }
+.controls .primary:focus-visible, .booster ~ .actions .primary:focus-visible { outline-offset: -4px; }
+
+/* A new rare or mythic is the moment of a booster. Turned, it comes with a burst: rays turning behind
+   the card, sparks and a ring flying out of it, a flash of light, and then a glow that keeps
+   breathing for as long as the card is the one shown. The colour is the card's glow: gold for a rare,
+   orange for a mythic, which gets more of everything. */
+.burst { display: none; }
+.booster.staged .card.current.just-flipped.new-rare,
+.booster.staged .card.current.just-flipped.new-mythic {
+  isolation: isolate;
+  animation: flip-in 1400ms ease-out, flash 900ms ease-out, breathe 2400ms ease-in-out 1400ms infinite;
+  box-shadow: 0 0 1.5rem 0 var(--glow);
+}
+.booster.staged .card.current.just-flipped.new-mythic { animation-duration: 1800ms, 1200ms, 2000ms; }
+.booster.staged .card.just-flipped .burst {
+  display: block;
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: 50%;
+  width: min(220%, calc(100vw - 2rem));
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  pointer-events: none;
+  background: repeating-conic-gradient(color-mix(in srgb, var(--glow) 50%, transparent) 0 6deg, transparent 6deg 20deg);
+  mask: radial-gradient(circle closest-side, transparent 48%, #000 60%, transparent 100%);
+  animation: rays-in 1800ms ease-out both, rays-turn 12s linear infinite;
+}
+.booster.staged .card.just-flipped.new-mythic .burst { width: min(280%, calc(100vw - 2rem)); animation-duration: 2400ms, 20s; }
+.burst::before, .burst::after { content: ""; position: absolute; }
+/* Six sparks, drawn as dots of one box that grows and fades. */
+.burst::before {
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 9%, var(--glow) 0 0.3rem, transparent 0.35rem),
+    radial-gradient(circle at 50% 91%, var(--glow) 0 0.3rem, transparent 0.35rem),
+    radial-gradient(circle at 9% 50%, var(--glow) 0 0.3rem, transparent 0.35rem),
+    radial-gradient(circle at 91% 50%, var(--glow) 0 0.3rem, transparent 0.35rem),
+    radial-gradient(circle at 22% 22%, var(--glow) 0 0.25rem, transparent 0.3rem),
+    radial-gradient(circle at 78% 78%, var(--glow) 0 0.25rem, transparent 0.3rem);
+  animation: sparks 1400ms ease-out both;
+}
+.burst::after {
+  inset: 30%;
+  border: 3px solid var(--glow);
+  border-radius: 50%;
+  animation: ring 1200ms ease-out both;
+}
+@keyframes rays-in { from { opacity: 0; scale: 0.2; } 20% { opacity: 1; } to { opacity: 0.4; scale: 1; } }
+@keyframes rays-turn { to { rotate: 360deg; } }
+@keyframes sparks { from { opacity: 1; scale: 0.3; } to { opacity: 0; scale: 1; } }
+@keyframes ring { from { opacity: 1; scale: 0.4; } to { opacity: 0; scale: 1.6; } }
+@keyframes flash { from { filter: brightness(2.2); } to { filter: brightness(1); } }
+@keyframes breathe {
+  0%, 100% { box-shadow: 0 0 0.75rem 0 var(--glow); }
+  50% { box-shadow: 0 0 2.5rem 0.4rem var(--glow); }
+}
+
+/* The reference value of a card in coins, a pill across the bottom edge of the card. */
+.card .price {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  translate: -50% 50%;
+  z-index: 1;
+  padding: 0.1rem 0.7rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.shelf .price { display: none; }
+
+/* The title of the booster page is one centered line, with the icon of the set. The sentence that says
+   which card is in view is for screen readers only, the card saying it itself. The rays of a burst
+   reach past the card, and must not widen the page. */
+.title-icon { flex: none; width: 1.25rem; height: 1.25rem; background-color: var(--text-muted); mask-size: contain; mask-repeat: no-repeat; mask-position: center; }
+main:has(.booster.staged) { overflow-x: clip; }
+main:has(.booster.staged) h1 { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin: 0; font-size: 1.25rem; }
+main:has(.booster.staged) #reveal-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* On a wide screen the cards already seen stand beside the card, in as many columns as they need to
+   fill the height of the card, instead of in rows below it. */
+@media (min-width: 60rem) {
+  main:has(.booster.staged) { display: grid; grid-template-columns: 1fr auto 1fr; column-gap: var(--gap); }
+  main:has(.booster.staged) > * { grid-column: 1 / -1; }
+  main:has(.booster.staged) > .booster { grid-column: 2; }
+  main:has(.booster.staged) > .shelf {
+    grid-column: 3;
+    align-self: start;
+    flex-direction: column;
+    align-content: flex-start;
+    justify-content: flex-start;
+    max-height: calc(100vh - var(--above-card));
+    max-height: calc(100dvh - var(--above-card));
+  }
+  main:has(.booster.staged) > .shelf .card { width: 3.4rem; }
+}
 
 @media (min-width: 40rem) {
   .booster { grid-template-columns: repeat(3, 1fr); }
@@ -405,6 +569,10 @@ html:not(.js) .pick { display: none; }
   .booster.staged .card.last.just-flipped,
   .booster.staged .card.last.facedown { animation: none; }
   .booster.staged .card.last.facedown { box-shadow: 0 0 2rem 0.2rem var(--accent); }
+  /* A new rare or mythic keeps its steady glow and loses the burst. */
+  .booster.staged .card.current.just-flipped.new-rare,
+  .booster.staged .card.current.just-flipped.new-mythic { animation: none; }
+  .booster.staged .card.just-flipped .burst { display: none; }
 }
 
 /* A notice under the header, for what the player must not miss, such as a save that failed. */

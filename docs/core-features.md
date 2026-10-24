@@ -108,7 +108,9 @@ are 15 cards, with no mythics (introduced in 2008). The simulation also loads se
   collection. Cards are linked to Scryfall images, see [Legal and data](#legal-and-data).
 - **"Contents and rates" panel** before opening: cost, average value, rarities, "at least one per
   booster" probability.
-- **Opening:** one booster or "Open all" (20 max), revealed card by card, rare last.
+- **Opening:** one booster or "Open all" (20 max), revealed card by card, rare last. Space turns
+  the card and brings the next one up, Shift+Space skips to the end. Each card shows its reference
+  value in coins, and a new rare or mythic comes with a burst of light and a glow.
 - **More sets:** V1 is limited to the seven sets from Ravnica to Future Sight. Others come later,
   each with its own composition.
 - **Draw:** a seeded random generator and a log of every opening. The player and the NPCs use the
