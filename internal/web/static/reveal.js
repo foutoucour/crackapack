@@ -15,17 +15,36 @@ import { createViewer, describe, dropBrokenPictures } from './cards.js';
 
   dropBrokenPictures(booster);
 
-  const controls = document.createElement('div');
-  controls.className = 'controls';
-  const advance = makeButton('', 'primary');
-  const skip = makeButton('Skip to the end');
-  controls.append(advance, skip);
-  booster.before(controls);
-
   const shelf = document.createElement('ol');
   shelf.className = 'shelf';
   shelf.setAttribute('aria-label', 'Cards already revealed');
   booster.after(shelf);
+
+  // The controls are one bar over the card, wearing the icon of the set like the page's own bar, the
+  // way out once the booster is shown, which waits, hidden, under the booster until the reveal is over.
+  const actions = document.querySelector('.actions');
+  const controls = document.createElement('div');
+  controls.className = 'controls';
+  const progress = document.createElement('strong');
+  progress.className = 'bar-progress';
+  const skip = makeButton('Skip to the end', 'bar-link');
+  skip.setAttribute('aria-keyshortcuts', 'Shift+Space');
+  skip.title = 'Shift+Space';
+  const advance = makeButton('', 'primary');
+  advance.setAttribute('aria-keyshortcuts', 'Space');
+  advance.title = 'Space';
+  const info = document.createElement('div');
+  info.className = 'bar-info';
+  info.append(progress, skip);
+  const icon = actions.querySelector('.bar-icon');
+  if (icon) controls.append(icon.cloneNode(true));
+  controls.append(info, advance);
+  booster.before(controls);
+  actions.hidden = true;
+  // The sets the booster unlocked are told at the end: that would take room from the card, and give
+  // the cards away.
+  const unlocked = document.querySelector('.unlock');
+  if (unlocked) unlocked.hidden = true;
 
   // A card on the shelf opens big, so the miniatures can be looked at again.
   const viewer = createViewer();
@@ -40,7 +59,34 @@ import { createViewer, describe, dropBrokenPictures } from './cards.js';
   cards.forEach((card) => card.addEventListener('click', () => {
     if (card.classList.contains('current')) step();
   }));
-  skip.addEventListener('click', () => {
+  skip.addEventListener('click', skipToEnd);
+
+  // Space turns the card and brings the next one up, Shift+Space skips to the end. Another button, a
+  // link or a field keeps its own use of the key, and so does an open dialog. The advance button is
+  // the exception: Space would press it, which is what the key does anyway.
+  const keepsSpace = (target) => target !== advance && target.closest('a, button, input, select, textarea, [contenteditable]');
+  const isRevealKey = (e) => e.code === 'Space' && controls.isConnected && !keepsSpace(e.target) && !document.querySelector('dialog[open]');
+  let spaceHandled = false;
+  let finishedBySpace = false;
+  document.addEventListener('keydown', (e) => {
+    if (!isRevealKey(e)) return;
+    e.preventDefault();
+    spaceHandled = true;
+    if (e.repeat) return;
+    finishedBySpace = true;
+    if (e.shiftKey) skipToEnd();
+    else step();
+    finishedBySpace = false;
+  });
+  // A button is pressed when its space key comes up. The last card hands the focus to the next
+  // booster's button, which must not take the key that turned that card.
+  document.addEventListener('keyup', (e) => {
+    if (e.code !== 'Space' || !spaceHandled) return;
+    e.preventDefault();
+    spaceHandled = false;
+  });
+
+  function skipToEnd() {
     for (; index < lastIndex; index += 1) {
       cards[index].classList.remove('facedown');
       toShelf(cards[index]);
@@ -48,7 +94,7 @@ import { createViewer, describe, dropBrokenPictures } from './cards.js';
     cards[lastIndex].classList.remove('facedown');
     present(lastIndex);
     finish('All cards revealed.');
-  });
+  }
 
   // step turns the current card, or, once it is turned, brings the next one up.
   function step() {
@@ -74,12 +120,13 @@ import { createViewer, describe, dropBrokenPictures } from './cards.js';
     const card = cards[i];
     card.classList.add('current');
     card.classList.toggle('last', i === lastIndex);
+    progress.textContent = `Card ${i + 1} of ${cards.length}`;
     if (i === lastIndex) {
       status.textContent = 'One card left: the rare.';
       advance.textContent = 'Reveal the rare';
     } else {
       status.textContent = `Card ${i + 1} of ${cards.length}, face down.`;
-      advance.textContent = `Reveal card ${i + 1} of ${cards.length}`;
+      advance.textContent = 'Reveal';
     }
   }
 
@@ -92,12 +139,18 @@ import { createViewer, describe, dropBrokenPictures } from './cards.js';
     shelf.append(card);
   }
 
-  // finish drops the controls and hands the keyboard focus to what comes next, without scrolling
-  // away from the card that was just turned.
+  // finish swaps the controls for the bar of what comes next and hands it the keyboard focus, the
+  // next booster first, without scrolling away from the card that was just turned. When the space
+  // key finished the reveal the focus goes to the way out instead: a player pressing the key on
+  // through the cards must not open, and pay for, another booster with one press too many.
   function finish(message) {
     status.textContent = message;
     controls.remove();
-    const next = document.querySelector('.actions button:not(:disabled), .actions a');
+    actions.hidden = false;
+    if (unlocked) unlocked.hidden = false;
+    const next = finishedBySpace
+      ? actions.querySelector('a')
+      : actions.querySelector('button:not(:disabled)') || actions.querySelector('a');
     if (next) next.focus({ preventScroll: true });
   }
 

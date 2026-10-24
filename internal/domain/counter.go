@@ -286,6 +286,21 @@ func (c *Counter) Quote(key CardKey) (Quote, error) {
 	return q, nil
 }
 
+// Reference returns the reference value of key in coins, the whole of what the Counter's rates
+// take a percentage of. A card worth less than a coin is worth one, as the Counter pays it, and a
+// card priced at zero is worth nothing. It returns ErrUnknownCard, wrapped, for a card or a finish
+// the Counter does not know.
+func (c *Counter) Reference(key CardKey) (Coins, error) {
+	if _, err := c.lookupCard(key); err != nil {
+		return 0, err
+	}
+	coins, err := PayoutCoins(c.referencePrice(key), c.params.CoinRate, 100)
+	if errors.Is(err, ErrSubCoin) {
+		return 0, nil
+	}
+	return coins, err
+}
+
 // SellToPlayer processes the player buying one card from the Counter.
 // The player pays BuyPct% of the card's reference value.
 //
