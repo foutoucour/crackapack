@@ -29,15 +29,15 @@
   {{if .Icon.Code}}<span class="bar-icon {{.Icon.Class}}" aria-hidden="true"></span>{{end}}
   <div class="bar-info">
     <a class="bar-link" href="/">All boosters</a>
-    <p class="hint wait" data-pack-wait{{if not .Wait}} hidden{{end}}>{{if .Wait}}Ready in {{duration .Wait}}{{end}}</p>
+    <p class="hint wait" data-pack-wait{{if not .Price.Hint}} hidden{{end}}>{{.Price.Hint}}</p>
   </div>
   <form method="post" action="/open">
     <input type="hidden" name="set" value="{{.SetCode}}">
-    <button type="submit" class="primary" data-pack-open{{if .Wait}} disabled{{end}}>
-      Open another{{if .Left}} ({{.Left}} left){{else}} ({{.Cost}} energy{{if .Fee}} + {{coins .Fee}}{{end}}){{end}}
+    {{template "topUpField" .Price}}
+    <button type="submit" class="primary" data-pack-open{{if not .Left}} data-label="Open another {{.SetName}} booster" aria-label="Open another {{.SetName}} booster, {{.Price.Label}}"{{end}}{{if .Price.Blocked}} disabled{{end}}>
+      Open another{{if .Left}} ({{.Left}} left){{else}} · {{template "price" .Price}}{{end}}
     </button>
   </form>
-  {{template "topUpForm" .}}
 </nav>
 <script type="module" src="/static/reveal.js"></script>
 {{end}}

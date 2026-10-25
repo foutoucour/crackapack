@@ -110,8 +110,12 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .pack-info .count, .pack-info .hint { margin: 0; font-size: 0.85rem; }
 /* The button is the right end of the row: a strip as tall as the row, clipped by its corners. */
 .pack-tile form { display: flex; align-self: stretch; margin: -0.5rem 0; }
-.pack-tile button { padding: 0 1rem; border: 0; border-radius: 0; font-weight: 700; white-space: nowrap; }
-.pack-tile button::after { content: " \203A"; }
+.pack-tile button { display: flex; align-items: center; padding: 0 1rem; border: 0; border-radius: 0; font-weight: 700; white-space: nowrap; }
+/* The button says Open, and under it the whole price of the booster: the energy and, when there are
+   some, the coins on top, the fee and the top-up for the energy the player lacks. */
+.open-text { display: flex; flex-direction: column; line-height: 1.3; }
+.open-label::after { content: " \203A"; }
+.open-price { font-size: 0.9rem; font-weight: 600; }
 .energy-icon { width: 1em; height: 1em; vertical-align: -0.125em; }
 .pack-tile button:focus-visible { outline-offset: -4px; }
 /* A stage lists its locked sets in short, greyed, with nothing to press. */

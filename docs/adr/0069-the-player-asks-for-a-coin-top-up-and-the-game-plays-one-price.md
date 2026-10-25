@@ -2,7 +2,8 @@
 
 ## Status
 
-Proposed — 2026-10-24
+Superseded for the buttons by [ADR-0076](0076-a-top-up-is-the-price-of-the-booster-not-a-second-button.md)
+— 2026-10-25. Proposed 2026-10-24.
 
 ## Context
 

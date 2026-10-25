@@ -1,7 +1,7 @@
 // Keeps what depends on the energy live: it asks the server for the gauge of the header and for the
-// wait of each set's booster while the page is open, so that the energy that recharges shows up
-// without a reload, on the gauge and on the buttons that open boosters. The server says the waits,
-// the script holds no rule of its own.
+// price and wait of each set's booster while the page is open, so that the energy that recharges
+// shows up without a reload, on the gauge and on the buttons that open boosters. The server says the
+// prices and the waits, the script holds no rule of its own.
 const REFRESH_MS = 30_000;
 
 const gauge = document.querySelector('[data-energy]');
@@ -19,17 +19,23 @@ function showGauge(reading) {
   next.textContent = reading.next ? `+1 in ${reading.next}` : '';
 }
 
-// showPacks says, for each set shown on the page, how long its booster waits, and enables the button
-// that opens it once it does not wait any more.
+// showPacks says, for each set shown on the page, what its booster costs and how long it waits. The
+// button opens it when the energy pays for it or a top-up in coins does, and the form says which.
 function showPacks(packs) {
-  packs.forEach(({ set, wait }) => {
+  packs.forEach(({ set, wait, price, label, hint, topUp }) => {
     document.querySelectorAll(`[data-pack="${CSS.escape(set)}"]`).forEach((pack) => {
-      const hint = pack.querySelector('[data-pack-wait]');
-      if (!hint) return; // A set with welcome boosters left has nothing to wait for.
-      hint.hidden = wait === '';
-      hint.textContent = wait ? `Ready in ${wait}` : '';
+      const hintLine = pack.querySelector('[data-pack-wait]');
+      if (!hintLine) return; // A set with welcome boosters left has nothing to wait for.
+      hintLine.hidden = !hint;
+      hintLine.textContent = hint ?? '';
       const open = pack.querySelector('[data-pack-open]');
-      if (open) open.disabled = wait !== '';
+      if (open) open.disabled = wait !== '' && !topUp;
+      if (!price) return;
+      const priceText = pack.querySelector('[data-pack-price]');
+      if (priceText) priceText.textContent = price;
+      if (open && open.dataset.label) open.setAttribute('aria-label', `${open.dataset.label}, ${label}`);
+      const field = pack.querySelector('[data-pack-topup]');
+      if (field) field.value = topUp ? 'yes' : '';
     });
   });
 }
