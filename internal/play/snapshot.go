@@ -78,6 +78,8 @@ type OpeningSnapshot struct {
 	Cards   []OpenedCard `json:"cards"`
 	// Unlocked are the codes of the sets the opening unlocked.
 	Unlocked []string `json:"unlocked,omitempty"`
+	// Revealed is how many cards the player had turned, zero for a save that lacks it.
+	Revealed int `json:"revealed,omitempty"`
 }
 
 // OpenedCard is one card of an [OpeningSnapshot].

@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/foutoucour/crackapack/internal/domain"
 	"github.com/foutoucour/crackapack/internal/images"
@@ -98,6 +99,7 @@ func NewHandler(game *play.Game, pics, icons images.Source, log *slog.Logger) ht
 	mux.HandleFunc("GET /{$}", h.home)
 	mux.HandleFunc("POST /open", h.open)
 	mux.HandleFunc("GET /pack", h.pack)
+	mux.HandleFunc("POST /pack/revealed", h.packRevealed)
 	mux.HandleFunc("GET /collection", h.collection)
 	mux.HandleFunc("POST /buy", h.buy)
 	mux.HandleFunc("POST /sell", h.sell)
@@ -138,7 +140,11 @@ func securityHeaders(next http.Handler) http.Handler {
 }
 
 func (h *handler) home(w http.ResponseWriter, _ *http.Request) {
-	h.render(w, http.StatusOK, "home", newHomeView(h.game.Packs(), h.game.Binders()))
+	var last *play.Opening
+	if opening, ok := h.game.LastOpening(); ok {
+		last = &opening
+	}
+	h.render(w, http.StatusOK, "home", newHomeView(h.game.Packs(), h.game.Binders(), last))
 }
 
 // energy answers the gauge of the header, which a script reads to keep it live between page loads.
@@ -175,6 +181,26 @@ func (h *handler) pack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.render(w, http.StatusOK, "pack", newPackView(opening, h.game.Packs(), h.game.CardValue))
+}
+
+// packRevealed records how many cards of the latest opening the player has turned, which a script
+// posts after each card so that the page comes back as it was left.
+func (h *handler) packRevealed(w http.ResponseWriter, r *http.Request) {
+	count, err := strconv.Atoi(r.PostFormValue("count"))
+	if err != nil {
+		h.fail(w, http.StatusBadRequest, "Not a number of cards.")
+		return
+	}
+	switch err := h.game.Reveal(count); {
+	case errors.Is(err, play.ErrNoOpening):
+		h.fail(w, http.StatusConflict, "No booster was opened yet.")
+	case errors.Is(err, play.ErrBadReveal):
+		h.fail(w, http.StatusBadRequest, "The booster has no such number of cards.")
+	case err != nil:
+		h.playFailed(w, err)
+	default:
+		w.WriteHeader(http.StatusNoContent)
+	}
 }
 
 // collection shows one set's binder, the first set's unless ?set= names another, and only the cards

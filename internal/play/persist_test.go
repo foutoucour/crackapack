@@ -109,6 +109,24 @@ func TestPersist_aGameSavesAfterAnOpeningAndLoadsBackAsItWas(t *testing.T) {
 	}
 }
 
+func TestPersist_aLoadedGameKeepsTheCardsTurnedOfTheLastOpening(t *testing.T) {
+	t.Parallel()
+	rav := domaintest.NewRavnicaCatalogue()
+	store := newFileStore(t)
+	clock := playtest.NewClock()
+	first, _ := openSaved(t, store, clock, 42, rav)
+	mustOpen(t, first, rav.Code)
+	if err := first.Reveal(3); err != nil {
+		t.Fatalf("Reveal: %v", err)
+	}
+
+	loaded, _ := openSaved(t, store, clock, 1, rav)
+
+	if last, _ := loaded.LastOpening(); last.Revealed != 3 {
+		t.Errorf("Revealed after the load = %d, want 3", last.Revealed)
+	}
+}
+
 func TestPersist_aLoadedGameOpensTheBoosterAContinuousGameWould(t *testing.T) {
 	t.Parallel()
 	rav := domaintest.NewRavnicaCatalogue()

@@ -110,7 +110,10 @@ are 15 cards, with no mythics (introduced in 2008). The simulation also loads se
   booster" probability.
 - **Opening:** one booster or "Open all" (20 max), revealed card by card, rare last. Space turns
   the card and brings the next one up, Shift+Space skips to the end. Each card shows its reference
-  value in coins, and a new rare or mythic comes with a burst of light and a glow.
+  value in coins, and a new rare or mythic comes with a burst of light and a glow. The game keeps
+  how many cards were turned, in its save: leaving the booster halfway, by a menu or the back
+  button, and coming back shows it as it was left. Until its cards are all turned, the tile of its
+  set on the boosters page leads back to it instead of offering another booster.
 - **More sets:** V1 is limited to the seven sets from Ravnica to Future Sight. Others come later,
   each with its own composition.
 - **Draw:** a seeded random generator and a log of every opening. The player and the NPCs use the

@@ -219,6 +219,58 @@ func TestLastOpening_isEmptyUntilAPackIsOpenedThenHoldsTheLatest(t *testing.T) {
 	}
 }
 
+func TestReveal_remembersHowManyCardsOfTheLastOpeningWereTurned(t *testing.T) {
+	t.Parallel()
+	rav := domaintest.NewRavnicaCatalogue()
+	g := newGame(t, rav)
+	opened, err := g.Open(rav.Code)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	if last, _ := g.LastOpening(); last.Revealed != 0 {
+		t.Fatalf("a booster just opened has %d cards turned, want none", last.Revealed)
+	}
+
+	if err := g.Reveal(2); err != nil {
+		t.Fatalf("Reveal(2): %v", err)
+	}
+	if err := g.Reveal(1); err != nil {
+		t.Fatalf("Reveal(1): %v", err)
+	}
+
+	if last, _ := g.LastOpening(); last.Revealed != 2 {
+		t.Errorf("Revealed = %d, want 2: a late answer must not turn a card back", last.Revealed)
+	}
+	if err := g.Reveal(len(opened.Cards)); err != nil {
+		t.Errorf("Reveal(all the cards) = %v, want nil", err)
+	}
+	if _, err := g.Open(rav.Code); err != nil {
+		t.Fatalf("second Open: %v", err)
+	}
+	if last, _ := g.LastOpening(); last.Revealed != 0 {
+		t.Errorf("the next booster has %d cards turned, want none", last.Revealed)
+	}
+}
+
+func TestReveal_refusesWhatTheLastOpeningCannotHave(t *testing.T) {
+	t.Parallel()
+	rav := domaintest.NewRavnicaCatalogue()
+	g := newGame(t, rav)
+	if err := g.Reveal(1); !errors.Is(err, play.ErrNoOpening) {
+		t.Errorf("Reveal before any opening = %v, want ErrNoOpening", err)
+	}
+	opened, err := g.Open(rav.Code)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+
+	for _, count := range []int{-1, len(opened.Cards) + 1} {
+		if err := g.Reveal(count); !errors.Is(err, play.ErrBadReveal) {
+			t.Errorf("Reveal(%d) = %v, want ErrBadReveal", count, err)
+		}
+	}
+}
+
 func TestOpen_isSafeFromConcurrentRequests(t *testing.T) {
 	t.Parallel()
 	rav := domaintest.NewRavnicaCatalogue()

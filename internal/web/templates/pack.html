@@ -9,7 +9,7 @@
 {{if .Unlocked}}
 {{template "unlocked" .Unlocked}}
 {{end}}
-<ol class="booster" data-booster>
+<ol class="booster" data-booster data-revealed="{{.Revealed}}">
   {{range .Cards}}
   <li class="card {{.Colour}} {{.Rarity}}{{if .Foil}} foil{{end}}{{if .ImageID}} has-image{{end}}{{if .Highlight}} new-{{.Highlight}}{{end}}" data-card data-rarity="{{.Rarity}}">
     {{if .Highlight}}<span class="burst" aria-hidden="true"></span>{{end}}

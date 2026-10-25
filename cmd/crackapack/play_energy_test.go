@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -40,6 +41,16 @@ func spendWelcomeBoosters(t *testing.T, base string) {
 				t.Fatalf("a welcome booster of %s was refused: %d", set, resp.StatusCode)
 			}
 		}
+	}
+	// The tile of a booster left unturned leads back to it, with no price: turn the last one.
+	cards := strings.Count(getBody(t, base+"/pack"), "data-card ")
+	resp, err := client.PostForm(base+"/pack/revealed", url.Values{"count": {strconv.Itoa(cards)}})
+	if err != nil {
+		t.Fatalf("POST /pack/revealed: %v", err)
+	}
+	_ = readAll(t, resp)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("POST /pack/revealed = %d, want 204", resp.StatusCode)
 	}
 }
 

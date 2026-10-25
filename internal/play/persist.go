@@ -192,7 +192,7 @@ func snapshotCollection(c *domain.Collection) []CardCount {
 }
 
 func snapshotOpening(o Opening) *OpeningSnapshot {
-	out := &OpeningSnapshot{SetCode: o.SetCode, Cards: make([]OpenedCard, len(o.Cards))}
+	out := &OpeningSnapshot{SetCode: o.SetCode, Cards: make([]OpenedCard, len(o.Cards)), Revealed: o.Revealed}
 	for i, c := range o.Cards {
 		out.Cards[i] = OpenedCard{ID: c.Card.ID, Finish: c.Finish, New: c.New}
 	}
@@ -367,7 +367,7 @@ func (g *Game) restoreOpening(s OpeningSnapshot) *Opening {
 	if !ok {
 		return nil
 	}
-	opening := Opening{SetCode: cat.Code, SetName: cat.Name, IconCode: cat.IconCode, Cards: make([]RevealedCard, len(s.Cards))}
+	opening := Opening{SetCode: cat.Code, SetName: cat.Name, IconCode: cat.IconCode, Cards: make([]RevealedCard, len(s.Cards)), Revealed: min(max(s.Revealed, 0), len(s.Cards))}
 	for i, c := range s.Cards {
 		card, ok := g.cards[c.ID]
 		if !ok {

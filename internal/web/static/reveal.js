@@ -52,7 +52,15 @@ import { createViewer, describe, dropBrokenPictures } from './cards.js';
   booster.classList.add('staged');
   cards.forEach((card) => card.classList.add('facedown'));
   let index = 0;
-  present(0);
+  let finishedBySpace = false;
+  // The server remembers how many cards were turned, so a booster left halfway, by a click on a menu
+  // or the back button, comes back as it was.
+  const turned = Math.min(Number(booster.dataset.revealed) || 0, cards.length);
+  if (turned > 0) {
+    resume(turned);
+  } else {
+    present(0);
+  }
   advance.focus();
 
   advance.addEventListener('click', step);
@@ -67,7 +75,6 @@ import { createViewer, describe, dropBrokenPictures } from './cards.js';
   const keepsSpace = (target) => target !== advance && target.closest('a, button, input, select, textarea, [contenteditable]');
   const isRevealKey = (e) => e.code === 'Space' && controls.isConnected && !keepsSpace(e.target) && !document.querySelector('dialog[open]');
   let spaceHandled = false;
-  let finishedBySpace = false;
   document.addEventListener('keydown', (e) => {
     if (!isRevealKey(e)) return;
     e.preventDefault();
@@ -93,7 +100,36 @@ import { createViewer, describe, dropBrokenPictures } from './cards.js';
     }
     cards[lastIndex].classList.remove('facedown');
     present(lastIndex);
+    remember(cards.length);
     finish('All cards revealed.');
+  }
+
+  // resume puts the booster back as it was left with count cards turned: the cards before the last
+  // turned one on the shelf, that one face up as the card to move on from. The focus must not land
+  // on the next booster's button of a finished reveal, since opening one costs energy, as when the
+  // space key finishes it.
+  function resume(count) {
+    for (index = 0; index < count - 1; index += 1) {
+      cards[index].classList.remove('facedown');
+      toShelf(cards[index]);
+    }
+    const card = cards[index];
+    card.classList.remove('facedown');
+    present(index);
+    if (index === lastIndex) {
+      finishedBySpace = true;
+      finish(`${label(card)}. That was the last card.`);
+      finishedBySpace = false;
+      return;
+    }
+    status.textContent = `${label(card)}. Card ${index + 1} of ${cards.length}.`;
+    advance.textContent = 'Next card';
+  }
+
+  // remember tells the server how many cards are turned. The reveal works without the answer: a
+  // booster that could not be recorded only starts over from the first card.
+  function remember(count) {
+    fetch('/pack/revealed', { method: 'POST', body: new URLSearchParams({ count }), keepalive: true }).catch(() => {});
   }
 
   // step turns the current card, or, once it is turned, brings the next one up.
@@ -102,6 +138,7 @@ import { createViewer, describe, dropBrokenPictures } from './cards.js';
     if (isFaceDown(card)) {
       card.classList.remove('facedown');
       card.classList.add('just-flipped');
+      remember(index + 1);
       if (index === lastIndex) {
         finish(`${label(card)}. That was the last card.`);
         return;
