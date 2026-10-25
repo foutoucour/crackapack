@@ -175,8 +175,9 @@ printing: the same card in two sets counts as two cards.
 - **Filters:** the rarity list and the colour list are panels of links, one row per rarity or colour
   with a bar of what the player holds. A row filters the binder, and the row in force clears its
   filter when clicked again. The bars always show the whole binder, so a filter never changes the
-  progress.
-- **Show filter:** a row of pills over the binder, each with the number of cards it keeps under the
+  progress. A bar that fills a row of the list of sets is cut square, since the row's own corners
+  round it.
+- **Show filter:** a column of pills at the left of the set header, under the title, each with the number of cards it keeps under the
   rarity and colour in force, that picks the cards to act on. *Duplicates* keeps the cards held above
   a playset, in both finishes together: the copies to sell or to trade. *At the Counter* keeps the
   cards the Counter has in stock, held or not, in a game with a Counter. *Available to trade* keeps
@@ -187,9 +188,11 @@ printing: the same card in two sets counts as two cards.
   section, which opens by itself when the binder in view is locked. On a narrow screen the list
   folds into the name of the set in view. With 107 sets, a row of buttons would push the binder off
   the screen.
+- **Cards not held:** an empty slot shows the picture of its card in grey, under its number.
 - **Card tools:** the binder shows a held card with how many copies are held and nothing else. A
   click on a card, or on an empty slot, opens it big in a dialog, with its name and a row of icon
-  buttons under it; a click outside the buttons, Close or Escape puts it away. Nothing depends on
+  buttons under it; a click outside the buttons, Close or Escape puts it away. Each button is named
+  for a screen reader, and shows that name over itself when hovered or focused; nothing depends on
   hovering, so the page works on a phone. Sell and Buy go to the Counter, and Trade asks the NPCs
   around or lists the card on the market. A sale of several copies asks the quantity, and a listing
   asks the price, in a panel under the icons. A request or a listing that is under way stays under
@@ -198,8 +201,7 @@ printing: the same card in two sets counts as two cards.
   sets, the binders complete (every card held) and the sets unlocked out of all of them. Locked sets
   do not count in the cards, since they cannot be played yet.
 - **Unlock mark:** a binder that has reached the [unlock threshold](#stages) says so. The mark stays
-  when cards are sold, as the unlocks do. The page lists the binder's [milestones](#milestones), and
-  earns none by itself.
+  when cards are sold, as the unlocks do. The page earns no milestone by itself, see [milestones](#milestones).
 - **Basic lands** are excluded from totals, progress and milestones. The Ravnica and Time Spiral
   basics only come as foils, so counting them would make a complete binder nearly impossible.
 - **Master set:** every card in normal and foil, plus the variants present in the booster. The exact
@@ -254,9 +256,11 @@ whole binder is filled, and a boost that pays even in a set the player never fin
   [ADR-0073](adr/0073-a-milestone-locks-one-copy-of-each-of-its-cards.md). Copies above it stay free,
   and before the milestone is earned nothing is locked.
 - **Told at once:** the next page says which milestone was earned, what it gave and that the copies
-  are locked, whichever action earned it: an opening, a purchase, a trade or a quest.
-- **On the page:** the collection lists the goals of the shown binder with their reward, and the card
-  tools say when a copy is locked. A game saved before milestones earns the ones its collection holds
+  are locked, whichever action earned it: an opening, a purchase, a trade or a quest. Every banner of
+  that kind has a button that closes it, and a booster's reveal holds them back until its last card.
+- **On the page:** a goal earned is a check mark before its row in the rarity or the colour filter,
+  and before All rarities for the whole set, with the goal and its reward as the mark's text. A goal
+  not earned yet shows nothing. The card tools say when a copy is locked. A game saved before milestones earns the ones its collection holds
   when it loads.
 - **Values:** the rewards are the `milestones` block of the configuration, see
   [`internal/config/milestones.go`](../internal/config/milestones.go), and their current values are in
@@ -433,6 +437,9 @@ the hunt in the save, up to 20 cards.
   each day once the answers are over, see
   [ADR-0066](adr/0066-a-hunted-card-asks-the-npcs-again-each-day.md). The offers are accepted,
   declined or countered on the Market page.
+- **The cards:** each hunted card shows as its picture in grey, since the player does not hold it,
+  linked to its slot in its binder, with the name and the icon of its set. The Market page shows
+  the cards it asks around for the same way, and the cards the player lists in colour.
 - **The Counter:** the `/hunted` page says whether the Counter has a copy and its price, never how
   many. The header's Hunted link counts the copies that came since the page was last shown, see
   [ADR-0067](adr/0067-the-counter-tells-a-hunter-that-a-copy-came-never-how-many.md).
@@ -466,8 +473,11 @@ is done, see [ADR-0070](adr/0070-a-quest-names-its-action-and-its-reward-and-pay
     and six become eight.
   - A swap: the card named for the spare copies named, which cover its value at the Counter's
     reference. The quest is lost when the copies are gone by then.
-- **The page:** `/quests` lists the quests with their progress, and what a finished one gave. The
-  header links to it in a game that has quests.
+- **The page:** `/quests` lists the quests with their progress, and what a finished one gave. A card
+  that a quest gives, or that it gave, links to its slot in its binder, which opens that card big. The header links to it in a
+  game that has quests.
+- **Told at once:** the next page says which quest was done and what it gave, with a link to each card
+  it added to the collection, as a banner that can be closed.
 
 The simulation does not play quests yet, see the [TODO](todo.md#tuning-system-and-metrics).
 

@@ -410,3 +410,20 @@ func TestBinders_aGameWithoutStagesHasNoUnlockThresholdToPass(t *testing.T) {
 		t.Errorf("binder = %+v, want it complete and not marked: there is no threshold", b)
 	}
 }
+
+func TestSetOf_namesTheSetWhoseBinderShowsTheCard(t *testing.T) {
+	t.Parallel()
+	cat := playtest.TinySet("S", 2, 2)
+	cat.IconCode = "s"
+	g := newGame(t, cat)
+
+	got, ok := g.SetOf("S-00")
+	_, unknown := g.SetOf("nowhere")
+
+	if want := (play.CardSet{Code: "S", Name: "Set S", IconCode: "s"}); !ok || got != want {
+		t.Errorf("SetOf(S-00) = %+v, %v, want %+v", got, ok, want)
+	}
+	if unknown {
+		t.Error("SetOf(nowhere) found a set for a card that is in no binder")
+	}
+}

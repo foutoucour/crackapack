@@ -97,7 +97,7 @@ func (h *handler) market(w http.ResponseWriter, _ *http.Request) {
 		h.marketFailed(w, err, "/")
 		return
 	}
-	view := newMarketView(v)
+	view := newMarketView(v, h.game.SetOf)
 	view.Notice = h.notices.take()
 	h.render(w, http.StatusOK, "market", view)
 }

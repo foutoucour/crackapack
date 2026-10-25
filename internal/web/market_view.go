@@ -164,6 +164,8 @@ type requestView struct {
 	Over    bool
 	Answers []answerView
 	Back    backView
+	// Thumb is the card on the market page, which the other pages do not show.
+	Thumb cardThumb
 }
 
 func (idx *marketIndex) requestView(r play.Request, ref cardRef, back backView) requestView {
@@ -203,6 +205,7 @@ type listingView struct {
 	Status  string
 	Answers []answerView
 	Back    backView
+	Thumb   cardThumb
 }
 
 func (idx *marketIndex) listingView(l play.Listing, ref cardRef, back backView) listingView {
@@ -348,15 +351,20 @@ type marketView struct {
 	Results  []resultView
 }
 
-func newMarketView(v play.MarketView) marketView {
+func newMarketView(v play.MarketView, setOf setFinder) marketView {
 	idx := newMarketIndex(v, nil, nil)
 	back := backView{Market: true}
 	var view marketView
 	for _, r := range v.Requests {
-		view.Requests = append(view.Requests, idx.requestView(r, cardRef{ID: r.Card.ID, Finish: string(r.Finish)}, back))
+		request := idx.requestView(r, cardRef{ID: r.Card.ID, Finish: string(r.Finish)}, back)
+		// A card is asked around for while the player does not hold it.
+		request.Thumb = newCardThumb(r.Card, false, setOf)
+		view.Requests = append(view.Requests, request)
 	}
 	for _, l := range v.Listings {
-		view.Listings = append(view.Listings, idx.listingView(l, cardRef{ID: l.Card.ID, Finish: string(l.Finish)}, back))
+		listing := idx.listingView(l, cardRef{ID: l.Card.ID, Finish: string(l.Finish)}, back)
+		listing.Thumb = newCardThumb(l.Card, true, setOf)
+		view.Listings = append(view.Listings, listing)
 	}
 	for _, r := range v.Results {
 		view.Results = append(view.Results, newResultView(r, v.Now))

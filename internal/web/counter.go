@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/foutoucour/crackapack/internal/domain"
@@ -52,6 +53,17 @@ func binderHref(set string, filter binderFilter, card domain.CardID) string {
 		href += "#" + (&url.URL{Fragment: slotAnchor(card)}).EscapedFragment()
 	}
 	return href
+}
+
+// focusHref is binderHref for the slot of card, with focus=<card> so that the page opens the card
+// big, as a click on its slot does. It is binderHref when there is no set or no card to open.
+func focusHref(set string, card domain.CardID) string {
+	href := binderHref(set, binderFilter{}, card)
+	if set == "" || card == "" {
+		return href
+	}
+	path, anchor, _ := strings.Cut(href, "#")
+	return path + "&focus=" + url.QueryEscape(string(card)) + "#" + anchor
 }
 
 func slotAnchor(card domain.CardID) string { return "c-" + string(card) }

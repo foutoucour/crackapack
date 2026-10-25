@@ -42,26 +42,13 @@
       <progress value="{{.Owned}}" max="{{.Total}}" aria-label="Cards collected">{{.Owned}} / {{.Total}}</progress>
       <p class="lead">{{.Owned}} / {{.Total}} cards <span class="pct">{{percent .Owned .Total}}%</span></p>
       {{if .PastThreshold}}<p class="unlock-mark">Unlock threshold reached</p>{{end}}
+      <p class="playsets">Complete playsets <strong>{{.Playsets}}</strong></p>
     </div>
-    <p class="playsets">Complete playsets <strong>{{.Playsets}}</strong></p>
   </div>
+  {{template "showPanel" .Shows}}
   {{template "filterPanel" .Rarities}}
   {{template "filterPanel" .Colours}}
 </section>
-
-{{template "showPanel" .Shows}}
-
-{{if .Milestones}}
-<section class="milestones" aria-label="Milestones">
-  <h2>Milestones</h2>
-  <ul>
-    {{range .Milestones}}
-    <li class="milestone{{if .Done}} done{{end}}">{{.Name}}: {{if .Done}}done{{else if .Unlocks}}unlocks sets{{else if .Reward}}+{{.Reward}} energy{{else}}no energy{{end}}</li>
-    {{end}}
-  </ul>
-  <p class="milestone-note">Each milestone locks one copy of each of its cards for good.</p>
-</section>
-{{end}}
 
 {{if .Locked}}{{if .Counter}}<p class="counter-note">This set is locked, so its cards cannot be bought. What you hold of it can still be sold.</p>{{end}}{{end}}
 
@@ -106,7 +93,7 @@
   <h2>{{.Title}}</h2>
   <ul>
     {{range .Rows}}
-    <li><a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}} <strong>{{.Owned}} / {{.Total}}</strong><span class="pct">{{percent .Owned .Total}}%</span><progress class="{{.Class}}" value="{{.Owned}}" max="{{.Total}}" aria-hidden="true"></progress></a></li>
+    <li>{{with .Earned}}<span class="milestone-mark" role="img" aria-label="{{.}}" title="{{.}}">✓</span>{{end}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}} <strong>{{.Owned}} / {{.Total}}</strong><span class="pct">{{percent .Owned .Total}}%</span><progress class="{{.Class}}" value="{{.Owned}}" max="{{.Total}}" aria-hidden="true"></progress></a></li>
     {{end}}
   </ul>
 </nav>
@@ -139,7 +126,9 @@
       {{template "tools" .}}
     </div>
     {{else}}
-    <div class="slot empty"><span class="sr-only">Empty slot, card number </span><span class="number">#{{.Number}}</span>
+    <div class="slot empty">
+      {{if .ImageID}}<img src="/card-image/{{.ImageID}}" class="art" alt="" width="488" height="680" loading="lazy">{{end}}
+      <span class="sr-only">Empty slot, card number </span><span class="number">#{{.Number}}</span>
       {{template "pick" .}}
       {{template "tools" .}}
     </div>

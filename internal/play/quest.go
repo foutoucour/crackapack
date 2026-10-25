@@ -61,6 +61,8 @@ type RewardView struct {
 	// Card and Finish are the card won or turned into a foil, and the card a swap gives the player.
 	Card   domain.Card
 	Finish domain.Finish
+	// CardSet is the set whose binder shows Card, "" when the reward has no card.
+	CardSet string
 	// SetCode and SetName are the set whose booster, unlock or duplicates the reward is.
 	SetCode, SetName string
 	// Give is the copies a swap takes.
@@ -95,6 +97,8 @@ type questBoard struct {
 	counted int
 	// opened is the boosters opened since the last count, by set code.
 	opened map[string]int
+	// finished is the quests done that the player has not been told of, see TakeFinishedQuests.
+	finished []*quest
 }
 
 // OpenQuests gives the game quests drawn under rules, a board of its own on the random stream given,
@@ -174,6 +178,7 @@ func (g *Game) countQuests(quests []*quest, events domain.QuestEvents) (done int
 		changed = true
 		if q.state == QuestDone {
 			done++
+			g.quests.finished = append(g.quests.finished, q)
 		}
 	}
 	return done, changed
@@ -258,6 +263,23 @@ func (g *Game) questOpened(setCode string) {
 	}
 }
 
+// TakeFinishedQuests returns the quests done since the last call, oldest first, and forgets them: a
+// client tells the player of each once. The quests are counted first, so that one done by the last
+// action is in. It returns none in a game without quests.
+func (g *Game) TakeFinishedQuests() []QuestView {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.quests == nil {
+		return nil
+	}
+	if g.settleQuests() {
+		g.save()
+	}
+	taken := g.quests.finished
+	g.quests.finished = nil
+	return g.questViews(taken)
+}
+
 // questViews resolves the names of quests for the player.
 func (g *Game) questViews(quests []*quest) []QuestView {
 	out := make([]QuestView, len(quests))
@@ -265,7 +287,7 @@ func (g *Game) questViews(quests []*quest) []QuestView {
 		v := QuestView{
 			Period: q.Period, Action: q.Action, Filter: q.Filter, Target: q.Target, Progress: q.Progress, State: q.state,
 			Reward: RewardView{
-				Kind: q.Reward.Kind, Card: g.cards[q.Reward.Card.ID], Finish: q.Reward.Card.Finish,
+				Kind: q.Reward.Kind, Card: g.cards[q.Reward.Card.ID], Finish: q.Reward.Card.Finish, CardSet: g.binderOf(q.Reward.Card.ID),
 				Give: g.cardLines(q.Reward.Give), Got: g.cardLines(linesOf(q.got)),
 			},
 		}

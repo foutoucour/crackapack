@@ -15,7 +15,9 @@
   {{if .Cards}}
   <ul class="market-list">
     {{range .Cards}}
-    <li>
+    <li class="with-thumb">
+      {{template "cardThumb" .Thumb}}
+      <div>
       <h3>{{.Name}}{{if .Foil}} (foil){{end}}{{if .New}} <span class="tag new">New</span>{{end}}</h3>
       <p>{{if .AtCounter}}At the Counter for {{coins .Price}}.{{if .Href}} <a href="{{.Href}}">Buy it from its binder<span class="sr-only">: {{.Name}}</span></a>{{end}}{{else}}Not at the Counter.{{end}}</p>
       <p>{{if .Offers}}{{.Offers}} {{if eq .Offers 1}}offer{{else}}offers{{end}} waiting. <a href="/market">Go to the market</a>.{{else}}No offer waiting.{{end}}</p>
@@ -23,6 +25,7 @@
         <input type="hidden" name="card" value="{{.ID}}"><input type="hidden" name="finish" value="{{.Finish}}"><input type="hidden" name="from" value="hunted">
         <button type="submit">Stop hunting<span class="sr-only"> {{.Name}}</span></button>
       </form>
+      </div>
     </li>
     {{end}}
   </ul>

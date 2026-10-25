@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/set-icons.css">
   <script src="/static/js-flag.js"></script>
   <script type="module" src="/static/energy.js"></script>
+  <script type="module" src="/static/banners.js"></script>
 </head>
 <body>
   <header class="site-header">
@@ -45,6 +46,11 @@
   <div class="results">
     <p class="unlock" role="status">{{.Text}}</p>
     {{if .Unlocked}}{{template "unlocked" .Unlocked}}{{end}}
+  </div>
+  {{end}}
+  {{range questsDone}}
+  <div class="results">
+    <p class="unlock" role="status">{{.Text}}{{if .Cards}} See {{range $i, $card := .Cards}}{{if $i}}, {{end}}<a href="{{$card.Href}}">{{$card.Name}}</a>{{end}} in your binder.{{end}}</p>
   </div>
   {{end}}
   <main>

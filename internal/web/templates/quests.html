@@ -5,9 +5,9 @@
   {{range .}}
   <li>
     <h3>{{.Task}} <span class="tag {{.State}}">{{.Label}}</span></h3>
-    <p>Reward: {{.Prize}}.</p>
+    <p>Reward: {{.Prize}}.{{with .Link}} <a href="{{.Href}}">See {{.Name}} in its binder</a>.{{end}}</p>
     <p><progress value="{{.Progress}}" max="{{.Target}}" aria-label="{{.Task}}">{{.Progress}} of {{.Target}}</progress> {{.Progress}} / {{.Target}}</p>
-    {{if .Got}}<p>You got {{range $i, $name := .Got}}{{if $i}}, {{end}}{{$name}}{{end}}.</p>{{end}}
+    {{if .Got}}<p>You got {{range $i, $card := .Got}}{{if $i}}, {{end}}<a href="{{$card.Href}}">{{$card.Name}}</a>{{end}}.</p>{{end}}
     {{if eq .State "lost"}}<p>The reward could not be given: the card or the copies it needed were gone.</p>{{end}}
   </li>
   {{end}}

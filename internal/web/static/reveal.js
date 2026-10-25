@@ -41,10 +41,10 @@ import { createViewer, describe, dropBrokenPictures } from './cards.js';
   controls.append(info, advance);
   booster.before(controls);
   actions.hidden = true;
-  // The sets the booster unlocked are told at the end: that would take room from the card, and give
-  // the cards away.
-  const unlocked = document.querySelector('.unlock');
-  if (unlocked) unlocked.hidden = true;
+  // What the booster earned, the sets it unlocked, a milestone or a quest, is told at the end: that
+  // would take room from the card, and give the cards away.
+  const told = Array.from(document.querySelectorAll('.unlock'), (notice) => notice.closest('.results') ?? notice);
+  told.forEach((notice) => { notice.hidden = true; });
 
   // A card on the shelf opens big, so the miniatures can be looked at again.
   const viewer = createViewer();
@@ -147,7 +147,7 @@ import { createViewer, describe, dropBrokenPictures } from './cards.js';
     status.textContent = message;
     controls.remove();
     actions.hidden = false;
-    if (unlocked) unlocked.hidden = false;
+    told.forEach((notice) => { notice.hidden = false; });
     const next = finishedBySpace
       ? actions.querySelector('a')
       : actions.querySelector('button:not(:disabled)') || actions.querySelector('a');

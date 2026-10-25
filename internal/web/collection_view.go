@@ -24,10 +24,8 @@ type collectionView struct {
 	Rarities      filterPanel
 	Colours       filterPanel
 	Shows         showPanel
-	// Milestones are the goals of the binder, empty in a game without milestones.
-	Milestones []milestoneView
-	Slots      []slotView
-	Pools      []poolView
+	Slots         []slotView
+	Pools         []poolView
 	// Counter is true in a game with a Counter, whose prices the slots show. Locked is true when
 	// the binder's set cannot be opened yet, so that none of its cards can be bought.
 	Counter    bool
@@ -87,6 +85,10 @@ type filterView struct {
 	Owned   int
 	Total   int
 	Current bool
+	// Goal is the milestone of the cards that the row lists, its Kind and its Group only, and Earned
+	// the words of the check mark of a goal the player has reached, empty before.
+	Goal   domain.Milestone
+	Earned string
 }
 
 // showPanel is the list of the show filter: what the player can do with the cards of the binder.
@@ -200,12 +202,14 @@ func newCollectionView(binder play.Binder, binders []play.BinderSummary, filter 
 	view.Rarities = filterPanel{Title: "Rarity", Label: "Filter by rarity", Rows: []filterView{{
 		Label: "All rarities", Href: collectionHref(binder.SetCode, filter.toggleRarity("")), Class: "bar-all",
 		Owned: binder.Progress.Owned, Total: binder.Progress.Total, Current: filter.Rarity == "",
+		Goal: domain.Milestone{Kind: domain.MilestoneBinder},
 	}}}
 	for _, r := range binderRarities() {
 		if p, ok := binder.Progress.ByRarity[r]; ok && p.Total > 0 {
 			view.Rarities.Rows = append(view.Rarities.Rows, filterView{
 				Label: rarityLabel(r), Href: collectionHref(binder.SetCode, filter.toggleRarity(string(r))), Class: "bar-" + string(r),
 				Owned: p.Owned, Total: p.Total, Current: string(r) == filter.Rarity,
+				Goal: domain.Milestone{Kind: domain.MilestoneRarity, Group: string(r)},
 			})
 		}
 	}
@@ -218,6 +222,7 @@ func newCollectionView(binder play.Binder, binders []play.BinderSummary, filter 
 			view.Colours.Rows = append(view.Colours.Rows, filterView{
 				Label: colourGroupLabel(g), Href: collectionHref(binder.SetCode, filter.toggleColour(string(g))), Class: "bar-" + colourGroupClass(g),
 				Owned: p.Owned, Total: p.Total, Current: string(g) == filter.Colour,
+				Goal: domain.Milestone{Kind: domain.MilestoneColour, Group: string(g)},
 			})
 		}
 	}

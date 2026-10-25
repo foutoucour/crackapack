@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/foutoucour/crackapack/internal/domain"
 	"github.com/foutoucour/crackapack/internal/domain/domaintest"
 )
 
@@ -192,4 +193,19 @@ func TestHeader_noHuntedLinkInAGameWithoutACounter(t *testing.T) {
 	_, body := get(t, c, srv.URL+"/")
 
 	mustNotContain(t, "the home page", body, `href="/hunted"`)
+}
+
+func TestHuntedPage_everyCardIsAGreyPictureThatLinksToItsSlotWithItsSetNamed(t *testing.T) {
+	t.Parallel()
+	set := counterSet()
+	ids := withScryfallIDs(set)
+	shop := newShopWith(t, nil, counterRules(), set)
+	shop.hunt(t, neverCard)
+
+	got := shop.get(t, "/hunted")
+
+	mustContain(t, "the hunted card", got,
+		`<a class="card-thumb unowned" href="/collection?set=S#c-S-02">`,
+		`<img src="/card-image/`+ids[domain.CardID(neverCard)]+`"`,
+		`alt="S-02"`, `class="thumb-set"`, "Set S")
 }

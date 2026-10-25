@@ -352,9 +352,10 @@ func TestStaticAssets_areServedAndHealthzAnswers(t *testing.T) {
 	srv, c := newServer(t, domaintest.NewRavnicaCatalogue())
 
 	for path, wantType := range map[string]string{
-		"/static/style.css": "text/css",
-		"/static/reveal.js": "javascript",
-		"/healthz":          "",
+		"/static/style.css":  "text/css",
+		"/static/reveal.js":  "javascript",
+		"/static/banners.js": "javascript",
+		"/healthz":           "",
 	} {
 		resp, _ := get(t, c, srv.URL+path)
 		if resp.StatusCode != http.StatusOK {
@@ -716,5 +717,89 @@ func TestCollection_everyPageLinksToIt(t *testing.T) {
 
 	if !strings.Contains(body, `href="/collection"`) {
 		t.Errorf("the home page has no link to the collection:\n%s", body)
+	}
+}
+
+// A bar that fills a row of the list of sets is clipped by the row's own corners: a fill with
+// corners of its own would show as a second, different curve inside the row.
+func TestStylesheet_theFillOfASetInTheListHasNoCornersOfItsOwn(t *testing.T) {
+	t.Parallel()
+	srv, c := newServer(t, domaintest.NewRavnicaCatalogue())
+
+	_, css := get(t, c, srv.URL+"/static/style.css")
+
+	// Each pseudo-element has a rule of its own: a browser drops a whole list that holds a selector
+	// it does not know, and each browser knows only its own.
+	for _, want := range []string{".binders progress::-webkit-progress-value", ".binders progress::-moz-progress-bar"} {
+		rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(want) + `\s*\{[^}]*border-radius:\s*0\b`)
+		if !rule.MatchString(css) {
+			t.Errorf("no rule gives %s a border-radius of 0", want)
+		}
+	}
+}
+
+// What a tool is called is in the page for a screen reader. It shows to everyone when the tool is
+// hovered or focused.
+func TestStylesheet_aToolShowsItsNameWhenHoveredOrFocused(t *testing.T) {
+	t.Parallel()
+	srv, c := newServer(t, domaintest.NewRavnicaCatalogue())
+
+	_, css := get(t, c, srv.URL+"/static/style.css")
+
+	for _, want := range []string{".tool:hover .sr-only", ".tool:focus-visible .sr-only"} {
+		if !strings.Contains(css, want) {
+			t.Errorf("the stylesheet lacks a rule for %s", want)
+		}
+	}
+}
+
+func TestPages_loadTheScriptThatLetsAnyBannerBeClosed(t *testing.T) {
+	t.Parallel()
+	srv, c := newServer(t, domaintest.NewRavnicaCatalogue())
+
+	_, body := get(t, c, srv.URL+"/")
+	_, script := get(t, c, srv.URL+"/static/banners.js")
+
+	if !strings.Contains(body, `<script type="module" src="/static/banners.js">`) {
+		t.Errorf("the layout does not load the banners script:\n%s", body)
+	}
+	for _, want := range []string{".results", "banner-close", "aria-label"} {
+		if !strings.Contains(script, want) {
+			t.Errorf("the banners script lacks %q:\n%s", want, script)
+		}
+	}
+}
+
+func TestStylesheet_theShowListIsAColumnOnTheLeftOfTheSetHeader(t *testing.T) {
+	t.Parallel()
+	srv, c := newServer(t, domaintest.NewRavnicaCatalogue())
+
+	_, css := get(t, c, srv.URL+"/static/style.css")
+
+	if !regexp.MustCompile(`(?s)\.show-bar ul\s*\{[^}]*flex-direction:\s*column`).MatchString(css) {
+		t.Error("the show list is not laid out as a column")
+	}
+	if !regexp.MustCompile(`(?s)\.show-bar a\s*\{[^}]*justify-content:\s*space-between`).MatchString(css) {
+		t.Error("the entries of the show list do not spread their label and their count to the two edges of the column")
+	}
+}
+
+// A link to a card in a binder, such as the one of a quest's reward, carries focus=<card>: the
+// collection script opens that card big, as a click on its slot does. The slot the address anchors
+// to is also marked, for when the card is put away.
+func TestCollection_aLinkThatAsksForFocusOpensTheCardBigAndTheAnchoredSlotIsMarked(t *testing.T) {
+	t.Parallel()
+	srv, c := newServer(t, domaintest.NewRavnicaCatalogue())
+
+	_, css := get(t, c, srv.URL+"/static/style.css")
+	_, script := get(t, c, srv.URL+"/static/collection.js")
+
+	if !regexp.MustCompile(`(?s)\.entry:target[^{]*\{[^}]*outline`).MatchString(css) {
+		t.Error("the stylesheet does not mark the slot that the address points at")
+	}
+	for _, want := range []string{"URLSearchParams", "'focus'", ".click()"} {
+		if !strings.Contains(script, want) {
+			t.Errorf("the collection script lacks %q: it does not open the card that the address asks for", want)
+		}
 	}
 }

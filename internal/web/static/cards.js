@@ -11,7 +11,8 @@ export function describe(card) {
 // always in the page, inside container.
 export function dropBrokenPictures(container) {
   const drop = (img) => {
-    img.closest('[data-card]').classList.remove('has-image');
+    // An empty slot's picture has no card to fall back to: it just goes.
+    img.closest('[data-card]')?.classList.remove('has-image');
     img.remove();
   };
   // An error event does not bubble, so listen while it travels down.
