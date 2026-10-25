@@ -14,6 +14,7 @@
       {{if .Icon.Code}}<span class="pack-watermark {{.Icon.Class}}" aria-hidden="true"></span>{{end}}
       <div class="pack-info">
         {{if $.Staged}}<h3>{{.SetName}}</h3>{{else}}<h2>{{.SetName}}</h2>{{end}}
+        {{with .Unfinished}}<p class="hint">{{.Turned}} of {{.Cards}} cards turned.</p>{{end}}
         {{if .Count}}
         <p class="count">{{.Count}} {{if eq .Count 1}}booster{{else}}boosters{{end}}</p>
         <p class="hint">Welcome gift: free.</p>
@@ -22,11 +23,15 @@
         <p class="hint wait" data-pack-wait{{if not .Price.Hint}} hidden{{end}}>{{.Price.Hint}}</p>
         {{end}}
       </div>
+      {{if .Unfinished}}
+      <a class="button finish" href="/pack" aria-label="Finish your {{.SetName}} booster, {{.Unfinished.Turned}} of {{.Unfinished.Cards}} cards turned">{{template "icon" .Icon}}Finish your booster</a>
+      {{else}}
       <form method="post" action="/open">
         <input type="hidden" name="set" value="{{.SetCode}}">
         {{template "topUpField" .Price}}
         <button type="submit" class="primary" data-pack-open{{if not .Count}} data-label="Open a {{.SetName}} booster"{{end}} aria-label="Open a {{.SetName}} booster, {{if .Count}}free{{else}}{{.Price.Label}}{{end}}"{{if .Price.Blocked}} disabled{{end}}>{{template "icon" .Icon}}<span class="open-text"><span class="open-label">Open</span><span class="open-price">{{if .Count}}free{{else}}{{template "price" .Price}}{{end}}</span></span></button>
       </form>
+      {{end}}
     </li>
     {{end}}
   </ul>

@@ -1,6 +1,8 @@
 package web_test
 
 import (
+	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -153,5 +155,50 @@ func TestPack_theButtonsSitOnTheIconOfTheSet(t *testing.T) {
 				t.Errorf("icon behind the buttons = %v, want %v:\n%s", got, tt.wantIcon, actions)
 			}
 		})
+	}
+}
+
+func TestPack_comesBackWithTheCardsAlreadyTurned(t *testing.T) {
+	t.Parallel()
+	rav := domaintest.NewRavnicaCatalogue()
+	srv, c := newServer(t, rav)
+	openPack(t, c, srv.URL, rav.Code)
+	_, fresh := get(t, c, srv.URL+"/pack")
+	mustContain(t, "the pack page of a booster just opened", fresh, `data-revealed="0"`)
+
+	resp, err := c.PostForm(srv.URL+"/pack/revealed", url.Values{"count": {"2"}})
+	if err != nil {
+		t.Fatalf("POST /pack/revealed: %v", err)
+	}
+	_ = readBody(t, resp)
+	_, back := get(t, c, srv.URL+"/pack")
+
+	if resp.StatusCode != http.StatusNoContent {
+		t.Errorf("POST /pack/revealed = %d, want 204", resp.StatusCode)
+	}
+	mustContain(t, "the pack page after two cards were turned", back, `data-revealed="2"`)
+}
+
+func TestPackRevealed_refusesACountThatIsNotOneOfTheBooster(t *testing.T) {
+	t.Parallel()
+	rav := domaintest.NewRavnicaCatalogue()
+	srv, c := newServer(t, rav)
+	post := func(count string) int {
+		resp, err := c.PostForm(srv.URL+"/pack/revealed", url.Values{"count": {count}})
+		if err != nil {
+			t.Fatalf("POST /pack/revealed: %v", err)
+		}
+		_ = readBody(t, resp)
+		return resp.StatusCode
+	}
+	if got := post("1"); got != http.StatusConflict {
+		t.Errorf("a count before any booster was opened = %d, want 409", got)
+	}
+	openPack(t, c, srv.URL, rav.Code)
+
+	for _, count := range []string{"", "two", "-1", "999"} {
+		if got := post(count); got != http.StatusBadRequest {
+			t.Errorf("count %q = %d, want 400", count, got)
+		}
 	}
 }

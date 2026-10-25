@@ -102,6 +102,7 @@ func TestHome_aTileSaysItIsAFreeGiftThenWhatABoosterCosts(t *testing.T) {
 
 	_, welcome := get(t, c, srv.URL+"/")
 	spendWelcome(t, c, srv.URL, code)
+	finishLastPack(t, c, srv.URL)
 	_, paid := get(t, c, srv.URL+"/")
 
 	if !strings.Contains(welcome, "10 boosters") || !strings.Contains(welcome, "Welcome gift") {
@@ -127,6 +128,7 @@ func TestHome_aTileIsDisabledAndSaysHowLongToWaitWhenEnergyIsShort(t *testing.T)
 	spendWelcome(t, c, srv.URL, code)
 	openPack(t, c, srv.URL, code)
 	openPack(t, c, srv.URL, code)
+	finishLastPack(t, c, srv.URL)
 
 	_, empty := get(t, c, srv.URL+"/")
 	clock.Advance(20 * time.Minute)
@@ -309,6 +311,7 @@ func TestEnergy_theButtonsCarryTheHooksOfTheScript(t *testing.T) {
 	spendWelcome(t, c, srv.URL, code)
 	openPack(t, c, srv.URL, code)
 	openPack(t, c, srv.URL, code)
+	finishLastPack(t, c, srv.URL)
 
 	_, home := get(t, c, srv.URL+"/")
 	_, pack := get(t, c, srv.URL+"/pack")

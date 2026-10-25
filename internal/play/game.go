@@ -19,6 +19,13 @@ const WelcomeBoosters = 10
 // ErrUnknownSet is returned by Open when the set code is not one of the game's sets.
 var ErrUnknownSet = errors.New("play: unknown set")
 
+// ErrNoOpening is returned by Reveal when no booster was opened yet.
+var ErrNoOpening = errors.New("play: no booster was opened")
+
+// ErrBadReveal is returned by Reveal for a count the last opening cannot have: below zero, or above
+// its number of cards.
+var ErrBadReveal = errors.New("play: no such number of cards turned")
+
 // Pack is what the player can open of one set: the welcome boosters left, which are free, and what
 // one more costs in energy once they are gone.
 type Pack struct {
@@ -62,6 +69,9 @@ type Opening struct {
 	Cards    []RevealedCard
 	// Unlocked are the sets that the cards of the booster unlocked.
 	Unlocked []UnlockedSet
+	// Revealed is how many cards, from the first, the player has turned, see [Game.Reveal]. A
+	// client that reveals a booster one card at a time resumes there.
+	Revealed int
 }
 
 // Game is one player's session. It is safe for concurrent use, since an HTTP server calls it from
@@ -302,6 +312,26 @@ func (g *Game) LastOpening() (Opening, bool) {
 		return Opening{}, false
 	}
 	return *g.last, true
+}
+
+// Reveal records that the player has turned the first count cards of the last opening, so that
+// coming back to the booster shows it as it was left. A count below the one recorded is ignored,
+// since the answer of an earlier card can arrive after a later one. It returns ErrNoOpening before
+// any booster was opened and ErrBadReveal for a count the booster cannot have.
+func (g *Game) Reveal(count int) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.last == nil {
+		return ErrNoOpening
+	}
+	if count < 0 || count > len(g.last.Cards) {
+		return fmt.Errorf("reveal %d of %d cards: %w", count, len(g.last.Cards), ErrBadReveal)
+	}
+	if count > g.last.Revealed {
+		g.last.Revealed = count
+		g.save()
+	}
+	return nil
 }
 
 func (g *Game) set(code string) (domain.SetCatalogue, bool) {

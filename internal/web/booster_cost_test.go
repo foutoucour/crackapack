@@ -49,6 +49,12 @@ func newCostShop(t *testing.T, topUp bool, coins domain.Coins) counterShop {
 			}
 		}
 	}
+	// A booster left unturned takes the place of its tile's price: turn the last one.
+	if last, ok := game.LastOpening(); ok {
+		if err := game.Reveal(len(last.Cards)); err != nil {
+			t.Fatalf("Reveal: %v", err)
+		}
+	}
 	srv, c, _ := serve(t, game, fakeImages{})
 	return counterShop{srv: srv, c: c, game: game, clock: clock}
 }
@@ -57,8 +63,13 @@ func newCostShop(t *testing.T, topUp bool, coins domain.Coins) counterShop {
 func (s counterShop) drain(t *testing.T) {
 	t.Helper()
 	for range 2 {
-		if _, err := s.game.Open("T"); err != nil {
+		opening, err := s.game.Open("T")
+		if err != nil {
 			t.Fatalf("Open: %v", err)
+		}
+		// A booster left unturned takes the place of its tile's price.
+		if err := s.game.Reveal(len(opening.Cards)); err != nil {
+			t.Fatalf("Reveal: %v", err)
 		}
 	}
 }

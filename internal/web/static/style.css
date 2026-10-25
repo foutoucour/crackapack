@@ -116,6 +116,10 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .open-text { display: flex; flex-direction: column; line-height: 1.3; }
 .open-label::after { content: " \203A"; }
 .open-price { font-size: 0.9rem; font-weight: 600; }
+/* A booster left halfway takes the place of the button that would open another. */
+.pack-tile .finish { display: flex; align-items: center; gap: 0.25rem; align-self: stretch; margin: -0.5rem 0; padding: 0 1rem; border: 0; border-radius: 0; background: var(--accent); color: var(--accent-text); font-weight: 700; white-space: nowrap; }
+.pack-tile .finish::after { content: " \203A"; }
+.pack-tile .finish:focus-visible { outline-offset: -4px; }
 .energy-icon { width: 1em; height: 1em; vertical-align: -0.125em; }
 .pack-tile button:focus-visible { outline-offset: -4px; }
 /* A stage lists its locked sets in short, greyed, with nothing to press. */

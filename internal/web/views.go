@@ -24,14 +24,23 @@ type tileView struct {
 	play.Pack
 	Icon  iconView
 	Price boosterPrice
+	// Unfinished is the booster of the set whose cards the player has not all turned, nil when
+	// there is none: the tile leads back to it.
+	Unfinished *unfinishedView
+}
+
+// unfinishedView is how far the player got through a booster they left.
+type unfinishedView struct {
+	Turned, Cards int
 }
 
 // Size is the number of sets in the stage.
 func (s stageView) Size() int { return len(s.Open) + len(s.Locked) }
 
 // newHomeView groups packs by stage, keeping their order. A game without stages has one group.
-// binders tell the rarest card held of each set, which colours its icon.
-func newHomeView(packs []play.Pack, binders []play.BinderSummary) homeView {
+// binders tell the rarest card held of each set, which colours its icon. last is the latest opening,
+// nil before the first: the tile of its set leads back to it until its cards are all turned.
+func newHomeView(packs []play.Pack, binders []play.BinderSummary, last *play.Opening) homeView {
 	rarest := make(map[string]string, len(binders))
 	for _, b := range binders {
 		rarest[b.SetCode] = rarestHeld(b.Progress)
@@ -45,7 +54,11 @@ func newHomeView(packs []play.Pack, binders []play.BinderSummary) homeView {
 		if p.Locked {
 			stage.Locked = append(stage.Locked, p)
 		} else {
-			stage.Open = append(stage.Open, tileView{Pack: p, Icon: newIconView(p.IconCode, rarest[p.SetCode]), Price: newBoosterPrice(p)})
+			tile := tileView{Pack: p, Icon: newIconView(p.IconCode, rarest[p.SetCode]), Price: newBoosterPrice(p)}
+			if last != nil && last.SetCode == p.SetCode && last.Revealed < len(last.Cards) {
+				tile.Unfinished = &unfinishedView{Turned: last.Revealed, Cards: len(last.Cards)}
+			}
+			stage.Open = append(stage.Open, tile)
 		}
 		view.Staged = view.Staged || p.Stage > 0
 	}
@@ -77,6 +90,8 @@ type packView struct {
 	Preload []string
 	// Icon is the icon of the set, behind the buttons.
 	Icon iconView
+	// Revealed is how many cards the player has turned, where the reveal resumes.
+	Revealed int
 }
 
 // cardValuer says what a card is worth in coins, and fails in a game that has no coins.
@@ -106,6 +121,7 @@ func newPackView(opening play.Opening, packs []play.Pack, value cardValuer) pack
 		Cards:    make([]cardView, len(opening.Cards)),
 		Unlocked: opening.Unlocked,
 		Icon:     newIconView(opening.IconCode, string(domain.RarityCommon)),
+		Revealed: opening.Revealed,
 	}
 	for _, p := range packs {
 		if p.SetCode == opening.SetCode {
