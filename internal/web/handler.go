@@ -4,6 +4,7 @@
 package web
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -247,6 +248,8 @@ func (h *handler) cardImage(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.Is(err, images.ErrNotFound):
 		http.Error(w, "no picture for this card", http.StatusNotFound)
+	case errors.Is(err, context.Canceled):
+		// The browser gave up on the picture, for instance by leaving the page: nobody reads an answer.
 	case err != nil:
 		h.log.Error("card image", "error", err)
 		http.Error(w, "picture unavailable", http.StatusBadGateway)

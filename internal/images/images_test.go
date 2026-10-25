@@ -174,6 +174,26 @@ func TestScryfall_pausesAfterEveryRequestSoTheyAreSpacedOut(t *testing.T) {
 	}
 }
 
+func TestScryfall_aRequestGivenUpOnNeitherReachesTheServerNorPausesTheQueue(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	src, rec := newScryfall(t, func(http.ResponseWriter, *http.Request) { calls.Add(1) })
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := src.Image(ctx, testID)
+
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("error = %v, want context.Canceled", err)
+	}
+	if calls.Load() != 0 {
+		t.Errorf("%d requests reached the server, want none", calls.Load())
+	}
+	if got := rec.all(); len(got) != 0 {
+		t.Errorf("pauses = %v, want none: nothing was sent, so there is nothing to space out", got)
+	}
+}
+
 // countingSource is a Source that records its calls.
 type countingSource struct {
 	calls atomic.Int32

@@ -523,6 +523,43 @@ func TestCardImage_failuresUseTheirStatus(t *testing.T) {
 	}
 }
 
+// abandonedImages is an images.Source that waits until the request is given up, then fails the way
+// a download does.
+type abandonedImages struct{ started chan<- struct{} }
+
+func (a abandonedImages) Image(ctx context.Context, id string) (images.Image, error) {
+	a.started <- struct{}{}
+	<-ctx.Done()
+	return images.Image{}, fmt.Errorf("scryfall image %s: Get: %w", id, ctx.Err())
+}
+
+func TestCardImage_aBrowserThatGivesUpIsNotAnError(t *testing.T) {
+	t.Parallel()
+	started := make(chan struct{}, 1)
+	srv, c, logs := newLoggedServer(t, abandonedImages{started: started}, domaintest.NewRavnicaCatalogue())
+	ctx, cancel := context.WithCancel(context.Background())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+"/card-image/00000000-0000-4000-8000-000000000004", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if resp, err := c.Do(req); err == nil {
+			_ = resp.Body.Close()
+		}
+	}()
+
+	<-started
+	cancel()
+	<-done
+	srv.Close() // waits for the handler to finish, so the log is complete
+
+	if logs.Len() != 0 {
+		t.Errorf("a request the browser abandoned was logged:\n%s", logs.String())
+	}
+}
+
 func TestPages_carryTheFanContentNotice(t *testing.T) {
 	t.Parallel()
 	srv, c := newServer(t, domaintest.NewRavnicaCatalogue())
