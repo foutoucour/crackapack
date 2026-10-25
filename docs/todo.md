@@ -467,6 +467,24 @@ The stack is server-rendered `html/template`, see
   the header, see [Quests](core-features.md#quests). Left: a badge for the quests done since the
   player last looked, and the quest's card marked on its slot of a binder.
 - [ ] The profile.
+- [ ] **Booster opening experience.** Skip to the end needs a better place: the card image loading
+  overlays the button. A footer on the reveal would hold it. The restored animation for a Rare or a
+  Mythic is tracked in [#55](https://github.com/foutoucour/crackapack/issues/55).
+- [ ] **Quests, next round of the page.**
+  - [ ] Say how long is left before the quests update, as "Quests updated in 3 hours 20 mins". The
+    page shows the date and time of the update today, which does not tell how long is left.
+  - [ ] A check mark on a quest that is done.
+  - [ ] The icon of the card a quest gives, so the player sees which set it comes from.
+- [ ] **Energy icon in the header**, beside the gauge.
+- [ ] **Page reviews.** Each is a pass on the page's look and flow, with no new rule behind it.
+  - [ ] The market page.
+  - [ ] The hunted page.
+  - [ ] The header section of the collection page. Minor: it is too big and not appealing enough.
+- [ ] **The focus on a card**, the big view of a card is not centered.
+- [ ] Minor: in the collection page, some set names run onto two lines.
+- [ ] **Foil special effect** on a foil card.
+- [ ] **Buying from an NPC in the collection page**, a better experience than today's Ask around
+  on an empty slot.
 - [x] **Hunted cards.** A player hunts the card of an empty slot. The NPCs that hold it offer an
   exchange, asked again each day, and the header says when the Counter has a copy, see
   [Hunted cards](core-features.md#hunted-cards) and
