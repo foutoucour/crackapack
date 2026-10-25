@@ -71,7 +71,9 @@ type PopulationParams struct {
 // NPC is one simulated collector. It opens boosters with the player's engine, keeps what its
 // archetype keeps and sells the surplus to the Counter. It holds no coins.
 type NPC struct {
-	ID             int
+	ID int
+	// Name is a planeswalker or a legendary creature of the NPC's colours, see nameNPCs.
+	Name           string
 	Archetype      string
 	BoostersPerDay int
 	KeepCopies     int
@@ -218,6 +220,7 @@ func GeneratePopulation(p PopulationParams, sets []SetCatalogue, rng *rand.Rand)
 			npcs = append(npcs, npc)
 		}
 	}
+	nameNPCs(npcs)
 	return npcs, nil
 }
 

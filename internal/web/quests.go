@@ -19,7 +19,7 @@ func (h *handler) quests(w http.ResponseWriter, _ *http.Request) {
 		h.playFailed(w, err)
 		return
 	}
-	h.render(w, http.StatusOK, "quests", newQuestsPageView(board))
+	h.render(w, http.StatusOK, "quests", newQuestsPageView(board, h.game.SetOf))
 }
 
 // questsNav is the header's link to the quests, nil in a game without them.

@@ -441,6 +441,17 @@ func TestCollection_theBinderListCanBeSearchedAndNamesTheSetInView(t *testing.T)
 	}
 }
 
+func TestCollection_anEntryOfTheBinderListKeepsTheFullSetNameInItsTitleForWhenTheLineCutsIt(t *testing.T) {
+	t.Parallel()
+	srv, c := stagedServer(t)
+
+	_, body := get(t, c, srv.URL+"/collection?set=A")
+
+	if want := `<a href="/collection?set=A" title="Set A"`; !strings.Contains(binderList(body), want) {
+		t.Errorf("the entry of Set A has no title with its name, want %q in:\n%s", want, binderList(body))
+	}
+}
+
 func TestCollection_showsThePercentageOfProgressNextToEveryCountOfTheSet(t *testing.T) {
 	t.Parallel()
 	srv, c := newServer(t, playtest.TinySet("P", 4, 1))

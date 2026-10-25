@@ -40,6 +40,8 @@ const (
 type QuestBoard struct {
 	Daily, Weekly             []QuestView
 	DailyResets, WeeklyResets time.Time
+	// Now is the time the board was read at, so that a page can say how long is left before a reset.
+	Now time.Time
 }
 
 // QuestView is one quest as the player reads it: the action, how far the player is, and the reward.
@@ -136,6 +138,7 @@ func (g *Game) Quests() (QuestBoard, error) {
 		Daily: g.questViews(b.daily), Weekly: g.questViews(b.weekly),
 		DailyResets:  time.Unix((b.day+1)*secondsPerDay, 0).UTC(),
 		WeeklyResets: time.Unix(((b.week+1)*daysPerWeek-mondayOffset)*secondsPerDay, 0).UTC(),
+		Now:          g.now(),
 	}, nil
 }
 

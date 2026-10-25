@@ -23,6 +23,7 @@
       </nav>
       {{with energy}}
       <div class="energy" role="status" aria-live="off" data-energy>
+        {{template "energy-icon"}}
         <span class="energy-label">Energy</span>
         <meter value="{{.Reserve}}" min="0" max="{{.ReserveCap}}" aria-label="Energy" data-energy-meter></meter>
         <strong data-energy-text>{{.Reserve}} / {{.ReserveCap}}</strong>
@@ -69,6 +70,8 @@
 {{define "icon"}}{{if .Code}}<span class="set-icon-chip rarity-{{.Rarity}}" aria-hidden="true"><span class="set-icon {{.Class}} rarity-{{.Rarity}}"></span></span>{{end}}{{end}}
 
 {{define "energy-icon"}}<svg class="energy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13.5 2 5 13.5h6L10 22l9-12h-6.5z" fill="currentColor"/></svg>{{end}}
+
+{{define "check-mark"}}<svg class="check-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>{{end}}
 
 {{/* What a booster costs now: the energy icon and the energy, with the coins on top when there are some. The script keeps the text live. */}}
 {{define "price"}}{{template "energy-icon"}}<span data-pack-price>{{.Text}}</span>{{end}}

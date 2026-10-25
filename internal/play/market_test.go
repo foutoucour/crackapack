@@ -80,6 +80,21 @@ func answerOf(t *testing.T, v play.MarketView, npc int) play.Answer {
 	return play.Answer{}
 }
 
+func TestAskAround_eachAnswerNamesItsNPC(t *testing.T) {
+	t.Parallel()
+	clock := playtest.NewClock()
+	g := counterGame(t, &memStore{}, clock, marketRules(), counterSet())
+	mustAsk(t, g, cheap())
+	clock.Advance(slowDelay)
+
+	v := mustMarket(t, g)
+
+	fast, slow := answerOf(t, v, fastNPC), answerOf(t, v, slowNPC)
+	if fast.Name == "" || slow.Name == "" || fast.Name == slow.Name {
+		t.Errorf("the answers are from %q and %q, want a name each and two different ones", fast.Name, slow.Name)
+	}
+}
+
 // Asking around: the NPCs that hold the card answer, each after its delay, and accepting one
 // buys the card with coins at once, ends the request and saves the game.
 func TestAskAround_theHoldersAnswerAndTheCardIsBought(t *testing.T) {

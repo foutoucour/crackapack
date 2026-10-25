@@ -21,7 +21,7 @@ func noValue(domain.CardID, domain.Finish) (domain.Coins, error) {
 	return 0, errors.New("no counter")
 }
 
-func TestNewPackView_aNewRareOrMythicIsHighlightedAndNothingElseIs(t *testing.T) {
+func TestNewPackView_everyRareAndMythicIsHighlightedNewOrHeldAndNothingElseIs(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name   string
@@ -31,8 +31,8 @@ func TestNewPackView_aNewRareOrMythicIsHighlightedAndNothingElseIs(t *testing.T)
 	}{
 		{"a new rare", domain.RarityRare, true, "rare"},
 		{"a new mythic", domain.RarityMythic, true, "mythic"},
-		{"a rare held already", domain.RarityRare, false, ""},
-		{"a mythic held already", domain.RarityMythic, false, ""},
+		{"a rare held already", domain.RarityRare, false, "rare"},
+		{"a mythic held already", domain.RarityMythic, false, "mythic"},
 		{"a new uncommon", domain.RarityUncommon, true, ""},
 		{"a new common", domain.RarityCommon, true, ""},
 	}

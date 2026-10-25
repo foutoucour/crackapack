@@ -11,7 +11,7 @@
 {{end}}
 <ol class="booster" data-booster data-revealed="{{.Revealed}}">
   {{range .Cards}}
-  <li class="card {{.Colour}} {{.Rarity}}{{if .Foil}} foil{{end}}{{if .ImageID}} has-image{{end}}{{if .Highlight}} new-{{.Highlight}}{{end}}" data-card data-rarity="{{.Rarity}}">
+  <li class="card {{.Colour}} {{.Rarity}}{{if .Foil}} foil{{end}}{{if .ImageID}} has-image{{end}}{{if .Highlight}} highlight-{{.Highlight}}{{end}}" data-card data-rarity="{{.Rarity}}">
     {{if .Highlight}}<span class="burst" aria-hidden="true"></span>{{end}}
     {{if .ImageID}}<img src="/card-image/{{.ImageID}}" class="art" alt="{{.Name}}" width="488" height="680">{{end}}
     <div class="face">
