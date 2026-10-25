@@ -56,6 +56,10 @@ func (s *Scryfall) Image(ctx context.Context, scryfallID string) (Image, error) 
 func (s *Scryfall) fetch(ctx context.Context, endpoint, accept, what string) (Image, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// A caller that gave up while it queued sends nothing, so it must not delay those behind it.
+	if err := ctx.Err(); err != nil {
+		return Image{}, fmt.Errorf("%s: %w", what, err)
+	}
 	defer s.cfg.Sleep(s.cfg.Interval)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
