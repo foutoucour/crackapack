@@ -33,17 +33,30 @@ func TestMilestones_aPageTellsTheMilestonesEarnedOnce(t *testing.T) {
 	_, first := get(t, c, base+"/collection")
 	_, second := get(t, c, base+"/collection")
 
-	for _, want := range []string{"Milestone reached", "every common card", "5 energy", "locked"} {
+	for _, want := range []string{"Milestone reached in S", "every common card", "5 energy", "locked"} {
 		if !strings.Contains(first, want) {
 			t.Errorf("the page after the opening lacks %q", want)
 		}
 	}
-	if strings.Contains(second, "Milestone reached") {
+	if strings.Contains(second, "Milestone reached in S") {
 		t.Error("the next page tells the milestones again")
 	}
 }
 
-func TestMilestones_theCollectionListsTheGoalsOfTheBinder(t *testing.T) {
+// filterRow is the entry of a filter panel whose label starts with label.
+func filterRow(t *testing.T, body, panelLabel, label string) string {
+	t.Helper()
+	for _, row := range strings.Split(panel(body, panelLabel), "<li>")[1:] {
+		if strings.Contains(row, ">"+label+" <strong>") {
+			row, _, _ = strings.Cut(row, "</li>")
+			return row
+		}
+	}
+	t.Fatalf("the panel %q has no row %q:\n%s", panelLabel, label, body)
+	return ""
+}
+
+func TestMilestones_aGoalEarnedIsACheckMarkInItsFilterRowAndNoGoalNotYetEarnedIs(t *testing.T) {
 	t.Parallel()
 	base, c := milestoneServer(t)
 
@@ -51,14 +64,23 @@ func TestMilestones_theCollectionListsTheGoalsOfTheBinder(t *testing.T) {
 	openPack(t, c, base, "S")
 	_, after := get(t, c, base+"/collection")
 
-	for _, want := range []string{"Milestones", "Every common card", "Every colourless card", "The whole set"} {
-		if !strings.Contains(before, want) {
-			t.Errorf("the collection lacks the goal %q", want)
-		}
+	if strings.Contains(before, "milestone-mark") {
+		t.Errorf("a goal not earned yet has a check mark:\n%s", before)
 	}
-	if strings.Count(after, `class="milestone done"`) != 3 {
-		t.Errorf("the collection marks %d goals done, want 3", strings.Count(after, `class="milestone done"`))
+	tests := []struct {
+		panel, row string
+		want       []string
+	}{
+		{"Filter by rarity", "Common", []string{"every common card", "5 energy"}},
+		{"Filter by colour", "Colourless", []string{"every colourless card", "5 energy"}},
+		{"Filter by rarity", "All rarities", []string{"the whole set", "unlocks sets"}},
 	}
+	for _, tt := range tests {
+		row := filterRow(t, after, tt.panel, tt.row)
+		mustContain(t, "the row "+tt.row, row, `class="milestone-mark"`, `role="img"`, "Milestone reached")
+		mustContain(t, "the row "+tt.row, row, tt.want...)
+	}
+	mustNotContain(t, "the collection", after, `class="milestones"`, "Every common card")
 }
 
 func TestMilestones_sellingTheLockedCopyIsRefusedWithTheReason(t *testing.T) {

@@ -837,3 +837,20 @@ func TestMarketPage_namesAreEscaped(t *testing.T) {
 		mustContain(t, path, body, "&lt;b onmouseover")
 	}
 }
+
+func TestMarketPage_aRequestShowsItsCardInGreyAndAListingShowsItInColour(t *testing.T) {
+	t.Parallel()
+	set := counterSet()
+	ids := withScryfallIDs(set)
+	shop := newShopWith(t, nil, marketRules(0), set)
+	shop.ask(t, cheapCard)
+	shop.open(t, 1)
+	if resp, body := shop.post(t, "/list", listForm(dearCard, "100")); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("POST /list = %d:\n%s", resp.StatusCode, body)
+	}
+
+	got := shop.get(t, "/market")
+
+	mustContain(t, "the request", got, `<a class="card-thumb unowned" href="/collection?set=S#c-S-00">`, `<img src="/card-image/`+ids[domain.CardID(cheapCard)]+`"`)
+	mustContain(t, "the listing", got, `<a class="card-thumb" href="/collection?set=S#c-S-01">`, `class="thumb-set"`, "Set S")
+}

@@ -218,6 +218,18 @@ func (g *Game) unlockedBinderOf(id domain.CardID) string {
 	return ""
 }
 
+// binderOf is the code of the set whose binder shows the card id: the first unlocked one, else the
+// first one. It is "" for a card in no binder. g.mu must be held.
+func (g *Game) binderOf(id domain.CardID) string {
+	if code := g.unlockedBinderOf(id); code != "" {
+		return code
+	}
+	if sets := g.binderSets[id]; len(sets) > 0 {
+		return sets[0]
+	}
+	return ""
+}
+
 // huntIndex is the position of key among the hunts, or -1. g.mu must be held.
 func (g *Game) huntIndex(key domain.CardKey) int {
 	return slices.IndexFunc(g.hunts, func(h *hunt) bool { return h.key == key })

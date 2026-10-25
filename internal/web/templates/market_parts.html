@@ -1,5 +1,8 @@
 {{define "backFields"}}{{if .Market}}<input type="hidden" name="from" value="market">{{else}}<input type="hidden" name="set" value="{{.Set}}"><input type="hidden" name="card" value="{{.Card}}">{{template "filterFields" .Filter}}{{end}}{{end}}
 
+{{/* A card on the market or hunted page: grey while the player does not hold it, a link to its slot in the binder. */}}
+{{define "cardThumb"}}<a class="card-thumb{{if not .Held}} unowned{{end}}" href="{{.Href}}">{{if .ImageID}}<img src="/card-image/{{.ImageID}}" class="art" alt="{{.Name}}" width="488" height="680" loading="lazy">{{else}}<span class="thumb-name">{{.Name}}</span>{{end}}<span class="thumb-set">{{template "icon" .Icon}}{{.SetName}}</span></a>{{end}}
+
 {{define "answers"}}
 {{if .}}
 <ul class="answers">

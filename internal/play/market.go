@@ -112,6 +112,8 @@ type CardLine struct {
 	Card   domain.Card
 	Finish domain.Finish
 	Qty    int
+	// SetCode is the set whose binder shows the card, "" when none does.
+	SetCode string
 }
 
 // Result is how an answer to a request or a listing of Card ended.
@@ -369,7 +371,7 @@ func (g *Game) answerView(a domain.MarketAnswer) Answer {
 func (g *Game) cardLines(lines []domain.TradeLine) []CardLine {
 	var out []CardLine
 	for _, l := range lines {
-		out = append(out, CardLine{Card: g.cards[l.Key.ID], Finish: l.Key.Finish, Qty: l.Qty})
+		out = append(out, CardLine{Card: g.cards[l.Key.ID], Finish: l.Key.Finish, Qty: l.Qty, SetCode: g.binderOf(l.Key.ID)})
 	}
 	return out
 }

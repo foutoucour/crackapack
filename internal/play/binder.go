@@ -183,3 +183,20 @@ func leadingNumber(s string) (int, bool) {
 	}
 	return n, digits > 0
 }
+
+// CardSet is the set whose binder shows a card.
+type CardSet struct {
+	Code, Name, IconCode string
+}
+
+// SetOf returns the set whose binder shows the card id, an unlocked one first, and false for a card
+// that is in no binder.
+func (g *Game) SetOf(id domain.CardID) (CardSet, bool) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	cat, ok := g.set(g.binderOf(id))
+	if !ok {
+		return CardSet{}, false
+	}
+	return CardSet{Code: cat.Code, Name: cat.Name, IconCode: cat.IconCode}, true
+}

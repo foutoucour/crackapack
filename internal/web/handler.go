@@ -75,6 +75,8 @@ func NewHandler(game *play.Game, pics, icons images.Source, log *slog.Logger) ht
 		"questsNav": h.questsNav,
 		// A milestone earned is told on the next page, whichever action earned it.
 		"milestones": h.takeMilestones,
+		// So is a quest done.
+		"questsDone": h.takeFinishedQuests,
 	}
 	// Each page is parsed together with the layout, since pages define the same blocks.
 	// The header marks the link of the section a page belongs to; a page with no section marks none.
@@ -233,7 +235,7 @@ func (h *handler) collection(w http.ResponseWriter, r *http.Request) {
 		h.playFailed(w, err)
 		return
 	}
-	view.Milestones = newMilestoneViews(statuses)
+	view.markMilestones(statuses)
 	view.Notice = h.notices.take()
 	h.render(w, http.StatusOK, "collection", view)
 }

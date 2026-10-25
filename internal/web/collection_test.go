@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -461,5 +462,47 @@ func TestCollection_showsThePercentageOfProgressNextToEveryCountOfTheSet(t *test
 		if !strings.Contains(body, `class="pct">25%`) {
 			t.Errorf("after a booster of one card out of four, %s lacks 25%%:\n%s", what, body)
 		}
+	}
+}
+
+func TestCollection_theShowListIsPartOfTheSetHeader(t *testing.T) {
+	t.Parallel()
+	srv, c := newServer(t, playtest.TinySet("P", 4, 1))
+
+	_, body := get(t, c, srv.URL+"/collection")
+
+	_, fromHeader, found := strings.Cut(body, `class="set-header"`)
+	if !found {
+		t.Fatalf("the page has no set header:\n%s", body)
+	}
+	header, _, _ := strings.Cut(fromHeader, "</section>")
+	mustContain(t, "the set header", header, `aria-label="`+showPanelLabel+`"`, "All cards", "Duplicates")
+	// The title row, then the show list, the rarity panel and the colour panel side by side.
+	shows, title, rarity := strings.Index(header, `aria-label="`+showPanelLabel+`"`), strings.Index(header, "<h1>"), strings.Index(header, `aria-label="Filter by rarity"`)
+	if title > shows || shows > rarity {
+		t.Errorf("the header holds the title at %d, the show list at %d and the rarity panel at %d, want them in that order", title, shows, rarity)
+	}
+	if playsets := strings.Index(header, `class="playsets"`); playsets > shows {
+		t.Errorf("the playsets come after the show list: they belong to the title row")
+	}
+}
+
+func TestCollection_anEmptySlotShowsThePictureOfItsCardForTheStylesheetToGrey(t *testing.T) {
+	t.Parallel()
+	rav := domaintest.NewRavnicaCatalogue()
+	ids := withScryfallIDs(rav)
+	srv, c := newServer(t, rav)
+
+	_, body := get(t, c, srv.URL+"/collection")
+
+	empty := regexp.MustCompile(`(?s)<div class="slot empty">.*?</div>`).FindAllString(body, -1)
+	if len(empty) != len(rav.Cards) {
+		t.Fatalf("%d empty slots, want %d", len(empty), len(rav.Cards))
+	}
+	for _, slot := range empty {
+		mustContain(t, "an empty slot", slot, `<img src="/card-image/`, `class="art"`, `alt=""`, `loading="lazy"`)
+	}
+	for _, pic := range ids {
+		mustContain(t, "the page", body, `/card-image/`+pic)
 	}
 }

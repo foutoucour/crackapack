@@ -41,25 +41,37 @@ func goalName(m domain.Milestone) string {
 	return "card"
 }
 
-// milestoneView is one goal of the binder on the collection page.
-type milestoneView struct {
-	Name   string
-	Done   bool
-	Reward int
-	// Unlocks is true for the whole set, which opens sets instead of paying energy.
-	Unlocks bool
+// earnedGoal says what a milestone that the player has earned is and what it gave, as the words of
+// the check mark that stands for it in the filter row of its cards.
+func earnedGoal(s play.MilestoneStatus) string {
+	var text strings.Builder
+	switch {
+	case s.Milestone.Kind == domain.MilestoneBinder:
+		text.WriteString("Milestone reached: the whole set, which unlocks sets.")
+	case s.Reward > 0:
+		fmt.Fprintf(&text, "Milestone reached: every %s, which pays %d energy.", goalName(s.Milestone), s.Reward)
+	default:
+		fmt.Fprintf(&text, "Milestone reached: every %s, which pays no energy.", goalName(s.Milestone))
+	}
+	text.WriteString(" One copy of each of these cards is locked: you keep it.")
+	return text.String()
 }
 
-func newMilestoneViews(statuses []play.MilestoneStatus) []milestoneView {
-	views := make([]milestoneView, len(statuses))
-	for i, s := range statuses {
-		name := "Every " + goalName(s.Milestone)
-		if s.Milestone.Kind == domain.MilestoneBinder {
-			name = "The whole set"
+// markMilestones puts a check mark on the filter row of each goal of the binder that the player has
+// earned. A goal that is not earned yet leaves its row bare.
+func (v *collectionView) markMilestones(statuses []play.MilestoneStatus) {
+	for _, s := range statuses {
+		if !s.Done {
+			continue
 		}
-		views[i] = milestoneView{Name: name, Done: s.Done, Reward: s.Reward, Unlocks: s.Milestone.Kind == domain.MilestoneBinder}
+		for _, panel := range []*filterPanel{&v.Rarities, &v.Colours} {
+			for i := range panel.Rows {
+				if row := &panel.Rows[i]; row.Goal.Kind == s.Milestone.Kind && row.Goal.Group == s.Milestone.Group {
+					row.Earned = earnedGoal(s)
+				}
+			}
+		}
 	}
-	return views
 }
 
 // milestoneNotice tells the player of a milestone just earned.

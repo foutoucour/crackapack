@@ -15,6 +15,11 @@ document.querySelectorAll('[data-binder]').forEach((binder) => {
   });
 });
 
+// A link to a card, such as a quest's reward, ends in the anchor of its slot, so that the page scrolls
+// there, and asks for focus=<card>: the card opens big, as if its slot was clicked.
+const focused = new URLSearchParams(location.search).get('focus');
+if (focused) document.getElementById(`c-${focused}`)?.querySelector('.pick')?.click();
+
 // On a wide screen the list of binders stays open beside the binder, and on a narrow one it folds
 // into the name of the set in view. Without this script it stays open.
 const picker = document.querySelector('.set-picker');

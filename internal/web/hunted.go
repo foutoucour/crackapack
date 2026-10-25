@@ -49,7 +49,7 @@ func (h *handler) hunted(w http.ResponseWriter, _ *http.Request) {
 		h.huntFailed(w, err, cardRef{})
 		return
 	}
-	view := newHuntedPageView(hunted)
+	view := newHuntedPageView(hunted, h.game.SetOf)
 	view.Notice = h.notices.take()
 	if err := h.game.SeeHunted(); err != nil {
 		h.huntFailed(w, err, cardRef{})

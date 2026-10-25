@@ -275,6 +275,10 @@ html:not(.js) .set-search { display: none; }
 .binders a > :not(progress) { position: relative; }
 .binders progress { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 0; background: transparent; }
 .binders progress { --bar: color-mix(in srgb, var(--text) 12%, transparent); }
+/* The row's own corners clip the fill, so that it has none of its own: a rounded end would be a
+   second curve, unlike the row's. */
+.binders progress::-webkit-progress-value { border-radius: 0; }
+.binders progress::-moz-progress-bar { border-radius: 0; }
 .binders a[aria-current="page"] progress { --bar: color-mix(in srgb, var(--accent) 40%, transparent); }
 .binders li.locked a { border-style: dashed; border-color: var(--text-muted); background: transparent; color: var(--text-muted); }
 .binders li.locked a[aria-current="page"] { border-color: var(--accent); }
@@ -286,9 +290,9 @@ html:not(.js) .set-search { display: none; }
 /* The header of a binder: the title and its progress, the two filters, and a faint copy of the set icon. */
 .set-header { position: relative; display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--gap); overflow: hidden; padding: var(--gap); }
 .set-header > :not(.set-watermark) { position: relative; }
-.set-title { flex: 1 1 12rem; align-self: start; }
+.set-title { flex: 1 1 100%; }
 .set-title h1 { margin: 0 0 0.5rem; }
-.set-title .playsets { margin: 0.5rem 0 0; color: var(--text-muted); }
+.set-title .playsets { margin: 0; color: var(--text-muted); }
 .set-watermark { position: absolute; top: -20%; left: -5%; height: 140%; aspect-ratio: 1; opacity: 0.12; mask-size: contain; mask-repeat: no-repeat; mask-position: center; pointer-events: none; }
 .set-watermark.rarity-common { background-color: var(--white); }
 .set-watermark.rarity-uncommon { background-color: var(--rarity-uncommon); }
@@ -322,7 +326,10 @@ progress::-moz-progress-bar, meter::-moz-meter-bar { background: var(--bar, var(
 .filter-panel { flex: 0 1 14rem; padding: 0.5rem; border-radius: var(--radius); background: color-mix(in srgb, var(--bg) 70%, transparent); }
 .filter-panel h2 { margin: 0; padding: 0.15rem 0.5rem; color: var(--text-muted); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
 .filter-panel ul { list-style: none; margin: 0; padding: 0; }
-.filter-panel a { display: grid; grid-template-columns: 1fr auto 2.3rem; column-gap: 0.3rem; white-space: nowrap; align-items: baseline; padding: 0.3rem 0.5rem; border: 2px solid transparent; border-radius: var(--radius-sm); color: var(--text); font-size: 0.9rem; text-decoration: none; }
+.filter-panel a { display: grid; grid-template-columns: 1fr auto 2.3rem; column-gap: 0.3rem; white-space: nowrap; align-items: baseline; padding: 0.3rem 0.5rem 0.3rem 1.75rem; border: 2px solid transparent; border-radius: var(--radius-sm); color: var(--text); font-size: 0.9rem; text-decoration: none; }
+/* A goal reached is a check mark before its row, in the left padding of every row, so that the labels line up. */
+.filter-panel li { position: relative; }
+.milestone-mark { position: absolute; z-index: 1; top: 0.4rem; left: 0.4rem; display: grid; place-items: center; width: 1.1rem; height: 1.1rem; border-radius: var(--radius-full); background: var(--accent); color: var(--accent-text); font-size: 0.75rem; font-weight: 700; line-height: 1; cursor: help; }
 .filter-panel a:hover { border-color: var(--text-muted); }
 .filter-panel a[aria-current="true"] { border-color: var(--accent); font-weight: 600; }
 .filter-panel .pct { text-align: right; }
@@ -339,10 +346,11 @@ progress::-moz-progress-bar, meter::-moz-meter-bar { background: var(--bar, var(
 .filter-panel progress.bar-gold { --bar: var(--gold); }
 .filter-panel progress.bar-colourless { --bar: var(--colourless); }
 .filter-panel progress.bar-land { --bar: var(--land); }
-/* The show filter is a row of pills over the binder, since it is a choice of what to do next, not a
-   progress. */
-.show-bar ul { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: var(--gap) 0 0; padding: 0; list-style: none; }
-.show-bar a { display: inline-flex; gap: 0.4rem; align-items: baseline; padding: 0.35rem 0.85rem; border: 2px solid transparent; border-radius: var(--radius-full); background: var(--surface); color: var(--text); font-size: 0.9rem; text-decoration: none; }
+/* The show filter is a column of pills at the left of the set header, under the title, since it is a
+   choice of what to do next, not a progress. */
+.show-bar ul { display: flex; flex-direction: column; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+.set-header .show-bar { flex: 0 0 auto; align-self: start; }
+.show-bar a { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; padding: 0.35rem 0.85rem; border: 2px solid transparent; border-radius: var(--radius-full); background: var(--surface); color: var(--text); font-size: 0.9rem; text-decoration: none; }
 .show-bar a:hover { border-color: var(--text-muted); }
 .show-bar a[aria-current="true"] { border-color: var(--accent); font-weight: 600; }
 .unlock-mark { margin: 0; padding: 0.15rem 0.6rem; border: 1px solid var(--accent); border-radius: var(--radius-full); color: var(--accent); font-size: 0.9rem; }
@@ -360,20 +368,33 @@ h2 { margin: 1.5rem 0 0; }
    the name on top, and a row of buttons. They are icons, so each carries its words for a screen
    reader. Without the script nothing can be clicked, and the tools show under the card as plain forms. */
 .binder .entry { display: flex; flex-direction: column; gap: 0.4rem; scroll-margin-top: calc(var(--header-h) + 3rem); }
-.slot.empty { position: relative; }
+.slot.empty { position: relative; overflow: hidden; }
+/* A card the player does not hold shows in grey, under its number. */
+.slot.empty .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 0; filter: grayscale(1) brightness(0.6); opacity: 0.55; }
+.slot.empty .number { position: relative; }
+/* The slot that the address points at is the card that a link was about. */
+.entry:target .card, .entry:target .slot.empty { outline: 3px solid var(--accent); outline-offset: 3px; }
 .pick { position: absolute; inset: 0; width: 100%; padding: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
 html:not(.js) .pick { display: none; }
 .tools { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; color: var(--text); }
 .tools p { margin: 0; }
 .tool-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.25rem; }
 .tool-row form, .tool-panel form { margin: 0; }
-.tool { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: 1.9rem; height: 2rem; padding: 0 0.2rem; border: 2px solid var(--text); border-radius: var(--radius-full); background: var(--surface); color: var(--text); font: inherit; font-size: 0.55rem; font-weight: 700; line-height: 1.1; cursor: pointer; }
+.tool { position: relative; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: 1.9rem; height: 2rem; padding: 0 0.2rem; border: 2px solid var(--text); border-radius: var(--radius-full); background: var(--surface); color: var(--text); font: inherit; font-size: 0.55rem; font-weight: 700; line-height: 1.1; cursor: pointer; }
 .tool.buy { border-color: var(--accent); }
 .tool.sell { border-color: var(--green); }
 .tool.trade { border-color: var(--focus); }
 .tool.hunt { border-color: var(--accent); }
 .tool.hunt.on .glyph { fill: var(--accent); }
 .tool:hover { background: var(--bg); }
+/* The words of a tool are in the page for a screen reader. They show to all above the tool that is
+   hovered or focused. */
+.tool:hover .sr-only, .tool:focus-visible .sr-only {
+  left: 50%; bottom: calc(100% + 0.35rem); translate: -50% 0; z-index: 3;
+  width: auto; height: auto; overflow: visible; clip: auto; padding: 0.2rem 0.5rem;
+  border: 1px solid var(--text-muted); border-radius: var(--radius-sm);
+  background: var(--bg); color: var(--text); font-size: 0.75rem; font-weight: 400; pointer-events: none;
+}
 .tool-price { color: var(--accent); }
 .tool-price + .tool-finish { margin-top: -0.1rem; }
 .tool-finish { color: var(--accent); }
@@ -406,6 +427,9 @@ html:not(.js) .pick { display: none; }
 .counter-note { color: var(--text-muted); }
 /* The result of a purchase or a sale stays in view when the page jumps to the slot it concerns. */
 .results { position: sticky; top: var(--header-h); z-index: 2; margin: var(--gap) 0 0; overflow: hidden; border-radius: var(--radius); }
+.results > .banner-close { position: absolute; top: 0.4rem; right: 0.5rem; width: 1.75rem; height: 1.75rem; padding: 0; border: 0; border-radius: var(--radius-full); background: transparent; color: var(--accent-text); font-size: 1.25rem; line-height: 1; cursor: pointer; }
+.results > .banner-close:hover { background: color-mix(in srgb, var(--accent-text) 20%, transparent); }
+.results:has(.banner-close) > p { padding-right: 2.75rem; }
 .sale-notice { margin: 0; padding: 0.75rem var(--gap); background: var(--accent); color: var(--accent-text); font-weight: 600; }
 .results .unlock { margin: 0; border-radius: 0; border-top: 1px solid var(--accent-text); }
 
@@ -435,6 +459,16 @@ html:not(.js) .pick { display: none; }
 .market-list > li > form { margin: 0.5rem 0 0; }
 .market-list > li > form button { padding: 0.3rem 0.6rem; font-size: 0.85rem; }
 .market-list > li, .results-list > li { padding: 0.75rem var(--gap); border: 1px solid var(--surface-edge); border-radius: var(--radius); background: var(--surface); }
+/* A card on the market or hunted page: its picture, grey while the player does not hold it, with
+   the icon and the name of its set under it. */
+.market-list > li.with-thumb { display: flex; align-items: flex-start; gap: var(--gap); }
+.market-list > li.with-thumb > div { flex: 1; min-width: 0; }
+.card-thumb { flex: none; display: flex; flex-direction: column; gap: 0.25rem; width: 6rem; color: var(--text); font-size: 0.75rem; text-decoration: none; }
+.card-thumb .art { display: block; width: 100%; height: auto; aspect-ratio: 488 / 680; object-fit: contain; border-radius: 4.6% / 3.3%; }
+.card-thumb.unowned .art { filter: grayscale(1) brightness(0.7); opacity: 0.7; }
+.card-thumb:hover .art, .card-thumb:focus-visible .art { outline: 2px solid var(--accent); }
+.thumb-name { font-weight: 700; }
+.thumb-set { display: flex; align-items: center; gap: 0.3rem; color: var(--text-muted); }
 .market-list .answers, .market-list p { color: var(--text); }
 .market-list .shelf-note, .results-list .shelf-note { color: var(--text-muted); }
 .counter-form fieldset { margin: var(--gap) 0; }

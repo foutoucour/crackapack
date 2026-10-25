@@ -43,16 +43,19 @@ type huntedCardView struct {
 	Offers    int
 	// Href is the card's slot in its binder, where it can be bought, and empty when no unlocked
 	// binder holds it.
-	Href string
+	Href  string
+	Thumb cardThumb
 }
 
-func newHuntedPageView(hunted []play.Hunted) huntedPageView {
+func newHuntedPageView(hunted []play.Hunted, setOf setFinder) huntedPageView {
 	view := huntedPageView{Cards: make([]huntedCardView, len(hunted))}
 	for i, h := range hunted {
 		view.Cards[i] = huntedCardView{
 			cardRef: cardRef{Set: h.SetCode, ID: h.Card.ID, Finish: string(h.Finish)},
 			Name:    h.Card.Name, Foil: h.Finish == domain.FinishFoil,
 			AtCounter: h.AtCounter, Price: h.BuyPrice, New: h.New, Offers: h.Offers,
+			// A card is hunted while the player does not hold it.
+			Thumb: newCardThumb(h.Card, false, setOf),
 		}
 		if h.SetCode != "" {
 			view.Cards[i].Href = binderHref(h.SetCode, binderFilter{}, h.Card.ID)

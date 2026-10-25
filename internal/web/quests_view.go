@@ -27,8 +27,49 @@ type questView struct {
 	Progress, Target int64
 	// State is "open", "done" or "lost", the class of its tag, and Label the tag's text.
 	State, Label string
-	// Got are the names of the cards a done quest added to the collection.
-	Got []string
+	// Link is the card that an open quest gives, nil when it gives none, and Got the cards that a
+	// done quest added to the collection, each a link to its slot in its binder.
+	Link *cardLink
+	Got  []cardLink
+}
+
+// cardLink is a card's name that links to its slot in the binder of its set.
+type cardLink struct {
+	Name, Href string
+}
+
+func newCardLink(card domain.Card, finish domain.Finish, set string) cardLink {
+	return cardLink{Name: cardName(card, finish), Href: focusHref(set, card.ID)}
+}
+
+// questDoneNotice tells the player of a quest just done, with links to the cards it gave.
+type questDoneNotice struct {
+	Text  string
+	Cards []cardLink
+}
+
+func newQuestDoneNotice(q play.QuestView) questDoneNotice {
+	return questDoneNotice{
+		Text:  fmt.Sprintf("Quest done: %s. Reward: %s.", questTask(q), questPrize(q.Reward)),
+		Cards: gotLinks(q.Reward.Got),
+	}
+}
+
+func gotLinks(lines []play.CardLine) []cardLink {
+	var links []cardLink
+	for _, line := range lines {
+		links = append(links, newCardLink(line.Card, line.Finish, line.SetCode))
+	}
+	return links
+}
+
+// takeFinishedQuests is the notices of the quests done since the last page, each told once.
+func (h *handler) takeFinishedQuests() []questDoneNotice {
+	var notices []questDoneNotice
+	for _, q := range h.game.TakeFinishedQuests() {
+		notices = append(notices, newQuestDoneNotice(q))
+	}
+	return notices
 }
 
 func newQuestsPageView(b play.QuestBoard) questsPageView {
@@ -45,13 +86,15 @@ func newQuestViews(quests []play.QuestView) []questView {
 		switch q.State {
 		case play.QuestDone:
 			out[i].State, out[i].Label = "done", "Done"
-			for _, line := range q.Reward.Got {
-				out[i].Got = append(out[i].Got, cardName(line.Card, line.Finish))
-			}
+			out[i].Got = gotLinks(q.Reward.Got)
 		case play.QuestLost:
 			out[i].State, out[i].Label = "lost", "Lost"
 		case play.QuestOpen:
 			out[i].State, out[i].Label = "open", "In progress"
+			if q.Reward.CardSet != "" {
+				link := newCardLink(q.Reward.Card, q.Reward.Finish, q.Reward.CardSet)
+				out[i].Link = &link
+			}
 		}
 	}
 	return out

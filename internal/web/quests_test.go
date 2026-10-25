@@ -86,7 +86,7 @@ func TestQuests_aFinishedQuestSaysWhatItGave(t *testing.T) {
 
 	body := shop.get(t, "/quests")
 
-	mustContain(t, "the quests page", body, `<span class="tag done">Done</span>`, "You got S-")
+	mustContain(t, "the quests page", body, `<span class="tag done">Done</span>`, "You got", `<a href="/collection?set=S&amp;focus=S-`)
 	mustContain(t, "the quests page", body, `<progress value="1" max="1"`)
 }
 
@@ -157,4 +157,36 @@ func TestQuests_aCardNameIsEscaped(t *testing.T) {
 		t.Errorf("the quests page writes a card name unescaped:\n%s", body)
 	}
 	mustContain(t, "the quests page", body, "&lt;script&gt;alert(1)&lt;/script&gt;")
+}
+
+func TestQuests_theCardOfAnOpenQuestLinksToItsSlotInTheBinder(t *testing.T) {
+	t.Parallel()
+	tpl := questTemplate(domain.QuestDaily, domain.QuestOpenBoosters, 2, domain.RewardWinCard)
+	shop := newQuestShop(t, domain.QuestRules{DailyCount: 1, Templates: []domain.QuestTemplate{tpl}}, playtest.TinySet("S", 6, 2))
+
+	body := shop.get(t, "/quests")
+
+	mustContain(t, "the quests page", body, `<a href="/collection?set=S&amp;focus=S-`, "in its binder")
+}
+
+func TestQuests_aQuestDoneIsAnnouncedOnTheNextPageWithALinkToTheCardItGave(t *testing.T) {
+	t.Parallel()
+	tpl := questTemplate(domain.QuestDaily, domain.QuestOpenBoosters, 1, domain.RewardWinCard)
+	shop := newQuestShop(t, domain.QuestRules{DailyCount: 1, Templates: []domain.QuestTemplate{tpl}}, playtest.TinySet("S", 6, 2))
+	shop.open(t, 1)
+
+	first := shop.get(t, "/")
+	second := shop.get(t, "/")
+
+	mustContain(t, "the page after the quest was done", first, `role="status"`, "Quest done: Open 1 booster of Set S", `<a href="/collection?set=S&amp;focus=S-`)
+	mustNotContain(t, "the next page", second, "Quest done")
+}
+
+func TestQuests_aQuestThatIsNotDoneIsNotAnnounced(t *testing.T) {
+	t.Parallel()
+	tpl := questTemplate(domain.QuestDaily, domain.QuestOpenBoosters, 2, domain.RewardWinCard)
+	shop := newQuestShop(t, domain.QuestRules{DailyCount: 1, Templates: []domain.QuestTemplate{tpl}}, playtest.TinySet("S", 6, 2))
+	shop.open(t, 1)
+
+	mustNotContain(t, "the page", shop.get(t, "/"), "Quest done")
 }

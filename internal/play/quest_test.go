@@ -212,3 +212,38 @@ func TestQuests_theBoardRenewsAtMidnightUTC(t *testing.T) {
 		t.Errorf("DailyResets = %v, want %v, the midnight after the new day", board.DailyResets, want)
 	}
 }
+
+func TestQuests_aQuestThatIsDoneIsTakenOnce(t *testing.T) {
+	t.Parallel()
+	g := questGame(t, &memStore{}, playtest.NewClock(), dailyOnly(openTemplate()), playtest.TinySet("S", 6, 2))
+	mustOpen(t, g, "S")
+	if got := g.TakeFinishedQuests(); len(got) != 0 {
+		t.Fatalf("taken after one booster of two: %+v, want none", got)
+	}
+	mustOpen(t, g, "S")
+
+	first, second := g.TakeFinishedQuests(), g.TakeFinishedQuests()
+
+	if len(first) != 1 || first[0].State != play.QuestDone || first[0].Action != domain.QuestOpenBoosters {
+		t.Errorf("taken after the second booster: %+v, want the one quest, done", first)
+	}
+	if len(second) != 0 {
+		t.Errorf("taken again: %+v, want none: each is told once", second)
+	}
+}
+
+func TestQuests_theCardsOfARewardNameTheBinderThatHoldsThem(t *testing.T) {
+	t.Parallel()
+	g := questGame(t, &memStore{}, playtest.NewClock(), dailyOnly(openTemplate()), playtest.TinySet("S", 6, 2))
+	if got := mustQuests(t, g).Daily[0].Reward.CardSet; got != "S" {
+		t.Errorf("the card to win is in %q, want S", got)
+	}
+	mustOpen(t, g, "S")
+	mustOpen(t, g, "S")
+
+	done := mustQuests(t, g).Daily[0]
+
+	if len(done.Reward.Got) != 1 || done.Reward.Got[0].SetCode != "S" {
+		t.Errorf("the cards got = %+v, want one, from the binder of S", done.Reward.Got)
+	}
+}
