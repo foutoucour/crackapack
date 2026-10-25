@@ -27,14 +27,20 @@ type energyReading struct {
 	ReserveCap int    `json:"reserveCap"`
 	Savings    int    `json:"savings"`
 	Next       string `json:"next"`
-	// Packs is the wait of each set's booster, so that the buttons that open them follow the gauge.
+	// Packs is the price and the wait of each set's booster, so that the buttons that open them follow the gauge.
 	Packs []packWait `json:"packs"`
 }
 
-// packWait is how long the booster of a set waits for the energy: empty when it can be opened.
+// packWait is what the booster of a set costs now and how long it waits for the energy: Wait is
+// empty when the energy pays for it. Price, Label, Hint and TopUp are told by the server, so that
+// the script holds no rule about a price; they are empty for a set with welcome boosters left.
 type packWait struct {
-	Set  string `json:"set"`
-	Wait string `json:"wait"`
+	Set   string `json:"set"`
+	Wait  string `json:"wait"`
+	Price string `json:"price,omitempty"`
+	Label string `json:"label,omitempty"`
+	Hint  string `json:"hint,omitempty"`
+	TopUp bool   `json:"topUp,omitempty"`
 }
 
 func (v energyView) reading(packs []play.Pack) energyReading {
@@ -46,6 +52,10 @@ func (v energyView) reading(packs []play.Pack) energyReading {
 		wait := packWait{Set: p.SetCode}
 		if p.Wait > 0 {
 			wait.Wait = humanDuration(p.Wait)
+		}
+		if p.Count == 0 {
+			price := newBoosterPrice(p)
+			wait.Price, wait.Label, wait.Hint, wait.TopUp = price.Text(), price.Label(), price.Hint(), price.TopUp
 		}
 		reading.Packs = append(reading.Packs, wait)
 	}

@@ -107,13 +107,13 @@ func TestHome_aTileSaysItIsAFreeGiftThenWhatABoosterCosts(t *testing.T) {
 	if !strings.Contains(welcome, "10 boosters") || !strings.Contains(welcome, "Welcome gift") {
 		t.Errorf("a tile with welcome boosters must count them and say they are a free gift:\n%s", welcome)
 	}
-	if !regexp.MustCompile(`Open · <svg class="energy-icon"[^>]*>.*</svg>5</button>`).MatchString(strings.ReplaceAll(paid, "\n", "")) || strings.Contains(paid, " disabled") {
+	if !regexp.MustCompile(`<span class="open-label">Open</span><span class="open-price"><svg class="energy-icon"[^>]*>.*</svg><span data-pack-price>5</span></span></span></button>`).MatchString(strings.ReplaceAll(paid, "\n", "")) || strings.Contains(paid, " disabled") {
 		t.Errorf("once they are gone the button must say its price with the energy icon, and be enabled while the energy is there:\n%s", paid)
 	}
 	if !strings.Contains(paid, `aria-label="Open a `) || !strings.Contains(paid, ", 5 energy\"") {
 		t.Errorf("the icon says nothing to a screen reader, so the button's name must spell the price out:\n%s", paid)
 	}
-	if !strings.Contains(welcome, "Open · free</button>") {
+	if !strings.Contains(welcome, `<span class="open-price">free</span></span></button>`) {
 		t.Errorf("while welcome boosters are left the button must say it is free:\n%s", welcome)
 	}
 	if strings.Contains(paid, "Welcome gift") {
@@ -182,6 +182,20 @@ func TestPack_openAnotherIsDisabledWhenNoEnergyIsLeft(t *testing.T) {
 	}
 	if !strings.Contains(actions, "disabled") || !strings.Contains(actions, "Ready in 50 min") {
 		t.Errorf("Open another must be disabled with the wait said:\n%s", actions)
+	}
+}
+
+func TestPack_openAnotherSaysItsPriceInEnergy(t *testing.T) {
+	t.Parallel()
+	srv, c, _, code := energyServer(t, playtest.Cost)
+	spendWelcome(t, c, srv.URL, code)
+	openPack(t, c, srv.URL, code)
+
+	_, body := get(t, c, srv.URL+"/pack")
+
+	_, actions, _ := strings.Cut(body, `class="actions"`)
+	if !strings.Contains(actions, `<span data-pack-price>5</span>`) || strings.Contains(actions, "disabled") {
+		t.Errorf("Open another must say its price and be enabled while the energy is there:\n%s", actions)
 	}
 }
 

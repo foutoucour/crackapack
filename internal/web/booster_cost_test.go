@@ -1,8 +1,11 @@
 package web_test
 
 import (
+	"encoding/json"
+	"html"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/foutoucour/crackapack/internal/domain"
@@ -98,14 +101,66 @@ func TestOpen_aFeeThatTheCoinsCannotPayIsRefusedWithWhatItCosts(t *testing.T) {
 func TestHome_aTopUpIsOfferedOnlyToAPlayerShortOfEnergyWithSomeLeft(t *testing.T) {
 	t.Parallel()
 	shop := newCostShop(t, true, startingCoins)
-	mustNotContain(t, "the page with a full reserve", shop.get(t, "/"), `name="topup"`)
+	mustNotContain(t, "the page with a full reserve", shop.get(t, "/"), `name="topup" value="yes"`)
 
 	shop.drain(t)
-	mustNotContain(t, "the page with no energy", shop.get(t, "/"), `name="topup"`)
+	mustNotContain(t, "the page with no energy", shop.get(t, "/"), `name="topup" value="yes"`)
 
 	shop.clock.Advance(3 * playtest.Tick)
-	// T needs 2 more energy: 80 coins. S adds its fee: 230.
-	mustContain(t, "the page with 3 energy", shop.get(t, "/"), `name="topup"`, "◎80", "◎230")
+	mustContain(t, "the page with 3 energy", shop.get(t, "/"), `name="topup" value="yes"`)
+}
+
+func TestHome_aTopUpIsTheBoostersOwnPriceInEnergyAndCoinsNotAButtonOfItsOwn(t *testing.T) {
+	t.Parallel()
+	shop := newCostShop(t, true, startingCoins)
+	shop.drain(t)
+	shop.clock.Advance(3 * playtest.Tick)
+
+	body := html.UnescapeString(shop.get(t, "/"))
+
+	// The 3 energy the player has go into the booster, T needs 2 more: 80 coins. S adds its fee: 230.
+	mustContain(t, "the page with 3 energy", body,
+		`<span data-pack-price>3 + ◎80</span>`, `<span data-pack-price>3 + ◎230</span>`,
+		`, 3 energy and ◎80"`, "Short of 2 energy")
+	mustNotContain(t, "the page with 3 energy", body, "Top up", " disabled")
+}
+
+func TestHome_aBoosterPaidInEnergyAloneNamesNoCoins(t *testing.T) {
+	t.Parallel()
+	shop := newCostShop(t, true, startingCoins)
+
+	body := html.UnescapeString(shop.get(t, "/"))
+
+	mustContain(t, "the page with a full reserve", body,
+		`<span data-pack-price>5</span>`, `<span data-pack-price>5 + ◎150</span>`)
+}
+
+func TestEnergy_theEndpointSaysTheWholePriceOfEachSetSoTheButtonsFollowTheGauge(t *testing.T) {
+	t.Parallel()
+	shop := newCostShop(t, true, startingCoins)
+	shop.drain(t)
+	shop.clock.Advance(3 * playtest.Tick)
+
+	var got struct {
+		Packs []struct {
+			Set, Wait, Price, Label, Hint string
+			TopUp                         bool
+		}
+	}
+	if err := json.Unmarshal([]byte(shop.get(t, "/energy")), &got); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+
+	for _, p := range got.Packs {
+		if p.Set != "T" {
+			continue
+		}
+		if p.Price != "3 + ◎80" || p.Label != "3 energy and ◎80" || !p.TopUp || p.Wait == "" || !strings.Contains(p.Hint, "Short of 2 energy") {
+			t.Errorf("T = %+v, want the price 3 + ◎80 as a top-up that still has a wait to offer instead", p)
+		}
+		return
+	}
+	t.Fatalf("no pack T in %+v", got.Packs)
 }
 
 func TestOpen_withATopUpPaysForTheMissingEnergyInCoins(t *testing.T) {

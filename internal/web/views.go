@@ -1,8 +1,6 @@
 package web
 
 import (
-	"time"
-
 	"github.com/foutoucour/crackapack/internal/domain"
 	"github.com/foutoucour/crackapack/internal/play"
 )
@@ -24,7 +22,8 @@ type stageView struct {
 // tileView is a set the player can open, with its icon in the colour of the rarest card held.
 type tileView struct {
 	play.Pack
-	Icon iconView
+	Icon  iconView
+	Price boosterPrice
 }
 
 // Size is the number of sets in the stage.
@@ -46,7 +45,7 @@ func newHomeView(packs []play.Pack, binders []play.BinderSummary) homeView {
 		if p.Locked {
 			stage.Locked = append(stage.Locked, p)
 		} else {
-			stage.Open = append(stage.Open, tileView{Pack: p, Icon: newIconView(p.IconCode, rarest[p.SetCode])})
+			stage.Open = append(stage.Open, tileView{Pack: p, Icon: newIconView(p.IconCode, rarest[p.SetCode]), Price: newBoosterPrice(p)})
 		}
 		view.Staged = view.Staged || p.Stage > 0
 	}
@@ -69,14 +68,8 @@ type packView struct {
 	Cards   []cardView
 	// Left is the welcome boosters of this set the player still holds.
 	Left int
-	// Cost is the energy another booster of the set costs once the welcome ones are gone, and Wait
-	// the time until the player can open one, 0 when they can now.
-	Cost int
-	Wait time.Duration
-	// Fee is the coins another booster costs on top of its energy, and TopUp what opening it with
-	// coins for the missing energy would cost, nil when it is not offered.
-	Fee   domain.Coins
-	TopUp *play.TopUp
+	// Price is what another booster of the set costs once the welcome ones are gone.
+	Price boosterPrice
 	// Unlocked are the sets the booster unlocked.
 	Unlocked []play.UnlockedSet
 	// Preload are the pictures to fetch before the reveal needs them: the first card's, the second's
@@ -116,7 +109,7 @@ func newPackView(opening play.Opening, packs []play.Pack, value cardValuer) pack
 	}
 	for _, p := range packs {
 		if p.SetCode == opening.SetCode {
-			view.Left, view.Cost, view.Wait, view.Fee, view.TopUp = p.Count, p.Cost, p.Wait, p.Fee, p.TopUp
+			view.Left, view.Price = p.Count, newBoosterPrice(p)
 		}
 	}
 	for i, c := range opening.Cards {
