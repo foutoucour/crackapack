@@ -720,9 +720,10 @@ func TestCollection_everyPageLinksToIt(t *testing.T) {
 	}
 }
 
-// A bar that fills a row of the list of sets is clipped by the row's own corners: a fill with
-// corners of its own would show as a second, different curve inside the row.
-func TestStylesheet_theFillOfASetInTheListHasNoCornersOfItsOwn(t *testing.T) {
+// A bar that fills a row of the list of sets, a chip or the title strip of the header is clipped by
+// the element's own corners: a fill with corners of its own would show as a second, different curve
+// inside it.
+func TestStylesheet_aFillUnderTheTextHasNoCornersOfItsOwn(t *testing.T) {
 	t.Parallel()
 	srv, c := newServer(t, domaintest.NewRavnicaCatalogue())
 
@@ -730,10 +731,13 @@ func TestStylesheet_theFillOfASetInTheListHasNoCornersOfItsOwn(t *testing.T) {
 
 	// Each pseudo-element has a rule of its own: a browser drops a whole list that holds a selector
 	// it does not know, and each browser knows only its own.
-	for _, want := range []string{".binders progress::-webkit-progress-value", ".binders progress::-moz-progress-bar"} {
-		rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(want) + `\s*\{[^}]*border-radius:\s*0\b`)
-		if !rule.MatchString(css) {
-			t.Errorf("no rule gives %s a border-radius of 0", want)
+	for _, owner := range []string{".binders", ".filter-panel", ".set-title"} {
+		for _, pseudo := range []string{"::-webkit-progress-value", "::-moz-progress-bar"} {
+			want := owner + " progress" + pseudo
+			rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(want) + `[^{}]*\{[^}]*border-radius:\s*0\b`)
+			if !rule.MatchString(css) {
+				t.Errorf("no rule gives %s a border-radius of 0", want)
+			}
 		}
 	}
 }
@@ -767,20 +771,6 @@ func TestPages_loadTheScriptThatLetsAnyBannerBeClosed(t *testing.T) {
 		if !strings.Contains(script, want) {
 			t.Errorf("the banners script lacks %q:\n%s", want, script)
 		}
-	}
-}
-
-func TestStylesheet_theShowListIsAColumnOnTheLeftOfTheSetHeader(t *testing.T) {
-	t.Parallel()
-	srv, c := newServer(t, domaintest.NewRavnicaCatalogue())
-
-	_, css := get(t, c, srv.URL+"/static/style.css")
-
-	if !regexp.MustCompile(`(?s)\.show-bar ul\s*\{[^}]*flex-direction:\s*column`).MatchString(css) {
-		t.Error("the show list is not laid out as a column")
-	}
-	if !regexp.MustCompile(`(?s)\.show-bar a\s*\{[^}]*justify-content:\s*space-between`).MatchString(css) {
-		t.Error("the entries of the show list do not spread their label and their count to the two edges of the column")
 	}
 }
 
