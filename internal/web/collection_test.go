@@ -461,8 +461,8 @@ func TestCollection_showsThePercentageOfProgressNextToEveryCountOfTheSet(t *test
 	_, after := get(t, c, srv.URL+"/collection")
 
 	for _, want := range []string{`<span class="pct">0%</span>`} {
-		if got := strings.Count(before, want); got < 4 {
-			t.Errorf("before a booster, %q shows %d times, want it in the header, the list and the rarity and colour panels:\n%s", want, got, before)
+		if got := strings.Count(before, want); got < 3 {
+			t.Errorf("before a booster, %q shows %d times, want it in the header, the list and the rarity panel:\n%s", want, got, before)
 		}
 	}
 	if strings.Contains(before, `class="pct">25%`) {
@@ -496,6 +496,32 @@ func TestCollection_theShowListIsPartOfTheSetHeader(t *testing.T) {
 	if playsets := strings.Index(header, `class="playsets"`); playsets > shows {
 		t.Errorf("the playsets come after the show list: they belong to the title row")
 	}
+}
+
+// The header is four short lines, so that the cards start right below it: the title strip, which is
+// filled to the set's progress, then the chips of Show, which measure nothing, of Rarity, with their
+// percent, and of Colour, without it.
+func TestCollection_theSetHeaderIsAStripOfTheTitleAndOneLineOfChipsPerFilter(t *testing.T) {
+	t.Parallel()
+	srv, c := newServer(t, coloursSet())
+	_, body := get(t, c, srv.URL+"/collection")
+
+	_, fromHeader, _ := strings.Cut(body, `class="set-header"`)
+	header, _, _ := strings.Cut(fromHeader, "</section>")
+	title, _, _ := strings.Cut(strings.SplitN(header, `class="set-title"`, 2)[1], "</div>")
+	mustContain(t, "the title strip", title, `<progress value="0"`, `aria-label="Cards collected"`, "<h1>", "playsets")
+
+	shows := panel(body, showPanelLabel)
+	mustNotContain(t, "the show chips", shows, "<progress", `class="pct"`)
+	mustContain(t, "the show chips", shows, "All cards", "Duplicates")
+	for _, label := range []string{"Filter by rarity", "Filter by colour"} {
+		chips := panel(body, label)
+		if got, want := strings.Count(chips, "<progress"), strings.Count(chips, "<li>"); got != want || got == 0 {
+			t.Errorf("%q has %d bars for %d chips, want one in each:\n%s", label, got, want, chips)
+		}
+	}
+	mustContain(t, "the rarity chips", panel(body, "Filter by rarity"), `class="pct"`)
+	mustNotContain(t, "the colour chips", panel(body, "Filter by colour"), `class="pct"`)
 }
 
 func TestCollection_anEmptySlotShowsThePictureOfItsCardForTheStylesheetToGrey(t *testing.T) {

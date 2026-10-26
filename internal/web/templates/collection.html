@@ -37,13 +37,11 @@
 <section class="set-header">
   {{with .Icon}}{{if .Code}}<span class="set-watermark {{.Class}} rarity-{{.Rarity}}" aria-hidden="true"></span>{{end}}{{end}}
   <div class="set-title">
+    <progress value="{{.Owned}}" max="{{.Total}}" aria-label="Cards collected">{{.Owned}} / {{.Total}}</progress>
     <h1>{{.SetName}}</h1>
-    <div class="progress-line">
-      <progress value="{{.Owned}}" max="{{.Total}}" aria-label="Cards collected">{{.Owned}} / {{.Total}}</progress>
-      <p class="lead">{{.Owned}} / {{.Total}} cards <span class="pct">{{percent .Owned .Total}}%</span></p>
-      {{if .PastThreshold}}<p class="unlock-mark">Unlock threshold reached</p>{{end}}
-      <p class="playsets">Complete playsets <strong>{{.Playsets}}</strong></p>
-    </div>
+    <p class="lead">{{.Owned}} / {{.Total}} cards <span class="pct">{{percent .Owned .Total}}%</span></p>
+    <p class="playsets">Complete playsets <strong>{{.Playsets}}</strong></p>
+    {{if .PastThreshold}}<p class="unlock-mark">Unlock threshold reached</p>{{end}}
   </div>
   {{template "showPanel" .Shows}}
   {{template "filterPanel" .Rarities}}
@@ -89,11 +87,12 @@
 {{end}}
 
 {{define "filterPanel"}}
+{{$percent := .Percent}}
 <nav class="filter-panel" aria-label="{{.Label}}">
   <h2>{{.Title}}</h2>
   <ul>
     {{range .Rows}}
-    <li>{{with .Earned}}<span class="milestone-mark" role="img" aria-label="{{.}}" title="{{.}}">✓</span>{{end}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}} <strong>{{.Owned}} / {{.Total}}</strong><span class="pct">{{percent .Owned .Total}}%</span><progress class="{{.Class}}" value="{{.Owned}}" max="{{.Total}}" aria-hidden="true"></progress></a></li>
+    <li>{{with .Earned}}<span class="milestone-mark" role="img" aria-label="{{.}}" title="{{.}}">✓</span>{{end}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}} <strong>{{.Owned}} / {{.Total}}</strong>{{if $percent}}<span class="pct">{{percent .Owned .Total}}%</span>{{end}}<progress class="{{.Class}}" value="{{.Owned}}" max="{{.Total}}" aria-hidden="true"></progress></a></li>
     {{end}}
   </ul>
 </nav>
@@ -101,6 +100,7 @@
 
 {{define "showPanel"}}
 <nav class="show-bar" aria-label="{{.Label}}">
+  <h2>Show</h2>
   <ul>
     {{range .Rows}}
     <li><a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}} <strong>{{.Count}}</strong></a></li>
