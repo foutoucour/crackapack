@@ -175,12 +175,17 @@ printing: the same card in two sets counts as two cards.
   colourless. A non-basic land is a land whatever its colours. So a split card counts by its a half
   only: Fire // Ice is red, not gold. A group the set has no card in is left out, as a rarity is. The
   count is of the cards the boosters can draw, as for the binder.
-- **Filters:** the rarity list and the colour list are panels of links, one row per rarity or colour
-  with a bar of what the player holds. A row filters the binder, and the row in force clears its
-  filter when clicked again. The bars always show the whole binder, so a filter never changes the
-  progress. A bar that fills a row of the list of sets is cut square, since the row's own corners
-  round it.
-- **Show filter:** a column of pills at the left of the set header, under the title, each with the number of cards it keeps under the
+- **Set header:** four short lines, so that the cards start right below it: a strip with the set's
+  name, count, playsets and unlock mark, filled to the set's progress, then one line of chips each for
+  the show, rarity and colour filters. The chips wrap on a narrow screen.
+- **Filters:** the rarity chips and the colour chips each hold what the player holds of a rarity or a
+  colour, as a fill under the chip's text, in the tint of that rarity or colour; the rarity chips add
+  the percent. A chip filters the binder, and the chip in force clears its filter when clicked again.
+  The fills always show the whole binder, so a filter never changes the progress. A fill under the
+  text of the header or of an entry of the list of sets is cut square, since the element's own
+  corners round it.
+- **Show filter:** a line of chips in the set header, without a fill since it chooses what to display
+  and measures nothing, each with the number of cards it keeps under the
   rarity and colour in force, that picks the cards to act on. *Duplicates* keeps the cards held above
   a playset, in both finishes together: the copies to sell or to trade. *At the Counter* keeps the
   cards the Counter has in stock, held or not, in a game with a Counter. *Available to trade* keeps

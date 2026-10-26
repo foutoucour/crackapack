@@ -69,10 +69,12 @@ type tabView struct {
 }
 
 // filterPanel is the list of one filter of a binder, with the name that its nav and its heading go by.
+// Percent tells whether its chips say the percent that the player holds, besides how many.
 type filterPanel struct {
-	Title string
-	Label string
-	Rows  []filterView
+	Title   string
+	Label   string
+	Percent bool
+	Rows    []filterView
 }
 
 // filterView is one entry of a filter, on rarity or on colour: a link that picks it, or clears it
@@ -199,7 +201,7 @@ func newCollectionView(binder play.Binder, binders []play.BinderSummary, filter 
 	view.Slots = keepShown(view.Slots, filter)
 	view.Pools = shownPools(view.Pools, filter)
 
-	view.Rarities = filterPanel{Title: "Rarity", Label: "Filter by rarity", Rows: []filterView{{
+	view.Rarities = filterPanel{Title: "Rarity", Label: "Filter by rarity", Percent: true, Rows: []filterView{{
 		Label: "All rarities", Href: collectionHref(binder.SetCode, filter.toggleRarity("")), Class: "bar-all",
 		Owned: binder.Progress.Owned, Total: binder.Progress.Total, Current: filter.Rarity == "",
 		Goal: domain.Milestone{Kind: domain.MilestoneBinder},
