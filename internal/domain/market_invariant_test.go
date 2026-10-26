@@ -90,11 +90,15 @@ func dedupeWishes(wishes []domain.Wish) []domain.Wish {
 func randomMarketMove(fx *marketFixture, rng *rand.Rand, now time.Time) error {
 	var err error
 	answers := fx.market.Answers()
-	switch move := rng.IntN(6); {
+	switch move := rng.IntN(8); {
 	case move == 0:
 		_, err = fx.market.AskAround(fx.keys[rng.IntN(len(fx.keys))], now)
 	case move == 1:
 		_, err = fx.market.List(fx.keys[rng.IntN(len(fx.keys))], domain.Coins(1+rng.IntN(6000)), now)
+	case move == 6:
+		_, err = fx.market.BuyNow(rng.IntN(len(fx.npcs)), fx.keys[rng.IntN(len(fx.keys))], now)
+	case move == 7:
+		_, err = fx.market.Offer(rng.IntN(len(fx.npcs)), fx.keys[rng.IntN(len(fx.keys))], domain.Coins(1+rng.IntN(6000)), now)
 	case len(answers) == 0:
 		return nil
 	case move == 2:
@@ -113,6 +117,7 @@ func randomMarketMove(fx *marketFixture, rng *rand.Rand, now time.Time) error {
 		domain.ErrNoHolder, domain.ErrAlreadyAsked, domain.ErrAlreadyListed, domain.ErrPlayerLacksCard,
 		domain.ErrReserved, domain.ErrInsufficientBalance, domain.ErrNPCLacksCard, domain.ErrAwaitingReply,
 		domain.ErrNothingOffered, domain.ErrInvalidPrice, domain.ErrCoinsOnly, domain.ErrTooManyCards,
+		domain.ErrOfferNotBelowAsk,
 	} {
 		if errors.Is(err, refusal) {
 			return nil

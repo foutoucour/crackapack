@@ -413,14 +413,30 @@ In the game the player starts trades, as on Reverb or eBay, see
 - **Counter:** a page of its own, `/counter-offer`, reached from an answer. On an asking price it
   takes coins and, from the spare cards, the copies above a playset that the market does not already
   hold, the cards to add; on an offer it takes coins only. A counter waiting for its reply shows on
-  the slot and the market page with the time to the reply.
-- **The Market page:** `/market` lists every request, listing and answer, newest first, with the same
-  buttons, and the latest results: bought, sold, refused, lapsed or failed, with how long ago. The
-  header links to it from every page in a game with a market, with the number of answers waiting.
+  the slot and the My trades page with the time to the reply.
+- **The Market page:** two tabs, Browse and My trades. The header links to the Market from every page
+  in a game with a market, with the number of answers waiting, which the My trades tab shows too.
   After an accept the page it returns to says what was bought or sold, and the sets it unlocked.
   Refusals keep the player where they were with a message: nobody has the card, already asking, on
   the market already, not enough coins, held for the market, and the others of
   [the market's errors](#the-market).
+- **Browse:** `/market` is a shop window, see
+  [ADR-0077](adr/0077-the-market-shows-what-the-npcs-hold-on-their-shelves.md). It lists every card
+  that an NPC holds on its shelf, in the sets the player can buy from, a tile each with the lowest
+  price and the number of NPCs that hold it, 48 to a page. It filters by the cards the player hunts,
+  the cards missing from its binders, set, colour and rarity, and by name. The Counter's stock stays
+  hidden.
+- **A card on the market:** `/market/card` lists the NPCs that hold it, each with its asking price,
+  the card's reference value plus its margin, the price an answer to a request carries. **Buy now**
+  pays that price and takes the card at once, and the copy leaves the shelf. **Make an offer** names
+  a price below it to one NPC, which replies once, after its delay, by the acceptance rule of a
+  counter, so an offer that a margin allows is accepted, and others are refused. A card that left the
+  shelf between the page and the click is refused with a message, and nothing changes.
+- **My trades:** `/market/trades` groups the requests, listings and offers by who they wait for:
+  *Needs you*, with an answer to accept, counter or decline, *Waiting on an NPC*, with an answer or a
+  reply to come, and *Done*, the latest results: bought, sold, refused, lapsed or failed, with how long
+  ago. Each trade says what it waits for and for how long: "1 of 2 NPCs answered", "Next answer in
+  about 6 h", "Lapses in about 3 days".
 - **The NPCs:** the game's crowd, its size and how long it keeps its surplus are in the
   [tuning log](tuning-log.md). Its NPCs always trade, whatever `trades.enabled`, the simulation's
   switch, says. They open the sets the player can open,
@@ -439,9 +455,9 @@ the hunt in the save, up to 20 cards.
 - **Offers:** the NPCs that hold the card answer as they do to any request, and the hunt asks again
   each day once the answers are over, see
   [ADR-0066](adr/0066-a-hunted-card-asks-the-npcs-again-each-day.md). The offers are accepted,
-  declined or countered on the Market page.
+  declined or countered on the My trades page.
 - **The cards:** each hunted card shows as its picture in grey, since the player does not hold it,
-  linked to its slot in its binder, with the name and the icon of its set. The Market page shows
+  linked to its slot in its binder, with the name and the icon of its set. The My trades page shows
   the cards it asks around for the same way, and the cards the player lists in colour.
 - **The Counter:** the `/hunted` page says whether the Counter has a copy and its price, never how
   many. The header's Hunted link counts the copies that came since the page was last shown, see

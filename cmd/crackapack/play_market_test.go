@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"html"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -139,8 +140,8 @@ func TestRunPlay_theDemoMarketWorksThroughThePages(t *testing.T) {
 	countered := postBody(t, base, "/counter-offer", url.Values{"answer": {cheapestAnswerID(t, otherAsked)}, "set": {"DEM"}, "card": {other}, "coins": {"1"}})
 	pageHas(t, "the binder after countering", countered, "Countered the answer of")
 	clock.Advance(24 * time.Hour)
-	if market := getBody(t, base+"/market"); !regexp.MustCompile(`refused your counter|Bought `).MatchString(market) {
-		t.Errorf("a day after the counter the market tells neither a deal nor a refusal:\n%s", market)
+	if trades := getBody(t, base+"/market/trades"); !regexp.MustCompile(`refused your counter|Bought `).MatchString(trades) {
+		t.Errorf("a day after the counter My trades tells neither a deal nor a refusal:\n%s", trades)
 	}
 
 	// Sell: the rare of a booster, listed, draws an offer at once, which sells it.
@@ -246,4 +247,64 @@ func pageHasNot(t *testing.T, what, page string, unwanted ...string) {
 			t.Errorf("%s has %q:\n%s", what, bad, page)
 		}
 	}
+}
+
+// The demo's NPCs hold cards on their shelves from the first day, so Browse is never empty: the
+// player opens a card, buys it at an NPC's price, and offers less for another.
+func TestRunPlay_theDemoBrowseShowsTheShelvesAndTheCardsCanBeBoughtAndOffered(t *testing.T) {
+	t.Parallel()
+	base := servePlay(t, demoPlayArgs(t))
+
+	browse := getBody(t, base+"/market")
+	pageHas(t, "Browse", browse, `class="sale-tile"`, "From ◎", `aria-current="page">Browse`)
+
+	tiles := regexp.MustCompile(`(?s)<a href="(/market/card[^"]+)">.*?From ◎(\d+)`).FindAllStringSubmatch(browse, -1)
+	if len(tiles) < 2 {
+		t.Fatalf("Browse has %d tiles, want at least two:\n%s", len(tiles), browse)
+	}
+	card := getBody(t, base+html.UnescapeString(cheapestTile(tiles)))
+	bought := postBody(t, base, "/buy-now", formFields(t, card, "/buy-now"))
+	pageHas(t, "the card page after buying", bought, "Bought ", `class="sale-notice"`)
+
+	for _, tile := range tiles {
+		page := getBody(t, base+html.UnescapeString(tile[1]))
+		if !strings.Contains(page, `action="/offer"`) {
+			continue
+		}
+		offered := postBody(t, base, "/offer", withField(formFields(t, page, "/offer"), "coins", "1"))
+		pageHas(t, "the card page after the offer", offered, "Offered ◎1 for ")
+		trades := getBody(t, base+"/market/trades")
+		if !regexp.MustCompile(`Offer for |refused your counter`).MatchString(trades) {
+			t.Errorf("My trades tells neither the offer nor its refusal:\n%s", trades)
+		}
+		return
+	}
+	t.Error("no card of the demo's Browse takes an offer")
+}
+
+// cheapestTile is the link of the tile with the lowest price of "From ◎N".
+func cheapestTile(tiles [][]string) string {
+	best, bestPrice := "", int(^uint(0)>>1)
+	for _, tile := range tiles {
+		if price, err := strconv.Atoi(tile[2]); err == nil && price < bestPrice {
+			best, bestPrice = tile[1], price
+		}
+	}
+	return best
+}
+
+// formFields is the hidden fields of the first form of page that posts to action.
+func formFields(t *testing.T, page, action string) url.Values {
+	t.Helper()
+	form := firstMatch(t, regexp.MustCompile(`(?s)(<form method="post" action="`+regexp.QuoteMeta(action)+`"[^>]*>.*?</form>)`), page)
+	fields := url.Values{}
+	for _, m := range regexp.MustCompile(`<input type="hidden" name="([^"]+)" value="([^"]*)">`).FindAllStringSubmatch(form, -1) {
+		fields.Set(m[1], html.UnescapeString(m[2]))
+	}
+	return fields
+}
+
+func withField(form url.Values, name, value string) url.Values {
+	form.Set(name, value)
+	return form
 }

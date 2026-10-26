@@ -46,7 +46,8 @@ func marketRefusal(err error) (refusal, bool) {
 		{play.ErrNegative, refusal{http.StatusBadRequest, "A counter has no negative coins or copies."}},
 		{play.ErrTooManyCards, refusal{http.StatusBadRequest, "Too many cards: a trade holds only a few cards on a side."}},
 		{play.ErrAwaitingReply, refusal{http.StatusConflict, "You countered this answer: wait for the NPC's reply."}},
-		{play.ErrGone, refusal{http.StatusConflict, "The NPC no longer has the cards, so the answer is over."}},
+		{play.ErrGone, refusal{http.StatusConflict, "The NPC no longer has the card: it went to someone else, or it left the shelf."}},
+		{play.ErrOfferNotBelowAsk, refusal{http.StatusBadRequest, "An offer is below the asking price: to pay the price, buy now."}},
 	}
 	for _, r := range refusals {
 		if errors.Is(err, r.err) {
@@ -76,11 +77,11 @@ func (h *handler) marketFailed(w http.ResponseWriter, err error, back string) {
 }
 
 // refuseReserved tells that the market holds the card, with links to the page the player came from
-// and to the market, where they can free it.
+// and to the trades, where they can free it.
 func (h *handler) refuseReserved(w http.ResponseWriter, back string) {
 	h.render(w, http.StatusConflict, "error", errorView{
 		Message: reservedMessage, BackHref: back, BackLabel: backLabelOf(back),
-		AltHref: marketPath, AltLabel: "Go to the market",
+		AltHref: tradesPath, AltLabel: "Go to My trades",
 	})
 }
 
@@ -90,16 +91,18 @@ func marketIDOf(r *http.Request, field string) (domain.MarketID, bool) {
 	return domain.MarketID(n), err == nil && n > 0
 }
 
-// market shows everything open on the market and how the latest answers ended.
-func (h *handler) market(w http.ResponseWriter, _ *http.Request) {
+// trades shows what the player started on the market, by who it waits for, and how the latest
+// answers ended.
+func (h *handler) trades(w http.ResponseWriter, _ *http.Request) {
 	v, err := h.game.Market()
 	if err != nil {
 		h.marketFailed(w, err, "/")
 		return
 	}
-	view := newMarketView(v, h.game.SetOf)
+	view := newTradesView(v, h.game.SetOf)
 	view.Notice = h.notices.take()
-	h.render(w, http.StatusOK, "market", view)
+	view.Tabs = newMarketTabsView(tabTrades, v.Waiting)
+	h.render(w, http.StatusOK, "market_trades", view)
 }
 
 // marketIndex is the market as a binder page looks it up, nil in a game without one.

@@ -207,6 +207,8 @@ type RequestSnapshot struct {
 	Finish domain.Finish   `json:"finish"`
 	At     time.Time       `json:"at"`
 	Asked  int             `json:"asked"`
+	// Direct marks the request an offer to one NPC made.
+	Direct bool `json:"direct,omitempty"`
 }
 
 // ListingSnapshot is a card on the market at an asking price.

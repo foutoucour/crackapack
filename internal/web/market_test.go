@@ -407,7 +407,7 @@ func TestCounterOffer_aPlayerWithNoSpareCardOffersCoinsOnly(t *testing.T) {
 
 	_, body := get(t, shop.c, shop.srv.URL+"/counter-offer?answer="+strconv.Itoa(int(answer.ID)))
 
-	mustContain(t, "the counter form", body, `name="coins"`, "no spare cards", `href="/market"`)
+	mustContain(t, "the counter form", body, `name="coins"`, "no spare cards", `href="/market/trades"`)
 	mustNotContain(t, "the counter form", body, `name="give:`)
 }
 
@@ -718,7 +718,7 @@ func TestSell_aCardHeldForTheMarketIsRefusedWithALinkToTheMarket(t *testing.T) {
 	if resp.StatusCode != http.StatusConflict {
 		t.Errorf("POST /sell of a listed card = %d, want 409", resp.StatusCode)
 	}
-	mustContain(t, "the refusal", body, "held for the market", `href="/market"`, `href="/collection?set=S#c-S-00"`, `role="alert"`)
+	mustContain(t, "the refusal", body, "held for the market", `href="/market/trades"`, `href="/collection?set=S#c-S-00"`, `role="alert"`)
 	if shop.game.Balance() != coins {
 		t.Errorf("a refused sale moved the balance from %d to %d", coins, shop.game.Balance())
 	}
@@ -748,16 +748,17 @@ func TestHeader_theMarketLinkShowsTheAnswersWaitingAndOnlyInAGameWithAMarket(t *
 	mustNotContain(t, "a game without a market", counterOnly.get(t, "/"), `href="/market"`)
 }
 
-func TestMarketPage_isEmptyAtFirst(t *testing.T) {
+func TestTradesPage_isEmptyAtFirstAndPointsToBrowse(t *testing.T) {
 	t.Parallel()
 	shop := newMarketShop(t)
 
-	body := shop.get(t, "/market")
+	body := shop.get(t, "/market/trades")
 
-	mustContain(t, "the empty market", body, "<h1>Market</h1>", "not asking around", "no card listed", "No deal yet", `href="/collection"`)
+	mustContain(t, "the empty trades", body, "<h1>Market</h1>", `aria-current="page">My trades`, "You have no trade yet", `href="/market"`, `href="/collection"`)
+	mustNotContain(t, "the empty trades", body, "Needs you", "Waiting on an NPC")
 }
 
-func TestMarketPage_listsEveryRequestListingAndAnswerNewestFirst(t *testing.T) {
+func TestTradesPage_listsEveryRequestListingAndAnswerNewestFirst(t *testing.T) {
 	t.Parallel()
 	shop := newMarketShop(t)
 	shop.open(t, 2)
@@ -768,9 +769,9 @@ func TestMarketPage_listsEveryRequestListingAndAnswerNewestFirst(t *testing.T) {
 	shop.clock.Advance(time.Minute)
 	shop.post(t, "/list", listForm(unpricedKey, "5"))
 
-	body := shop.get(t, "/market")
+	body := shop.get(t, "/market/trades")
 
-	mustContain(t, "the market", body, "S-02", "S-01", "S-00", "2 NPCs asked, 1 still to answer", "Listed at ◎100", "Listed at ◎5", `action="/accept"`, `action="/unlist"`, `action="/withdraw"`, `name="from" value="market"`)
+	mustContain(t, "the trades", body, "S-02", "S-01", "S-00", "1 of 2 NPCs answered", "Listed at ◎100", "Listed at ◎5", `action="/accept"`, `action="/unlist"`, `action="/withdraw"`, `name="from" value="trades"`)
 	if dear, never := strings.Index(body, "Asking around for S-01"), strings.Index(body, "Asking around for S-02"); dear < 0 || never < 0 || dear > never {
 		t.Errorf("the request made last is at %d, the first at %d: want the newest first", dear, never)
 	}
@@ -779,22 +780,22 @@ func TestMarketPage_listsEveryRequestListingAndAnswerNewestFirst(t *testing.T) {
 	}
 }
 
-func TestMarketPage_actionsComeBackToTheMarketAndShowTheResult(t *testing.T) {
+func TestTradesPage_actionsComeBackToTheTradesAndShowTheResult(t *testing.T) {
 	t.Parallel()
 	shop := newMarketShop(t)
 	shop.ask(t, cheapCard)
 	answer := shop.answerFrom(t, fastNPC)
-	form := url.Values{"answer": {strconv.Itoa(int(answer.ID))}, "from": {"market"}}
+	form := url.Values{"answer": {strconv.Itoa(int(answer.ID))}, "from": {"trades"}}
 
 	resp, _ := shop.post(t, "/accept", form)
 
-	redirectsTo(t, "POST /accept from the market", resp, "/market")
-	body := shop.get(t, "/market")
-	mustContain(t, "the market after the deal", body, "Bought S-00 from Karn Liberated (a fast) for ◎100.", "Recent results", "less than a minute ago")
-	mustNotContain(t, "the market after the deal", body, "No deal yet")
+	redirectsTo(t, "POST /accept from the trades", resp, "/market/trades")
+	body := shop.get(t, "/market/trades")
+	mustContain(t, "the trades after the deal", body, "Bought S-00 from Karn Liberated (a fast) for ◎100.", "Done", "less than a minute ago")
+	mustNotContain(t, "the trades after the deal", body, "No deal yet")
 
-	if resp, body := shop.post(t, "/accept", form); resp.StatusCode != http.StatusNotFound || !strings.Contains(body, `href="/market"`) || !strings.Contains(body, "Back to the market") {
-		t.Errorf("a refusal from the market = %d, want 404 with a way back to the market:\n%s", resp.StatusCode, body)
+	if resp, body := shop.post(t, "/accept", form); resp.StatusCode != http.StatusNotFound || !strings.Contains(body, `href="/market/trades"`) || !strings.Contains(body, "Back to My trades") {
+		t.Errorf("a refusal from the trades = %d, want 404 with a way back to them:\n%s", resp.StatusCode, body)
 	}
 }
 
@@ -817,12 +818,12 @@ func TestMarketPage_everyWayAnAnswerEndsIsTold(t *testing.T) {
 	// Expired: the fast NPC's answer lapses after its three days.
 	shop.clock.Advance(4 * 24 * time.Hour)
 
-	body := shop.get(t, "/market")
+	body := shop.get(t, "/market/trades")
 
 	mustContain(t, "the results", body, "Sold S-00 to Karn, Scion of Urza (c spec) for ◎83.", "Karn, the Great Creator (b slow) refused your counter of ◎1 for S-01.", "The price of Karn Liberated (a fast) for S-01 lapsed")
 }
 
-func TestMarketPage_namesAreEscaped(t *testing.T) {
+func TestTradesPage_namesAreEscaped(t *testing.T) {
 	t.Parallel()
 	cat := counterSet()
 	card := cat.Cards[cheapCard]
@@ -833,13 +834,13 @@ func TestMarketPage_namesAreEscaped(t *testing.T) {
 	shop.open(t, 1)
 	shop.post(t, "/list", listForm(neverCard, "5"))
 
-	for path, body := range map[string]string{"the market": shop.get(t, "/market"), "the binder": shop.get(t, "/collection?set=S")} {
+	for path, body := range map[string]string{"the trades": shop.get(t, "/market/trades"), "the binder": shop.get(t, "/collection?set=S")} {
 		mustNotContain(t, path, body, `<b onmouseover`)
 		mustContain(t, path, body, "&lt;b onmouseover")
 	}
 }
 
-func TestMarketPage_aRequestShowsItsCardInGreyAndAListingShowsItInColour(t *testing.T) {
+func TestTradesPage_aRequestShowsItsCardInGreyAndAListingShowsItInColour(t *testing.T) {
 	t.Parallel()
 	set := counterSet()
 	ids := withScryfallIDs(set)
@@ -850,7 +851,7 @@ func TestMarketPage_aRequestShowsItsCardInGreyAndAListingShowsItInColour(t *test
 		t.Fatalf("POST /list = %d:\n%s", resp.StatusCode, body)
 	}
 
-	got := shop.get(t, "/market")
+	got := shop.get(t, "/market/trades")
 
 	mustContain(t, "the request", got, `<a class="card-thumb unowned" href="/collection?set=S#c-S-00">`, `<img src="/card-image/`+ids[domain.CardID(cheapCard)]+`"`)
 	mustContain(t, "the listing", got, `<a class="card-thumb" href="/collection?set=S#c-S-01">`, `class="thumb-set"`, "Set S")

@@ -21,8 +21,9 @@ game is playable over several days in the browser, with `crackapack play`:
   duplicates above a playset sell in one click.
 - The game's NPCs trade with you on a market. From an empty slot you ask around, and the NPCs that
   have the card answer with their prices; from a held card you list it, and the NPCs that want it make
-  offers. You accept, counter once or decline, on the binder or on the Market page, and the header
-  counts the answers waiting. Each NPC answers at the pace of its personality, some at once and some
+  offers. You accept, counter once or decline, on the binder or on the My trades page, and the header
+  counts the answers waiting. The Market page also lists what the NPCs hold, to buy a card at their
+  price at once or to offer less. Each NPC answers at the pace of its personality, some at once and some
   the next day.
 - The game has daily and weekly quests, on the Quests page. A quest asks for an action, such as
   opening boosters of a set or selling red cards, and names its reward, such as a card to win or a

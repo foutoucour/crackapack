@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -12,35 +13,39 @@ import (
 )
 
 const (
-	// marketPath is the market page, where the market's forms come back to when they did not start
-	// from a slot of a binder.
+	// marketPath is the market page, where the player browses what the NPCs sell.
 	marketPath = "/market"
-	// fromMarket is the value of the "from" field of a form that was on the market page.
-	fromMarket = "market"
-	// backToMarketLabel is the text of the way back from a refusal to the market page.
+	// tradesPath is the page of the trades the player started, where the market's forms come back to
+	// when they did not start from a slot of a binder.
+	tradesPath = "/market/trades"
+	// fromTrades is the value of the "from" field of a form that was on the trades page.
+	fromTrades = "trades"
+	// backToMarketLabel and backToTradesLabel are the texts of the way back from a refusal to the
+	// pages of the market.
 	backToMarketLabel = "Back to the market"
+	backToTradesLabel = "Back to My trades"
 )
 
-// backView is where a form of the market sends the player once it is done: the market page, or the
+// backView is where a form of the market sends the player once it is done: the trades page, or the
 // slot of a card in a binder.
 type backView struct {
-	Market bool
+	Trades bool
 	Set    string
 	Card   domain.CardID
 	Filter binderFilter
 }
 
 func (b backView) href() string {
-	if b.Market {
-		return marketPath
+	if b.Trades {
+		return tradesPath
 	}
 	return binderHref(b.Set, b.Filter, b.Card)
 }
 
 // query is the fields that make a link carry b, as the forms of the market do with hidden fields.
 func (b backView) query() url.Values {
-	if b.Market {
-		return url.Values{"from": {fromMarket}}
+	if b.Trades {
+		return url.Values{"from": {fromTrades}}
 	}
 	q := b.Filter.values()
 	q.Set("set", b.Set)
@@ -48,18 +53,21 @@ func (b backView) query() url.Values {
 	return q
 }
 
-// backOf reads where a form or a link of the market came from. Without a set it is the market page.
+// backOf reads where a form or a link of the market came from. Without a set it is the trades page.
 func backOf(r *http.Request) backView {
 	set := r.FormValue("set")
-	if set == "" || r.FormValue("from") == fromMarket {
-		return backView{Market: true}
+	if set == "" || r.FormValue("from") == fromTrades {
+		return backView{Trades: true}
 	}
 	return backView{Set: set, Card: domain.CardID(r.FormValue("card")), Filter: binderFilterOf(r)}
 }
 
 // backLabelOf is the text of the link back to href.
 func backLabelOf(href string) string {
-	if href == marketPath {
+	switch {
+	case href == tradesPath:
+		return backToTradesLabel
+	case href == marketPath || strings.HasPrefix(href, marketPath+"?") || strings.HasPrefix(href, marketCardPath+"?"):
 		return backToMarketLabel
 	}
 	return backLabel
@@ -164,7 +172,9 @@ type requestView struct {
 	Over    bool
 	Answers []answerView
 	Back    backView
-	// Thumb is the card on the market page, which the other pages do not show.
+	// Waits says what the trade waits for, and takes the place of Status on the trades page.
+	Waits string
+	// Thumb is the card on the trades page, which the other pages do not show.
 	Thumb cardThumb
 }
 
@@ -202,7 +212,9 @@ type listingView struct {
 	Name      string
 	Price     domain.Coins
 	// Status is "No offers yet." while there is none.
-	Status  string
+	Status string
+	// Waits says what the trade waits for, and takes the place of Status on the trades page.
+	Waits   string
 	Answers []answerView
 	Back    backView
 	Thumb   cardThumb
@@ -272,19 +284,23 @@ func counterHref(id domain.MarketID, back backView) string {
 
 // npcName is what the NPC that answered is called, and "NPC 3" for one with no name, numbered from
 // 1 as a player counts.
-func npcName(a play.Answer) string {
-	if a.Name != "" {
-		return a.Name
+func npcName(a play.Answer) string { return npcNameOf(a.Name, a.NPC) }
+
+func npcNameOf(name string, npc int) string {
+	if name != "" {
+		return name
 	}
-	return fmt.Sprintf("NPC %d", a.NPC+1)
+	return fmt.Sprintf("NPC %d", npc+1)
 }
 
 // npcLabel is who answered: the NPC and its personality, "Ajani Goldmane (playset hunter)".
-func npcLabel(a play.Answer) string {
-	if a.Archetype == "" {
-		return npcName(a)
+func npcLabel(a play.Answer) string { return npcLabelOf(a.Name, a.Archetype, a.NPC) }
+
+func npcLabelOf(name, archetype string, npc int) string {
+	if archetype == "" {
+		return npcNameOf(name, npc)
 	}
-	return fmt.Sprintf("%s (%s)", npcName(a), strings.ReplaceAll(a.Archetype, "_", " "))
+	return fmt.Sprintf("%s (%s)", npcNameOf(name, npc), strings.ReplaceAll(archetype, "_", " "))
 }
 
 // cardName is the name of a card for the player: "(foil)" after that of a foil.
@@ -349,33 +365,120 @@ func newResultView(r play.Result, now time.Time) resultView {
 	return resultView{Text: text, When: humanAgo(now.Sub(r.At))}
 }
 
-// marketView is the market page.
-type marketView struct {
-	Notice   noticeView
-	Requests []requestView
-	Listings []listingView
-	Results  []resultView
+// tradeItem is a request or a listing of the player on the trades page, with what it waits for.
+type tradeItem struct {
+	Title   string
+	Thumb   cardThumb
+	Request *requestView
+	Listing *listingView
+	stage   play.TradeStage
+	at      time.Time
 }
 
-func newMarketView(v play.MarketView, setOf setFinder) marketView {
+// tradesView is the page of the trades the player started, by who they wait for.
+type tradesView struct {
+	Notice noticeView
+	Tabs   marketTabsView
+	// NeedsYou are the trades with an answer to take, counter or decline, newest first, and Waiting
+	// those that wait on an NPC.
+	NeedsYou, Waiting []tradeItem
+	// Results are the latest answers that ended.
+	Results []resultView
+	// Empty is true when the player has no trade, open or ended.
+	Empty bool
+}
+
+func newTradesView(v play.MarketView, setOf setFinder) tradesView {
 	idx := newMarketIndex(v, nil, nil)
-	back := backView{Market: true}
-	var view marketView
+	back := backView{Trades: true}
+	var items []tradeItem
 	for _, r := range v.Requests {
 		request := idx.requestView(r, cardRef{ID: r.Card.ID, Finish: string(r.Finish)}, back)
+		request.Waits = requestWaits(r, v.Now)
 		// A card is asked around for while the player does not hold it.
-		request.Thumb = newCardThumb(r.Card, false, setOf)
-		view.Requests = append(view.Requests, request)
+		thumb := newCardThumb(r.Card, false, setOf)
+		title := "Asking around for " + request.Name
+		if r.Direct {
+			title = "Offer for " + request.Name
+		}
+		items = append(items, tradeItem{Title: title, Thumb: thumb, Request: &request, stage: r.Stage, at: r.At})
 	}
 	for _, l := range v.Listings {
 		listing := idx.listingView(l, cardRef{ID: l.Card.ID, Finish: string(l.Finish)}, back)
-		listing.Thumb = newCardThumb(l.Card, true, setOf)
-		view.Listings = append(view.Listings, listing)
+		listing.Waits = listingWaits(l, v.Now)
+		listing.Status = ""
+		items = append(items, tradeItem{Title: listing.Name, Thumb: newCardThumb(l.Card, true, setOf), Listing: &listing, stage: l.Stage, at: l.At})
+	}
+	slices.SortStableFunc(items, func(a, b tradeItem) int { return b.at.Compare(a.at) })
+	view := tradesView{Empty: len(items) == 0 && len(v.Results) == 0}
+	for _, item := range items {
+		if item.stage == play.StageNeedsYou {
+			view.NeedsYou = append(view.NeedsYou, item)
+		} else {
+			view.Waiting = append(view.Waiting, item)
+		}
 	}
 	for _, r := range v.Results {
 		view.Results = append(view.Results, newResultView(r, v.Now))
 	}
 	return view
+}
+
+// requestWaits says what a request waits for: the NPCs still to answer, the replies to the
+// player's counters, and when the answers the player leaves alone lapse.
+func requestWaits(r play.Request, now time.Time) string {
+	var parts []string
+	switch {
+	case r.Direct:
+	case r.Pending == 0 && len(r.Answers) == 0:
+		parts = append(parts, "None of the answers is left: ask again or stop")
+	default:
+		parts = append(parts, fmt.Sprintf("%d of %s answered", r.Asked-r.Pending, plural(r.Asked, "NPC")))
+	}
+	if r.Pending > 0 && !r.NextAt.IsZero() {
+		parts = append(parts, "Next answer in "+aboutDuration(r.NextAt.Sub(now)))
+	}
+	return joinWaits(parts, r.Answers, r.LapsesAt, now)
+}
+
+// listingWaits says what a listing waits for, as requestWaits does for a request.
+func listingWaits(l play.Listing, now time.Time) string {
+	var parts []string
+	if !l.NextAt.IsZero() {
+		parts = append(parts, "Next offer in "+aboutDuration(l.NextAt.Sub(now)))
+	}
+	if len(l.Answers) == 0 && len(parts) == 0 {
+		parts = append(parts, "No offer yet")
+	}
+	return joinWaits(parts, l.Answers, l.LapsesAt, now)
+}
+
+// joinWaits adds to parts the replies to the player's counters and the lapse, and makes sentences.
+func joinWaits(parts []string, answers []play.Answer, lapsesAt, now time.Time) string {
+	for _, a := range answers {
+		if a.Counter != nil {
+			parts = append(parts, fmt.Sprintf("%s replies in %s", npcName(a), aboutDuration(a.Counter.ReplyAt.Sub(now))))
+		}
+	}
+	if !lapsesAt.IsZero() {
+		parts = append(parts, "Lapses in "+aboutDuration(lapsesAt.Sub(now)))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, ". ") + "."
+}
+
+// aboutDuration says a time to come roughly: hours and minutes up to two days, then days.
+func aboutDuration(d time.Duration) string {
+	const twoDays = 48 * time.Hour
+	if d >= twoDays {
+		return "about " + plural(int((d+12*time.Hour)/(24*time.Hour)), "day")
+	}
+	if d < time.Minute {
+		return "less than a minute"
+	}
+	return "about " + humanDuration(d)
 }
 
 // counterFormView is the page where the player counters an answer.

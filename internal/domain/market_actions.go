@@ -14,16 +14,9 @@ import (
 // It returns ErrAlreadyAsked while the player is still asking around for the card, and
 // ErrNoHolder when no NPC that trades holds it, and then changes nothing.
 func (m *Market) AskAround(card CardKey, now time.Time) (MarketID, error) {
-	over := MarketID(0)
-	for _, r := range m.requests {
-		if r.Card != card {
-			continue
-		}
-		if m.Pending(r.ID) > 0 || slices.ContainsFunc(m.answers, func(a MarketAnswer) bool { return a.To == r.ID }) {
-			return 0, fmt.Errorf("%w: %s", ErrAlreadyAsked, card.ID)
-		}
-		over = r.ID
-		break
+	over, err := m.overRequest(card)
+	if err != nil {
+		return 0, err
 	}
 	holders := m.holders(card)
 	if len(holders) == 0 {
@@ -36,6 +29,22 @@ func (m *Market) AskAround(card CardKey, now time.Time) (MarketID, error) {
 	m.requests = append(m.requests, MarketRequest{ID: id, Card: card, At: now, Asked: len(holders)})
 	m.expect(id, holders, now)
 	return id, nil
+}
+
+// overRequest returns the request for card whose answers are all over, which a new one replaces, or
+// 0 when there is none. It returns ErrAlreadyAsked while the player still waits on a request for
+// the card.
+func (m *Market) overRequest(card CardKey) (MarketID, error) {
+	for _, r := range m.requests {
+		if r.Card != card {
+			continue
+		}
+		if m.Pending(r.ID) > 0 || slices.ContainsFunc(m.answers, func(a MarketAnswer) bool { return a.To == r.ID }) {
+			return 0, fmt.Errorf("%w: %s", ErrAlreadyAsked, card.ID)
+		}
+		return r.ID, nil
+	}
+	return 0, nil
 }
 
 // HasHolder reports whether an NPC that trades holds card on its shelf, which is whether AskAround

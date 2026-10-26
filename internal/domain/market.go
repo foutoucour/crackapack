@@ -28,6 +28,9 @@ var (
 	ErrCoinsOnly = errors.New("market: a counter on an offer asks for coins, with no card")
 	// ErrAwaitingReply is returned for an answer the player countered, until the NPC replies.
 	ErrAwaitingReply = errors.New("market: the answer waits for the NPC's reply to the counter")
+	// ErrOfferNotBelowAsk is returned by Offer for a price at or above the asking price: the
+	// player buys at that price instead.
+	ErrOfferNotBelowAsk = errors.New("market: an offer is below the asking price, and above that the player buys now")
 )
 
 // MarketID identifies a request, a listing or an answer of a market. IDs start at 1 and grow.
@@ -65,6 +68,8 @@ type MarketRequest struct {
 	At   time.Time
 	// Asked is the NPCs asked: those that held the card on their shelf.
 	Asked int
+	// Direct is true for the request an offer to one NPC makes, which ends with its answer.
+	Direct bool
 }
 
 // MarketListing is a card the player put on the market at an asking price. One copy of it is
@@ -280,6 +285,15 @@ func (m *Market) end(id MarketID) {
 	m.pending = slices.DeleteFunc(m.pending, func(p MarketPending) bool { return p.To == id })
 }
 
+// dropAnswer drops the answer id. The request an offer made ends with its answer.
 func (m *Market) dropAnswer(id MarketID) {
-	m.answers = slices.DeleteFunc(m.answers, func(a MarketAnswer) bool { return a.ID == id })
+	i, ok := m.answer(id)
+	if !ok {
+		return
+	}
+	to := m.answers[i].To
+	m.answers = slices.Delete(m.answers, i, i+1)
+	if r, ok := m.request(to); ok && m.requests[r].Direct {
+		m.end(to)
+	}
 }

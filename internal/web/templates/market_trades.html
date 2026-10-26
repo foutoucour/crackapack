@@ -1,0 +1,59 @@
+{{define "title"}}My trades{{end}}
+{{define "content"}}
+{{template "marketNotice" .Notice}}
+<div class="page-head">
+  <h1>Market</h1>
+  <p class="lead">The trades you started, by who they wait for. <a href="/market">Browse what the NPCs sell</a>, or ask around from an empty slot of <a href="/collection">a binder</a>.</p>
+</div>
+{{template "marketTabs" .Tabs}}
+
+{{if .Empty}}
+<p>You have no trade yet. <a href="/market">Browse what the NPCs sell</a> to start one.</p>
+{{else}}
+<section class="market-section" aria-labelledby="needs-heading">
+  <h2 id="needs-heading">Needs you</h2>
+  {{if .NeedsYou}}
+  {{template "tradeItems" .NeedsYou}}
+  {{else}}
+  <p>Nothing waits for you.</p>
+  {{end}}
+</section>
+
+<section class="market-section" aria-labelledby="waiting-heading">
+  <h2 id="waiting-heading">Waiting on an NPC</h2>
+  {{if .Waiting}}
+  {{template "tradeItems" .Waiting}}
+  {{else}}
+  <p>Nothing waits on an NPC.</p>
+  {{end}}
+</section>
+
+<section class="market-section" aria-labelledby="results-heading">
+  <h2 id="results-heading">Done</h2>
+  {{if .Results}}
+  <ol class="results-list">
+    {{range .Results}}
+    <li>{{.Text}} <span class="shelf-note">{{.When}}</span></li>
+    {{end}}
+  </ol>
+  {{else}}
+  <p>No deal yet.</p>
+  {{end}}
+</section>
+{{end}}
+{{end}}
+
+{{define "tradeItems"}}
+<ul class="market-list">
+  {{range .}}
+  <li class="with-thumb">
+    {{template "cardThumb" .Thumb}}
+    <div>
+      <h3>{{.Title}}</h3>
+      {{if .Request}}{{template "request" .Request}}{{end}}
+      {{if .Listing}}{{template "listing" .Listing}}{{end}}
+    </div>
+  </li>
+  {{end}}
+</ul>
+{{end}}
