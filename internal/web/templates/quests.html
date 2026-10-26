@@ -4,10 +4,10 @@
 <ul class="market-list">
   {{range .}}
   <li>
-    <h3>{{.Task}} <span class="tag {{.State}}">{{.Label}}</span></h3>
-    <p>Reward: {{.Prize}}.{{with .Link}} <a href="{{.Href}}">See {{.Name}} in its binder</a>.{{end}}</p>
+    <h3>{{if eq .State "done"}}{{template "check-mark"}}{{end}}{{.Task}} <span class="tag {{.State}}">{{.Label}}</span></h3>
+    <p>Reward: {{.Prize}}.{{with .Link}} <a href="{{.Href}}">{{template "icon" .Icon}}See {{.Name}} in its binder</a>.{{end}}</p>
     <p><progress value="{{.Progress}}" max="{{.Target}}" aria-label="{{.Task}}">{{.Progress}} of {{.Target}}</progress> {{.Progress}} / {{.Target}}</p>
-    {{if .Got}}<p>You got {{range $i, $card := .Got}}{{if $i}}, {{end}}<a href="{{$card.Href}}">{{$card.Name}}</a>{{end}}.</p>{{end}}
+    {{if .Got}}<p>You got {{range $i, $card := .Got}}{{if $i}}, {{end}}<a href="{{$card.Href}}">{{template "icon" $card.Icon}}{{$card.Name}}</a>{{end}}.</p>{{end}}
     {{if eq .State "lost"}}<p>The reward could not be given: the card or the copies it needed were gone.</p>{{end}}
   </li>
   {{end}}
@@ -23,12 +23,12 @@
 <section class="market-section" aria-labelledby="daily-heading">
   <h2 id="daily-heading">Today</h2>
   {{if .Daily}}{{template "questList" .Daily}}{{else}}<p>No daily quest today: the game had nothing to name for one.</p>{{end}}
-  <p class="lead">New daily quests at {{.DailyResets}}.</p>
+  <p class="lead">Quests updated in {{.DailyIn}}.</p>
 </section>
 
 <section class="market-section" aria-labelledby="weekly-heading">
   <h2 id="weekly-heading">This week</h2>
   {{if .Weekly}}{{template "questList" .Weekly}}{{else}}<p>No weekly quest this week: the game had nothing to name for one.</p>{{end}}
-  <p class="lead">New weekly quests at {{.WeeklyResets}}.</p>
+  <p class="lead">Quests updated in {{.WeeklyIn}}.</p>
 </section>
 {{end}}

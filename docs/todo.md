@@ -378,7 +378,10 @@ yet.
   [ADR-0066](adr/0066-a-save-names-the-cards-of-its-lists-by-a-dictionary.md). With the game's 12
   NPCs the file was 1.6 MB after 30 days and 2.0 MB after 90 before the card dictionary of that ADR,
   see the [tuning log](tuning-log.md), and every save rewrites it. It grows as more sets unlock.
-- [ ] NPC names and avatars. The simulation has no use for them.
+- [x] NPC names: a planeswalker or a legendary creature of the NPC's colours, or a colourless one for an
+  NPC with no colour, see `internal/domain/npc_names.go`. The names are cosmetic: the market pages show
+  them, and the simulation has no use for them.
+- [ ] NPC avatars.
 
 ### After V1
 
@@ -455,9 +458,8 @@ The stack is server-rendered `html/template`, see
   counter page that takes coins and spare cards, a Market page with every request, listing, answer
   and the latest results, and a badge in the header with the answers waiting. No script is needed.
   The pages are checked by their HTML in tests, through the demo's handlers with a moved clock, and
-  by a screenshot of headless Chrome. Left: the NPCs' names (an answer shows "NPC 4 (whale)"), a
-  message for a deal that completes a binder while the player is away (the game unlocks the sets
-  but does not tell them), counters that add cards other than the duplicates, a counter on an offer
+  by a screenshot of headless Chrome. Left: a message for a deal that completes a binder while the
+  player is away (the game unlocks the sets but does not tell them), counters that add cards other than the duplicates, a counter on an offer
   with cards (ADR-0058 asks for coins), offers on a listing from NPCs who come to want the card
   after it was listed, a lighter binder page (the controls add about 400 bytes a slot, so the
   largest binders weigh 280 to 330 KB: one form shared by a binder's buttons would cut it), and a
@@ -467,21 +469,34 @@ The stack is server-rendered `html/template`, see
   the header, see [Quests](core-features.md#quests). Left: a badge for the quests done since the
   player last looked, and the quest's card marked on its slot of a binder.
 - [ ] The profile.
-- [ ] **Booster opening experience.** Skip to the end needs a better place: the card image loading
-  overlays the button. A footer on the reveal would hold it. The restored animation for a Rare or a
-  Mythic is tracked in [#55](https://github.com/foutoucour/crackapack/issues/55).
-- [ ] **Quests, next round of the page.**
-  - [ ] Say how long is left before the quests update, as "Quests updated in 3 hours 20 mins". The
-    page shows the date and time of the update today, which does not tell how long is left.
-  - [ ] A check mark on a quest that is done.
-  - [ ] The icon of the card a quest gives, so the player sees which set it comes from.
-- [ ] **Energy icon in the header**, beside the gauge.
+- [x] **Booster opening experience.**
+  - [x] The burst, the rays and the glow play for every rare and mythic, not only a new one, see
+    [#55](https://github.com/foutoucour/crackapack/issues/55). The effect worked for a new rare in
+    headless Chrome: a rare already held got none, which the issue left to decide.
+  - [x] Skip to the end overlapping the card. Slowing the pictures or the set icon showed nothing, but
+    three things did overlap in headless Chrome, and each is fixed.
+    - The notices shown when the last card turns, such as a quest done, pushed the card down under
+      the bar and its price pill. The card now shrinks by their height.
+    - The turning card grew over the title and toward the bar, since the flip's perspective was
+      short. It is longer now, and the bar has a layer of its own.
+    - The set icon was a watermark behind the progress and the link to skip, which is now a button.
+      The icon has a place of its own at the left of the bar, and gives it up below 26rem.
+    - On a 320 px screen the bar wrapped to twice its height and covered half the card. Its labels
+      keep to one line, and the card leaves more room above it on the narrowest screens.
+    Checked by sampling the turning card and the Skip button every 40 ms through each flip, at 320,
+    360, 390 and 1280 px wide: the button was never covered and the card never reached the bar. Left:
+    three stacked notices on a short window still push the card under the bar, and the page scrolls.
+- [x] **Quests, next round of the page.** "Quests updated in 3 hours 20 mins" under each list, a check
+  mark on a quest that is done, and the icon of the set on the card a quest gives or gave.
+- [x] **Energy icon in the header**, beside the gauge.
 - [ ] **Page reviews.** Each is a pass on the page's look and flow, with no new rule behind it.
   - [ ] The market page.
   - [ ] The hunted page.
   - [ ] The header section of the collection page. Minor: it is too big and not appealing enough.
-- [ ] **The focus on a card**, the big view of a card is not centered.
-- [ ] Minor: in the collection page, some set names run onto two lines.
+- [x] **The focus on a card**, the big view of a card was not centered: it sat at the left of the
+  tools under it, which are wider.
+- [x] Minor: in the collection page, some set names ran onto two lines. A name keeps to one line and
+  ends in an ellipsis, with the whole name in the title of its link.
 - [ ] **Foil special effect** on a foil card.
 - [ ] **Buying from an NPC in the collection page**, a better experience than today's Ask around
   on an empty slot.

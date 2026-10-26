@@ -85,7 +85,7 @@
 {{end}}
 
 {{define "binderEntry"}}
-<li{{if .Locked}} class="locked"{{end}} data-set-entry><a href="/collection?set={{.SetCode}}"{{if .Current}} aria-current="page"{{end}}>{{if not .Locked}}<progress value="{{.Owned}}" max="{{.Total}}" aria-hidden="true"></progress>{{end}}{{template "icon" .Icon}}<span class="set-name">{{.SetName}}</span> <span class="tab-count">{{.Owned}} / {{.Total}} <span class="pct">{{percent .Owned .Total}}%</span></span>{{if .Locked}} <span class="tab-lock">locked</span>{{end}}</a></li>
+<li{{if .Locked}} class="locked"{{end}} data-set-entry><a href="/collection?set={{.SetCode}}" title="{{.SetName}}"{{if .Current}} aria-current="page"{{end}}>{{if not .Locked}}<progress value="{{.Owned}}" max="{{.Total}}" aria-hidden="true"></progress>{{end}}{{template "icon" .Icon}}<span class="set-name">{{.SetName}}</span> <span class="tab-count">{{.Owned}} / {{.Total}} <span class="pct">{{percent .Owned .Total}}%</span></span>{{if .Locked}} <span class="tab-lock">locked</span>{{end}}</a></li>
 {{end}}
 
 {{define "filterPanel"}}

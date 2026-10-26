@@ -105,8 +105,8 @@ type cardView struct {
 	ImageID string
 	Foil    bool
 	New     bool
-	// Highlight is the rarity of a new rare or mythic, which turns with an effect of its own, and
-	// empty for any other card.
+	// Highlight is the rarity of a rare or a mythic, new or not, which turns with an effect of its
+	// own, and empty for any other card.
 	Highlight string
 	// Value is the reference value of the card in coins, zero when the page shows none.
 	Value domain.Coins
@@ -138,7 +138,7 @@ func newPackView(opening play.Opening, packs []play.Pack, value cardValuer) pack
 			New:     c.New,
 			Icon:    newIconView(opening.IconCode, string(c.Card.Rarity)),
 		}
-		if c.New && (c.Card.Rarity == domain.RarityRare || c.Card.Rarity == domain.RarityMythic) {
+		if c.Card.Rarity == domain.RarityRare || c.Card.Rarity == domain.RarityMythic {
 			view.Cards[i].Highlight = string(c.Card.Rarity)
 		}
 		// A game without coins has no value to show, and says so with an error.

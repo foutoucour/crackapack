@@ -44,7 +44,7 @@ func TestPack_preloadsThePicturesOfTheFirstTheSecondAndTheLastCard(t *testing.T)
 	}
 }
 
-func TestPack_aNewRareHasTheEffectOfItsOwnAndOtherCardsHaveNone(t *testing.T) {
+func TestPack_aRareHasTheEffectOfItsOwnAndOtherCardsHaveNone(t *testing.T) {
 	t.Parallel()
 	rav := domaintest.NewRavnicaCatalogue()
 	srv, c := newServer(t, rav)
@@ -56,10 +56,10 @@ func TestPack_aNewRareHasTheEffectOfItsOwnAndOtherCardsHaveNone(t *testing.T) {
 	if rares == 0 {
 		t.Fatalf("the booster holds no rare, the test covers nothing:\n%s", body)
 	}
-	if got := strings.Count(body, " new-rare"); got != rares {
-		t.Errorf("%d cards carry new-rare, want the %d new rares of the first booster", got, rares)
+	if got := strings.Count(body, " highlight-rare"); got != rares {
+		t.Errorf("%d cards carry highlight-rare, want the %d rares of the booster", got, rares)
 	}
-	if strings.Contains(body, " new-common") || strings.Contains(body, " new-uncommon") {
+	if strings.Contains(body, " highlight-common") || strings.Contains(body, " highlight-uncommon") {
 		t.Errorf("a card that is not a rare or a mythic has an effect:\n%s", body)
 	}
 }

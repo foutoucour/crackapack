@@ -48,9 +48,23 @@ func TestQuests_thePageSaysWhatToDoAndWhatItGives(t *testing.T) {
 		"Finish 5 daily quests",
 		"A premium booster of Set S",
 		`<progress value="0" max="2"`,
-		"New daily quests at Sat 17 Oct, 00:00 UTC",
-		"New weekly quests at Mon 19 Oct, 00:00 UTC",
+		"Quests updated in 12 hours",
+		"Quests updated in 2 days 12 hours",
 	)
+}
+
+func TestQuests_thePageSaysHowLongIsLeftBeforeTheQuestsUpdate(t *testing.T) {
+	t.Parallel()
+	rules := domain.QuestRules{DailyCount: 1, WeeklyCount: 1, Templates: []domain.QuestTemplate{
+		questTemplate(domain.QuestDaily, domain.QuestOpenBoosters, 2, domain.RewardPremiumBooster),
+		questTemplate(domain.QuestWeekly, domain.QuestCompleteDailies, 5, domain.RewardPremiumBooster),
+	}}
+	shop := newQuestShop(t, rules, counterSet())
+	shop.clock.Advance(8*time.Hour + 40*time.Minute) // Friday 20:40 UTC
+
+	body := shop.get(t, "/quests")
+
+	mustContain(t, "the quests page", body, "Quests updated in 3 hours 20 mins", "Quests updated in 2 days 3 hours 20 mins")
 }
 
 func TestQuests_theWordingNamesEveryAction(t *testing.T) {

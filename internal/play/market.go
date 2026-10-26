@@ -87,8 +87,9 @@ type Listing struct {
 // it pays or the cards it gives.
 type Answer struct {
 	ID domain.MarketID
-	// NPC is who answered, and Archetype its personality.
+	// NPC is who answered, Name what it is called and Archetype its personality.
 	NPC       int
+	Name      string
 	Archetype string
 	Coins     domain.Coins
 	Cards     []CardLine
@@ -360,7 +361,7 @@ func (g *Game) answersTo(id domain.MarketID, answers []domain.MarketAnswer) []An
 func (g *Game) answerView(a domain.MarketAnswer) Answer {
 	out := Answer{ID: a.ID, NPC: a.NPC, Coins: a.Coins, Cards: g.cardLines(a.Cards), At: a.At, Expires: a.Expires}
 	if npc, ok := g.economy.crowd.NPC(a.NPC); ok {
-		out.Archetype = npc.Archetype
+		out.Name, out.Archetype = npc.Name, npc.Archetype
 	}
 	if c := a.Counter; c != nil {
 		out.Counter = &CounterTerms{Coins: c.Coins, Cards: g.cardLines(c.Cards), ReplyAt: c.ReplyAt}

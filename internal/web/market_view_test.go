@@ -98,12 +98,15 @@ func TestNewResultView_saysEveryWayAnAnswerEnds(t *testing.T) {
 	npc := play.Answer{NPC: 4, Archetype: "playset_hunter", Coins: 30}
 	countered := npc
 	countered.Counter = &play.CounterTerms{Coins: 20}
+	named := npc
+	named.Name = "Ajani Goldmane"
 	tests := []struct {
 		name   string
 		result play.Result
 		want   string
 	}{
 		{"bought", play.Result{Kind: domain.AnswerAsk, Outcome: domain.MarketAccepted, Answer: npc}, "Bought Bolt from NPC 5 (playset hunter) for ◎30."},
+		{"bought from a NPC with a name", play.Result{Kind: domain.AnswerAsk, Outcome: domain.MarketAccepted, Answer: named}, "Bought Bolt from Ajani Goldmane (playset hunter) for ◎30."},
 		{"bought on a counter", play.Result{Kind: domain.AnswerAsk, Outcome: domain.MarketAccepted, Answer: countered}, "Bought Bolt from NPC 5 (playset hunter) for ◎20."},
 		{"sold", play.Result{Kind: domain.AnswerOffer, Outcome: domain.MarketAccepted, Answer: npc}, "Sold Bolt to NPC 5 (playset hunter) for ◎30."},
 		{"refused", play.Result{Kind: domain.AnswerAsk, Outcome: domain.MarketRefused, Answer: countered}, "NPC 5 (playset hunter) refused your counter of ◎20 for Bolt."},

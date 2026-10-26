@@ -79,6 +79,17 @@ func TestEnergy_everyPageShowsTheGauge(t *testing.T) {
 	}
 }
 
+func TestEnergy_theGaugeInTheHeaderHasTheEnergyIcon(t *testing.T) {
+	t.Parallel()
+	srv, c, _, _ := energyServer(t, playtest.Cost)
+
+	_, body := get(t, c, srv.URL+"/")
+
+	if !regexp.MustCompile(`data-energy>\s*<svg class="energy-icon"`).MatchString(body) {
+		t.Errorf("the gauge does not open on the energy icon:\n%s", body)
+	}
+}
+
 func TestEnergy_theWelcomeBoostersCostNothingAndTheNextOnesDo(t *testing.T) {
 	t.Parallel()
 	srv, c, _, code := energyServer(t, playtest.Cost)

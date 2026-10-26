@@ -256,7 +256,7 @@ func (idx *marketIndex) answerViews(answers []play.Answer, ask bool, card string
 			Back:        back,
 		}
 		if c := a.Counter; c != nil {
-			out[i].Countered = fmt.Sprintf("You countered with %s. %s replies in %s.", termsText(c.Coins, c.Cards), npcName(a.NPC), humanDuration(c.ReplyAt.Sub(idx.now)))
+			out[i].Countered = fmt.Sprintf("You countered with %s. %s replies in %s.", termsText(c.Coins, c.Cards), npcName(a), humanDuration(c.ReplyAt.Sub(idx.now)))
 		} else {
 			out[i].Lapses = "Lapses in " + humanDuration(a.Expires.Sub(idx.now))
 		}
@@ -270,15 +270,21 @@ func counterHref(id domain.MarketID, back backView) string {
 	return "/counter-offer?" + q.Encode()
 }
 
-// npcName numbers an NPC from 1, as a player counts.
-func npcName(id int) string { return fmt.Sprintf("NPC %d", id+1) }
+// npcName is what the NPC that answered is called, and "NPC 3" for one with no name, numbered from
+// 1 as a player counts.
+func npcName(a play.Answer) string {
+	if a.Name != "" {
+		return a.Name
+	}
+	return fmt.Sprintf("NPC %d", a.NPC+1)
+}
 
-// npcLabel is who answered: the NPC and its personality, "NPC 3 (playset hunter)".
+// npcLabel is who answered: the NPC and its personality, "Ajani Goldmane (playset hunter)".
 func npcLabel(a play.Answer) string {
 	if a.Archetype == "" {
-		return npcName(a.NPC)
+		return npcName(a)
 	}
-	return fmt.Sprintf("%s (%s)", npcName(a.NPC), strings.ReplaceAll(a.Archetype, "_", " "))
+	return fmt.Sprintf("%s (%s)", npcName(a), strings.ReplaceAll(a.Archetype, "_", " "))
 }
 
 // cardName is the name of a card for the player: "(foil)" after that of a foil.
