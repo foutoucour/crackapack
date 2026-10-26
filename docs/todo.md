@@ -473,19 +473,21 @@ The stack is server-rendered `html/template`, see
   - [x] The burst, the rays and the glow play for every rare and mythic, not only a new one, see
     [#55](https://github.com/foutoucour/crackapack/issues/55). The effect worked for a new rare in
     headless Chrome: a rare already held got none, which the issue left to decide.
-  - [x] Skip to the end overlapping the card. Slowing the pictures or the set icon showed nothing, but
-    three things did overlap in headless Chrome, and each is fixed.
-    - The notices shown when the last card turns, such as a quest done, pushed the card down under
-      the bar and its price pill. The card now shrinks by their height.
+  - [x] Skip to the end overlapping the card. Slowing the pictures or the set icon showed nothing in
+    Chrome, but four things did overlap in the browsers, and each is fixed.
+    - The notices of the end of a booster, such as a quest done, pushed the card down under the bar
+      and its price pill. Skip shows them all at once, which is when the card ended flush against the
+      bar in WebKit, Safari's engine. They stand in a panel over the bar now, which scrolls when it
+      is long and closes notice by notice, and the card keeps its size.
     - The turning card grew over the title and toward the bar, since the flip's perspective was
       short. It is longer now, and the bar has a layer of its own.
     - The set icon was a watermark behind the progress and the link to skip, which is now a button.
       The icon has a place of its own at the left of the bar, and gives it up below 26rem.
     - On a 320 px screen the bar wrapped to twice its height and covered half the card. Its labels
       keep to one line, and the card leaves more room above it on the narrowest screens.
-    Checked by sampling the turning card and the Skip button every 40 ms through each flip, at 320,
-    360, 390 and 1280 px wide: the button was never covered and the card never reached the bar. Left:
-    three stacked notices on a short window still push the card under the bar, and the page scrolls.
+    Checked in Chrome, Firefox and WebKit by sampling the turning card and the Skip button every
+    40 ms through each flip, and by pressing Skip with the pictures slowed, with three notices to
+    show: no button was covered and the card stayed clear of the bar, at 320 to 1280 px wide.
 - [x] **Quests, next round of the page.** "Quests updated in 3 hours 20 mins" under each list, a check
   mark on a quest that is done, and the icon of the set on the card a quest gives or gave.
 - [x] **Energy icon in the header**, beside the gauge.

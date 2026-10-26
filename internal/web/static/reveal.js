@@ -184,26 +184,23 @@ import { createViewer, describe, dropBrokenPictures } from './cards.js';
     status.textContent = message;
     controls.remove();
     actions.hidden = false;
-    told.forEach((notice) => { notice.hidden = false; });
-    makeRoomForTold();
-    window.addEventListener('resize', makeRoomForTold);
+    showTold();
     const next = finishedBySpace
       ? actions.querySelector('a')
       : actions.querySelector('button:not(:disabled)') || actions.querySelector('a');
     if (next) next.focus({ preventScroll: true });
   }
 
-  // The notices shown at the end push the card down, under the pinned bar. The card is sized from
-  // the room above it, so tell the style how much the notices take and it shrinks to fit. A pile of
-  // notices that would leave no card is not made room for: the page scrolls, as it always did.
-  const MAX_NOTICE_SHARE = 0.3;
-  function makeRoomForTold() {
-    const height = told.reduce((sum, notice) => {
-      if (notice.hidden) return sum;
-      return sum + notice.getBoundingClientRect().height + parseFloat(getComputedStyle(notice).marginTop);
-    }, 0);
-    const room = Math.min(height, window.innerHeight * MAX_NOTICE_SHARE);
-    document.documentElement.style.setProperty('--notice-h', `${room}px`);
+  // The notices of the end, which Skip shows all at once, are as tall as the card can bear: at the top
+  // of the page they pushed the card under the pinned bar. They go to a panel over the bar instead,
+  // which scrolls when it is long, and each one closes.
+  function showTold() {
+    if (!told.length) return;
+    const panel = document.createElement('div');
+    panel.className = 'told';
+    panel.append(...told);
+    document.body.append(panel);
+    told.forEach((notice) => { notice.hidden = false; });
   }
 
   function makeButton(text, className) {
