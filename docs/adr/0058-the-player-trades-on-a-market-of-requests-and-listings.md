@@ -3,7 +3,9 @@
 ## Status
 
 Proposed — 2026-10-23. Supersedes [ADR-0012](0012-an-npc-counters-once.md) for the game only: the
-simulation's Exchange still follows ADR-0012.
+simulation's Exchange still follows ADR-0012. Superseded in part by
+[ADR-0077](0077-the-market-shows-what-the-npcs-hold-on-their-shelves.md): the player also sees what
+the NPCs hold on their shelves.
 
 ## Context
 

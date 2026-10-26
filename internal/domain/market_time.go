@@ -92,7 +92,7 @@ func (m *Market) deliver(i int) {
 		if npc.ShelfQuantity(a.Card) == 0 {
 			return
 		}
-		a.Coins = max(1, requiredTopUp(0, m.valuer.Price(a.Card.ID), npcMargin(npc, a.offer(), m.crowd.tick), m.params.CoinRate))
+		a.Coins = m.askingPrice(npc, a.Card)
 	} else if l, ok := m.listing(p.To); ok {
 		listing := m.listings[l]
 		a.Kind, a.Card = AnswerOffer, listing.Card

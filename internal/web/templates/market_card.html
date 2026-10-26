@@ -1,0 +1,43 @@
+{{define "title"}}{{.Name}} on the market{{end}}
+{{define "content"}}
+{{template "marketNotice" .Notice}}
+<div class="page-head">
+  <h1>{{.Name}}</h1>
+  <p class="lead"><a href="{{.BackHref}}">Back to the market</a>.{{if .Hunted}} You hunt this card.{{end}}</p>
+</div>
+{{template "marketTabs" .Tabs}}
+
+<div class="market-card">
+  {{template "cardThumb" .Thumb}}
+  <section aria-labelledby="sellers-heading">
+    <h2 id="sellers-heading">Who sells it</h2>
+    {{if .Sellers}}
+    <ul class="sellers">
+      {{range .Sellers}}
+      <li>
+        <p><strong>{{.Who}}</strong> asks {{coins .Price}}.{{if gt .Qty 1}} <span class="shelf-note">{{.Qty}} copies.</span>{{end}}</p>
+        <div class="answer-actions">
+          <form method="post" action="/buy-now">
+            <input type="hidden" name="card" value="{{$.CardID}}"><input type="hidden" name="finish" value="{{$.Finish}}"><input type="hidden" name="npc" value="{{.NPC}}">
+            {{range $.Filter.Fields}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{end}}
+            <button type="submit" class="primary">Buy now<span class="sr-only"> from {{.Who}} for {{coins .Price}}</span></button>
+          </form>
+          {{if gt .MaxOffer 0}}
+          <form method="post" action="/offer" class="offer-form">
+            <input type="hidden" name="card" value="{{$.CardID}}"><input type="hidden" name="finish" value="{{$.Finish}}"><input type="hidden" name="npc" value="{{.NPC}}">
+            {{range $.Filter.Fields}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{end}}
+            <label>Your offer<span class="sr-only"> to {{.Who}}</span> <input type="number" name="coins" min="1" max="{{.MaxOffer}}" inputmode="numeric" required></label>
+            <button type="submit">Make an offer<span class="sr-only"> to {{.Who}}</span></button>
+          </form>
+          {{end}}
+        </div>
+      </li>
+      {{end}}
+    </ul>
+    <p class="shelf-note">An offer below the price is answered once, after the NPC's delay, yes or no. Follow it in <a href="/market/trades">My trades</a>.</p>
+    {{else}}
+    <p>No NPC sells this card right now. <a href="{{.BackHref}}">Back to the market</a>.</p>
+    {{end}}
+  </section>
+</div>
+{{end}}

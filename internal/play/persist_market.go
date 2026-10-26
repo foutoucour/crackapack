@@ -91,7 +91,7 @@ func snapshotMarket(m *domain.Market) *MarketSnapshot {
 	s := m.State()
 	snap := &MarketSnapshot{NextID: s.NextID}
 	for _, r := range s.Requests {
-		snap.Requests = append(snap.Requests, RequestSnapshot{ID: r.ID, Card: r.Card.ID, Finish: r.Card.Finish, At: r.At, Asked: r.Asked})
+		snap.Requests = append(snap.Requests, RequestSnapshot{ID: r.ID, Card: r.Card.ID, Finish: r.Card.Finish, At: r.At, Asked: r.Asked, Direct: r.Direct})
 	}
 	for _, l := range s.Listings {
 		snap.Listings = append(snap.Listings, ListingSnapshot{ID: l.ID, Card: l.Card.ID, Finish: l.Card.Finish, Price: l.Price, At: l.At})
@@ -130,7 +130,7 @@ func restoreMarket(e *economy, snap *MarketSnapshot, reset bool) error {
 	}
 	s := domain.MarketState{NextID: snap.NextID}
 	for _, r := range snap.Requests {
-		s.Requests = append(s.Requests, domain.MarketRequest{ID: r.ID, Card: domain.CardKey{ID: r.Card, Finish: r.Finish}, At: r.At, Asked: r.Asked})
+		s.Requests = append(s.Requests, domain.MarketRequest{ID: r.ID, Card: domain.CardKey{ID: r.Card, Finish: r.Finish}, At: r.At, Asked: r.Asked, Direct: r.Direct})
 	}
 	for _, l := range snap.Listings {
 		s.Listings = append(s.Listings, domain.MarketListing{ID: l.ID, Card: domain.CardKey{ID: l.Card, Finish: l.Finish}, Price: l.Price, At: l.At})

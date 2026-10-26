@@ -492,7 +492,12 @@ The stack is server-rendered `html/template`, see
   mark on a quest that is done, and the icon of the set on the card a quest gives or gave.
 - [x] **Energy icon in the header**, beside the gauge.
 - [ ] **Page reviews.** Each is a pass on the page's look and flow, with no new rule behind it.
-  - [ ] The market page.
+  - [x] The market page: Browse lists what the NPCs sell, with Buy now and Make an offer, and My trades
+    groups the player's trades by who they wait for, see
+    [ADR-0077](adr/0077-the-market-shows-what-the-npcs-hold-on-their-shelves.md). The pages are checked
+    by their HTML in tests, through the demo's handlers too, and by a screenshot of headless Chrome at
+    1280 px. Left: a check on a phone-wide screen, which headless Chrome cannot show under 500 px, and
+    the offers: an NPC accepts one only when its margin falls before it replies, so most are refused.
   - [ ] The hunted page.
   - [ ] The header section of the collection page. Minor: it is too big and not appealing enough.
 - [x] **The focus on a card**, the big view of a card was not centered: it sat at the left of the

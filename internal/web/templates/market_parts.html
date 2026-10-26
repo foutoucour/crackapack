@@ -1,4 +1,4 @@
-{{define "backFields"}}{{if .Market}}<input type="hidden" name="from" value="market">{{else}}<input type="hidden" name="set" value="{{.Set}}"><input type="hidden" name="card" value="{{.Card}}">{{template "filterFields" .Filter}}{{end}}{{end}}
+{{define "backFields"}}{{if .Trades}}<input type="hidden" name="from" value="trades">{{else}}<input type="hidden" name="set" value="{{.Set}}"><input type="hidden" name="card" value="{{.Card}}">{{template "filterFields" .Filter}}{{end}}{{end}}
 
 {{/* A card on the market or hunted page: grey while the player does not hold it, a link to its slot in the binder. */}}
 {{define "cardThumb"}}<a class="card-thumb{{if not .Held}} unowned{{end}}" href="{{.Href}}">{{if .ImageID}}<img src="/card-image/{{.ImageID}}" class="art" alt="{{.Name}}" width="488" height="680" loading="lazy">{{else}}<span class="thumb-name">{{.Name}}</span>{{end}}<span class="thumb-set">{{template "icon" .Icon}}{{.SetName}}</span></a>{{end}}
@@ -32,12 +32,12 @@
 
 {{define "request"}}
 <div class="request">
-  <p class="request-status">{{.Status}}.</p>
+  <p class="request-status">{{if .Waits}}{{.Waits}}{{else}}{{.Status}}.{{end}}</p>
   {{template "answers" .Answers}}
   <div class="answer-actions">
     {{if .Over}}
     <form method="post" action="/ask-around">
-      {{template "cardFields" .}}{{if .Back.Market}}<input type="hidden" name="from" value="market">{{end}}
+      {{template "cardFields" .}}{{if .Back.Trades}}<input type="hidden" name="from" value="trades">{{end}}
       <button type="submit">Ask around again<span class="sr-only"> for {{.Name}}</span></button>
     </form>
     {{end}}
@@ -51,11 +51,29 @@
 
 {{define "listing"}}
 <div class="listing">
-  <p>Listed at {{coins .Price}}.{{with .Status}} {{.}}{{end}}</p>
+  <p>Listed at {{coins .Price}}.{{with .Status}} {{.}}{{end}}{{with .Waits}} {{.}}{{end}}</p>
   {{template "answers" .Answers}}
   <form method="post" action="/unlist">
     <input type="hidden" name="listing" value="{{.ListingID}}">{{template "backFields" .Back}}
     <button type="submit">Unlist<span class="sr-only"> {{.Name}}</span></button>
   </form>
 </div>
+{{end}}
+
+{{/* The notice of the last action, on top of the market's pages. */}}
+{{define "marketNotice"}}
+{{if or .Text .Unlocked}}
+<div class="results">
+  {{with .Text}}<p class="sale-notice" role="status">{{.}}</p>{{end}}
+  {{if .Unlocked}}{{template "unlocked" .Unlocked}}{{end}}
+</div>
+{{end}}
+{{end}}
+
+{{/* The tabs of the market's pages: what the NPCs sell, and the trades the player started. */}}
+{{define "marketTabs"}}
+<nav class="market-tabs" aria-label="Market">
+  <a href="/market"{{if .Browse}} aria-current="page"{{end}}>Browse</a>
+  <a href="/market/trades"{{if .Trades}} aria-current="page"{{end}}>My trades{{if .Waiting}} <span class="badge">{{.Waiting}}<span class="sr-only"> {{.Label}}</span></span>{{end}}</a>
+</nav>
 {{end}}

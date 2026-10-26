@@ -83,7 +83,8 @@ func NewHandler(game *play.Game, pics, icons images.Source, log *slog.Logger) ht
 	// The header marks the link of the section a page belongs to; a page with no section marks none.
 	sections := map[string]string{
 		"home": "/", "pack": "/", "collection": "/collection", "confirm": "/collection",
-		"market": marketPath, "market_counter": marketPath, "hunted": huntedPath, "quests": questsPath, "error": "",
+		"market_browse": marketPath, "market_card": marketPath, "market_trades": marketPath, "market_counter": marketPath,
+		"hunted": huntedPath, "quests": questsPath, "error": "",
 	}
 	for name, section := range sections {
 		pageFuncs := template.FuncMap{"section": func() string { return section }}
@@ -104,7 +105,11 @@ func NewHandler(game *play.Game, pics, icons images.Source, log *slog.Logger) ht
 	mux.HandleFunc("POST /buy", h.buy)
 	mux.HandleFunc("POST /sell", h.sell)
 	mux.HandleFunc("POST /sell-duplicates", h.sellDuplicates)
-	mux.HandleFunc("GET /market", h.market)
+	mux.HandleFunc("GET /market", h.browse)
+	mux.HandleFunc("GET /market/card", h.marketCard)
+	mux.HandleFunc("GET /market/trades", h.trades)
+	mux.HandleFunc("POST /buy-now", h.buyNow)
+	mux.HandleFunc("POST /offer", h.offerTo)
 	mux.HandleFunc("GET /quests", h.quests)
 	mux.HandleFunc("GET /hunted", h.hunted)
 	mux.HandleFunc("POST /hunt", h.hunt)

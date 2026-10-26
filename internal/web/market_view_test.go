@@ -162,9 +162,9 @@ func TestBackOf(t *testing.T) {
 		want  string
 		label string
 	}{
-		{"", "/market", "Back to the market"},
-		{"from=market", "/market", "Back to the market"},
-		{"from=market&set=S&card=S-00", "/market", "Back to the market"},
+		{"", "/market/trades", "Back to My trades"},
+		{"from=trades", "/market/trades", "Back to My trades"},
+		{"from=trades&set=S&card=S-00", "/market/trades", "Back to My trades"},
 		{"set=S&card=S-00", "/collection?set=S#c-S-00", "Back to the binder"},
 		{"set=S&card=S-00&rarity=rare", "/collection?rarity=rare&set=S#c-S-00", "Back to the binder"},
 		{"set=S&card=S-00&rarity=rare&colour=U", "/collection?colour=U&rarity=rare&set=S#c-S-00", "Back to the binder"},

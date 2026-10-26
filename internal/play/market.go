@@ -37,15 +37,18 @@ var (
 	ErrAwaitingReply = errors.New("play: the NPC has not replied to the counter yet")
 	// ErrGone is returned when the NPC no longer has the cards of its answer, which then ends.
 	ErrGone = errors.New("play: the NPC no longer has the cards")
+	// ErrOfferNotBelowAsk is returned by OfferTo for a price at or above the NPC's asking price: the
+	// player buys at that price instead.
+	ErrOfferNotBelowAsk = errors.New("play: an offer is below the asking price")
 	// ErrNotOnMarket is returned for a request, a listing or an answer that is not on the market:
 	// it never was, or it is over.
 	ErrNotOnMarket = errors.New("play: not on the market")
 )
 
-// MarketView is what the player sees of the market: what it asked for and listed, the answers of
-// the NPCs, and how the latest answers ended. Like a marketplace, it shows who answered and their
-// price, the NPCs still to answer a request but not who they are, and nothing of what an NPC holds
-// or wants beyond its answer.
+// MarketView is what the player sees of the trades it started: what it asked for and listed, the
+// answers of the NPCs, and how the latest answers ended. It shows who answered and their price, and
+// the NPCs still to answer a request but not who they are. What the NPCs hold on their shelves is
+// ForSale, see docs/adr/0077-the-market-shows-what-the-npcs-hold-on-their-shelves.md.
 type MarketView struct {
 	// Requests and Listings are newest first.
 	Requests []Request
@@ -59,7 +62,19 @@ type MarketView struct {
 	Now time.Time
 }
 
-// Request is the player asking around for a card.
+// TradeStage says whom a trade waits for.
+type TradeStage int
+
+const (
+	// StageNeedsYou is a trade with an answer the player can accept, counter or decline, or with
+	// none left to come, which the player asks again or stops.
+	StageNeedsYou TradeStage = iota + 1
+	// StageWaiting is a trade that waits on an NPC: for an answer, for the reply to a counter, or
+	// for an offer on a listing.
+	StageWaiting
+)
+
+// Request is the player asking around for a card, or offering an NPC less than its price.
 type Request struct {
 	ID     domain.MarketID
 	Card   domain.Card
@@ -68,8 +83,11 @@ type Request struct {
 	// Asked is the NPCs that had the card when the player asked, and Pending those of them that
 	// have not answered yet.
 	Asked, Pending int
+	// Direct is true for an offer to one NPC, whose only answer is that NPC's price, countered.
+	Direct bool
 	// Answers are the asking prices, oldest first.
 	Answers []Answer
+	Trade
 }
 
 // Listing is a card the player put on the market.
@@ -81,6 +99,41 @@ type Listing struct {
 	At     time.Time
 	// Answers are the offers, oldest first.
 	Answers []Answer
+	Trade
+}
+
+// Trade is where a request or a listing stands.
+type Trade struct {
+	Stage TradeStage
+	// NextAt is when the next NPC answers, the zero time when none is to. The reply to a counter is
+	// on the counter, see CounterTerms.
+	NextAt time.Time
+	// LapsesAt is when the first answer the player has not countered lapses, the zero time when
+	// there is none.
+	LapsesAt time.Time
+}
+
+// ForSale is a card that NPCs hold on their shelves, with what each asks for it.
+type ForSale struct {
+	Card   domain.Card
+	Finish domain.Finish
+	// SetCode is the set whose binder shows the card.
+	SetCode string
+	// Hunted is true when the player hunts the card, and Missing when the player holds no copy of it
+	// in any finish.
+	Hunted, Missing bool
+	// Sellers are the NPCs that hold it, cheapest first.
+	Sellers []Seller
+}
+
+// Seller is an NPC that holds a card on its shelf.
+type Seller struct {
+	NPC int
+	// Name is what the NPC is called and Archetype its personality.
+	Name, Archetype string
+	// Price is what it asks for one copy, and Qty the copies it holds.
+	Price domain.Coins
+	Qty   int
 }
 
 // Answer is an NPC's answer: to a request, the coins it asks for its card; to a listing, the coins
@@ -145,15 +198,18 @@ func (g *Game) Market() (MarketView, error) {
 	answers := m.Answers()
 	for _, r := range slices.Backward(m.Requests()) {
 		card := g.cards[r.Card.ID]
+		views := g.answersTo(r.ID, answers)
+		pending := m.Pending(r.ID)
 		v.Requests = append(v.Requests, Request{
-			ID: r.ID, Card: card, Finish: r.Card.Finish, At: r.At, Asked: r.Asked, Pending: m.Pending(r.ID),
-			Answers: g.answersTo(r.ID, answers),
+			ID: r.ID, Card: card, Finish: r.Card.Finish, At: r.At, Asked: r.Asked, Pending: pending, Direct: r.Direct,
+			Answers: views, Trade: tradeOf(m, r.ID, views, pending == 0 && len(views) == 0),
 		})
 	}
 	for _, l := range slices.Backward(m.Listings()) {
+		views := g.answersTo(l.ID, answers)
 		v.Listings = append(v.Listings, Listing{
 			ID: l.ID, Card: g.cards[l.Card.ID], Finish: l.Card.Finish, Price: l.Price, At: l.At,
-			Answers: g.answersTo(l.ID, answers),
+			Answers: views, Trade: tradeOf(m, l.ID, views, false),
 		})
 	}
 	for _, r := range slices.Backward(m.Results()) {
@@ -168,6 +224,28 @@ func (g *Game) Market() (MarketView, error) {
 		}
 	}
 	return v, nil
+}
+
+// tradeOf is where the request or listing id stands, given its answers. A request with nothing left
+// to come or to take is over: it is the player's turn, to ask again or to stop.
+func tradeOf(m *domain.Market, id domain.MarketID, answers []Answer, over bool) Trade {
+	t := Trade{Stage: StageWaiting}
+	if next, ok := m.NextAnswer(id); ok {
+		t.NextAt = next
+	}
+	for _, a := range answers {
+		if a.Counter != nil {
+			continue
+		}
+		t.Stage = StageNeedsYou
+		if t.LapsesAt.IsZero() || a.Expires.Before(t.LapsesAt) {
+			t.LapsesAt = a.Expires
+		}
+	}
+	if over {
+		t.Stage = StageNeedsYou
+	}
+	return t
 }
 
 // AskAround asks the NPCs that have the card id in finish what they want for it. They answer
@@ -393,6 +471,7 @@ func marketError(err error) error {
 		{domain.ErrInvalidLine, ErrNegative},
 		{domain.ErrTooManyCards, ErrTooManyCards},
 		{domain.ErrAwaitingReply, ErrAwaitingReply},
+		{domain.ErrOfferNotBelowAsk, ErrOfferNotBelowAsk},
 		{domain.ErrInsufficientBalance, ErrNotEnoughCoins},
 		{domain.ErrNPCLacksCard, ErrGone},
 	} {

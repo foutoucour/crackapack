@@ -1,0 +1,61 @@
+{{define "title"}}Market{{end}}
+{{define "content"}}
+{{template "marketNotice" .Notice}}
+<div class="page-head">
+  <h1>Market</h1>
+  <p class="lead">What the NPCs hold on their shelves. Open a card to buy it at an NPC's price, or to offer less. <a href="/collection">Go to your binders</a>.</p>
+</div>
+{{template "marketTabs" .Tabs}}
+
+<form method="get" action="/market" class="browse-filter" aria-label="Filter the cards">
+  <label>Name <input type="search" name="q" value="{{.Filter.Q}}" autocomplete="off"></label>
+  <label>Set
+    <select name="set">
+      <option value="">All sets</option>
+      {{range .Sets}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+    </select>
+  </label>
+  <label>Colour
+    <select name="colour">
+      <option value="">Any colour</option>
+      {{range .Colours}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+    </select>
+  </label>
+  <label>Rarity
+    <select name="rarity">
+      <option value="">Any rarity</option>
+      {{range .Rarities}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+    </select>
+  </label>
+  <label class="check"><input type="checkbox" name="hunted" value="1"{{if .Filter.Hunted}} checked{{end}}> Hunted</label>
+  <label class="check"><input type="checkbox" name="missing" value="1"{{if .Filter.Missing}} checked{{end}}> Missing from my binders</label>
+  <button type="submit">Filter</button>
+  {{if .Filtered}}<a class="button" href="/market">Clear</a>{{end}}
+</form>
+
+<section aria-labelledby="cards-heading">
+  <h2 id="cards-heading" class="sr-only">Cards for sale</h2>
+  {{if .Tiles}}
+  <p class="shelf-note">{{.Total}} {{if eq .Total 1}}card{{else}}cards{{end}}{{if .Filtered}} match{{if eq .Total 1}}es{{end}} the filter{{end}}.</p>
+  <ul class="sale-grid">
+    {{range .Tiles}}
+    <li class="sale-tile">
+      <a href="{{.Href}}">
+        <span class="card-thumb{{if .Missing}} unowned{{end}}">{{if .Thumb.ImageID}}<img src="/card-image/{{.Thumb.ImageID}}" class="art" alt="" width="488" height="680" loading="lazy">{{else}}<span class="thumb-name">{{.Name}}</span>{{end}}</span>
+        <span class="tile-name">{{.Name}}{{if .Hunted}} <span class="tag">Hunted</span>{{end}}</span>
+        <span class="tile-price">From {{coins .From}}</span>
+        <span class="shelf-note">{{.Sellers}}</span>
+        <span class="sr-only">Open {{.Name}}</span>
+      </a>
+    </li>
+    {{end}}
+  </ul>
+  <nav class="pager" aria-label="Pages of cards">
+    {{if .Prev}}<a class="button" href="{{.Prev}}" rel="prev">Previous page</a>{{end}}
+    {{if .Next}}<a class="button" href="{{.Next}}" rel="next">Next page</a>{{end}}
+  </nav>
+  {{else}}
+  <p>{{if .Filtered}}No card matches the filter. <a href="/market">Clear it</a>.{{else}}No NPC has a card to sell right now: they open boosters every day, come back later.{{end}}</p>
+  {{end}}
+</section>
+{{end}}
